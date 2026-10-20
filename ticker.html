@@ -175,7 +175,7 @@
      días (solo para el fútbol uruguayo) cada 15 minutos. */
   const cacheDias = {};
   const estadoCarga = { ok: 0, error: 0, ultimoError: "" };
-  let vueltaCompleta = false;
+  let vueltaCompleta = false, principalesCargados = false;   // principales: fútbol uruguayo, planilla y tablas
 
   async function cargarLiga(deporte, liga, nombre, soloUruguayos) {
     if (ligaFallida[liga] && Date.now() - ligaFallida[liga] < 5 * 60e3) return;
@@ -278,6 +278,7 @@
         await cargarManuales();
         await cargarTablasHoja();
         await cargarTablas();
+        principalesCargados = true;
         for (const c of resto) await cargarLiga(c.deporte || "soccer", c.liga, c.nombre, false);
         for (const c of extraSinRepetir) await cargarLiga("soccer", c.liga, c.nombre, true);
         for (const l of LIGAS_PROGRAMA) if (!ligasPropias.has(l) && !extra.some((c) => c.liga === l)) await cargarLiga("soccer", l, NOMBRES[l] || l, false);
@@ -1240,7 +1241,7 @@
         sec.appendChild(T.el("h2", null, (n + 1) + ". " + (NOMBRE_BLOQUE[k] || k)));
         let piezas = [];
         try { piezas = (BLOQUES[k] || (() => []))(); } catch (e) { piezas = []; }
-        if (!piezas.length) sec.appendChild(T.el("p", "v-vacio", "Sin datos ahora: este bloque se saltea en la cinta."));
+        if (!piezas.length) sec.appendChild(T.el("p", "v-vacio", (vueltaCompleta || (principalesCargados && /^(uru|segunda|planilla)/.test(k))) ? "Sin datos ahora: este bloque se saltea en la cinta." : "Cargando…"));
         else {
           const seg = T.el("div", "seg v-seg");
           piezas.forEach((x) => seg.appendChild(piezaDOM(x)));
@@ -1252,8 +1253,10 @@
         (d !== hoy ? " · los resultados son los de hoy, ordenados como el día elegido" : "");
     }
     dibujar();
+    // al principio se redibuja seguido, a medida que llegan los datos; después, cada minuto
+    let veces = 0;
+    const rapido = setInterval(() => { dibujar(); if (++veces >= 24) clearInterval(rapido); }, 5e3);
     setInterval(dibujar, 60e3);
-    setTimeout(dibujar, 20e3);
   }
 
   let scroller = null;
