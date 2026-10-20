@@ -171,6 +171,7 @@
     for (;;) {
       if (T.demo || sinPlanilla) noticias = window.TickerDemo.noticiasTanda.slice();
       else {
+        try { await T.cargarAjustes(); } catch (e) { /* sin pestaña de ajustes */ }
         try {
           const filas = await T.leerHoja(C.hojaNoticias || "noticias");
           if (filas) noticias = filas.filter((f) => T.esSi(f.mostrar) && (f.titular || "").trim()).map((f) => {

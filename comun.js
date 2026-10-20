@@ -112,6 +112,47 @@
     return T.parseCSV(await T.fetchText(url));
   };
 
+  /* ---- Pestaña "ajustes" de la planilla: pisa los valores de config.js ----
+     Columnas: ajuste | valor | explicacion. Se reconoce el ajuste por su nombre.
+     Si un valor está vacío o no es un número válido, queda el de config.js. */
+  const AJUSTES = [
+    ["alto de la franja", ["altoFranja"], 40, 140],
+    ["velocidad de la cinta", ["velocidad"], 20, 400],
+    ["segundos por noticia", ["tanda", "segundosPorNoticia"], 5, 120],
+    ["segundos por resultado destacado", ["tanda", "segundosPorResultado"], 3, 60],
+    ["repetir uruguayo en vivo cada", ["vivoUruguayoCada"], 1, 20],
+    ["tabla anual: primeros", ["tablas", "anualMostrar"], 1, 16],
+    ["descenso: ultimos", ["tablas", "promediosMostrar"], 1, 16],
+    ["argentina: primeros por zona", ["tablas", "argentinaMostrar"], 1, 30],
+    ["brasil: primeros", ["tablas", "brasilArriba"], 0, 20],
+    ["brasil: ultimos", ["tablas", "brasilAbajo"], 0, 20],
+    ["europa: primeros", ["tablas", "europaMostrar"], 1, 20],
+    ["copas fase de liga: primeros", ["tablas", "copasMostrar"], 1, 36]
+  ];
+  const sinTildes = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim();
+  T.ajustesHoja = {};
+  T.cargarAjustes = async function () {
+    if (T.demo) return false;
+    let filas;
+    try { filas = await T.leerHoja("ajustes"); } catch (e) { return false; }
+    if (!filas || !filas.length || !("ajuste" in filas[0])) return false;
+    let cambio = false;
+    filas.forEach((f) => {
+      const nombre = sinTildes(f.ajuste);
+      const def = AJUSTES.find((a) => nombre.startsWith(a[0]));
+      const v = parseFloat(String(f.valor || "").replace(",", "."));
+      if (!def || isNaN(v) || v < def[2] || v > def[3]) return;
+      const ruta = def[1];
+      let obj = C;
+      for (let i = 0; i < ruta.length - 1; i++) obj = obj[ruta[i]] = obj[ruta[i]] || {};
+      const k = ruta[ruta.length - 1];
+      if (obj[k] !== v) { obj[k] = v; cambio = true; }
+      T.ajustesHoja[ruta.join(".")] = v;
+    });
+    if (cambio && T.medir) T.medir();
+    return cambio;
+  };
+
   /* Links de imágenes de Google Drive → link directo que se puede mostrar */
   T.urlImagen = function (u) {
     if (!u) return "";
@@ -218,6 +259,7 @@
     document.documentElement.style.setProperty("--u", T.unidad + "px");
   }
   medir();
+  T.medir = medir;
   window.addEventListener("resize", medir);
 
   T.aplicarColores();

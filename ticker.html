@@ -1212,6 +1212,35 @@
     "bra-resultados": "Brasil · resultados", "bra-fixture": "Brasil · próxima fecha", "bra-tabla": "Brasil · tabla",
     "europa-resultados": "Europa · resultados y tablas", "europa-fixture": "Europa · próxima fecha y tablas"
   };
+  /* Pestaña "programa" de la planilla: orden | lunes | martes | … | domingo.
+     Cada celda es un bloque (por su nombre, como en NOMBRE_BLOQUE). Un día con al menos
+     un bloque válido reemplaza al de config.js; un día vacío queda como estaba. */
+  const ID_BLOQUE = {};
+  Object.keys(NOMBRE_BLOQUE).forEach((k) => { ID_BLOQUE[normEq(NOMBRE_BLOQUE[k])] = k; ID_BLOQUE[normEq(k)] = k; });
+  const programaOriginal = JSON.parse(JSON.stringify(C.programa || {}));
+  T.noReconocidos = [];
+  async function cargarProgramaHoja() {
+    if (T.demo || !C.programa) return;
+    let filas;
+    try { filas = await T.leerHoja("programa"); } catch (e) { return; }
+    if (!filas || !filas.length || !("lunes" in filas[0])) return;
+    filas.sort((a, b) => (parseFloat(a.orden) || 999) - (parseFloat(b.orden) || 999));
+    const nuevo = JSON.parse(JSON.stringify(programaOriginal)), raros = [];
+    DIAS.forEach((dia) => {
+      const lista = [];
+      filas.forEach((f) => {
+        const v = (f[dia] || "").trim();
+        if (!v) return;
+        const id = ID_BLOQUE[normEq(v)];
+        if (id && BLOQUES[id]) lista.push(id); else raros.push(dia + ": " + v);
+      });
+      if (lista.length) nuevo[dia] = lista;
+    });
+    C.programa = nuevo;
+    T.noReconocidos = raros;
+    if (raros.length) console.warn("Bloques que no reconozco en la pestaña programa:", raros.join(" · "));
+  }
+
   function iniciarVista() {
     document.documentElement.classList.add("vista");
     const cab = T.el("header", "v-cab");
@@ -1249,7 +1278,8 @@
         }
         cont.appendChild(sec);
       });
-      estado.textContent = "Actualizado " + fmtHora.format(new Date()) + " · se actualiza solo cada minuto" +
+      estado.textContent = (T.noReconocidos.length ? "⚠ En la pestaña programa no reconozco: " + T.noReconocidos.join(", ") + " · " : "") +
+        "Actualizado " + fmtHora.format(new Date()) + " · se actualiza solo cada minuto" +
         (d !== hoy ? " · los resultados son los de hoy, ordenados como el día elegido" : "");
     }
     dibujar();
@@ -1259,7 +1289,20 @@
     setInterval(dibujar, 60e3);
   }
 
+  // ajustes y programa editables desde la planilla: se leen cada minuto, aparte de los resultados
+  async function cicloAjustes() {
+    for (;;) {
+      try {
+        await T.cargarAjustes();
+        await cargarProgramaHoja();
+        if (scroller && !T.params.get("velocidad") && C.velocidad) scroller.vel = C.velocidad;
+      } catch (e) { console.warn("Ajustes de la planilla", e.message); }
+      await T.esperar(60e3);
+    }
+  }
+
   let scroller = null;
+  cicloAjustes();
   cicloDatos();
   cargarClubesUruguayos().then(() => cicloPlanteles());
   cicloFormaciones();
