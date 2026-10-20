@@ -1,0 +1,119 @@
+TICKER 13a0 PARA OBS
+====================
+
+Una franja con el logo y los resultados corriendo de costado.
+
+ARCHIVOS
+  ticker.html            El ticker de resultados (la franja de abajo)
+  tanda.html             Pantalla completa para la tanda: noticia + resultado destacado + ticker
+  noticias.html          Ticker de noticias aparte (opcional, desde la planilla de Google)
+  config.js              Configuración: colores, velocidad, ligas, link de la planilla
+  logo.png               Logo del programa
+  planilla-ticker.xlsx   Plantilla de la planilla de Google (noticias y resultados manuales)
+  estilos.css, comun.js, demo-datos.js   No hace falta tocarlos
+
+Dejá todos los archivos juntos en la misma carpeta.
+
+
+1) EN OBS
+  · Fuente "Navegador" → tildá "Archivo local" → elegí ticker.html
+  · Ancho 1920, Alto 1080 (la franja se dibuja abajo y el resto queda transparente)
+  · Después de cambiar archivos: Propiedades → "Actualizar caché de la página actual".
+  · Para ver el diseño con datos de ejemplo: destildá "Archivo local" y en URL poné
+    file:///Users/TU_USUARIO/Downloads/ticker/ticker.html?demo
+
+
+2) RESULTADOS
+  · Muestra solo los partidos de HOY (horario de Uruguay), agrupados por competencia.
+  · Excepción, fútbol uruguayo: si hay una fecha en juego, muestra la fecha completa,
+    con los partidos ya jugados (dice "Final · sáb", por ejemplo) y los que faltan.
+    Si no hay una fecha en juego, muestra la PRÓXIMA FECHA con el día y la hora de
+    cada partido ("Liga AUF Uruguaya · Próxima fecha", "SÁB 17 · 15:30").
+  · Orden de competencias: fútbol uruguayo → resultados de la planilla → resto →
+    "Uruguayos en el exterior" (partidos de otras ligas donde hay uruguayos).
+    Dentro de cada competencia: en vivo → terminados → por jugarse.
+  · Debajo de cada equipo aparecen los autores de los goles con el minuto, en hasta
+    dos renglones. (p) = de penal, (e/c) = en contra.
+  · Fútbol extranjero: los uruguayos van en un recuadro al costado de SU equipo
+    (a la izquierda del local, a la derecha del visitante). Celeste con los que
+    jugaron: "Merentiel (titular)", "Araujo (ingresó 63')". Si uno hizo un gol, el
+    recuadro de ese lado se pone amarillo con "GOL URUGUAYO · Merentiel 12'".
+    Antes del partido, con la formación publicada, dice "(suplente)" para los del
+    banco; si todavía no hay formación, muestra los uruguayos del plantel.
+    Los uruguayos aparecen con nombre y apellido ("Federico Valverde").
+  · Equipos uruguayos: sus jugadores NUNCA se resaltan, jueguen el torneo que jueguen
+    (Libertadores, Sudamericana, amistosos…). Los uruguayos del rival sí.
+    Un equipo se reconoce como uruguayo si figura en la Primera o Segunda uruguaya,
+    o si la mitad o más de su plantel es uruguayo.
+  · Partidos con equipos "a definir" (TBD en la fuente) no se muestran hasta que la
+    fuente cargue los nombres.
+  · Uruguayos: el ticker revisa el plantel de cada equipo extranjero que juega HOY
+    (tarda 1–2 minutos al abrirlo; cada plantel queda guardado una semana). Para los
+    partidos con uruguayos consulta además la formación: titulares e ingresos.
+  · Liga Uruguaya de Básquetbol y Copa AUF: se cargan a mano en la pestaña
+    "resultados_manuales" de la planilla.
+  · Reloj: la hora de Uruguay en la esquina derecha (config.js → reloj: false lo oculta).
+  · En config.js: velocidad, competencias y fechaCompleta.
+
+
+3) PANTALLA DE TANDA (tanda.html)
+  · En OBS: creá una escena "Tanda" → fuente Navegador → Archivo local → tanda.html
+    → Ancho 1920, Alto 1080. Es pantalla completa (no hace falta nada debajo).
+  · Izquierda: noticias de la planilla (titular, foto con crédito y dos párrafos),
+    cambian cada 14 segundos con transición en bloques.
+  · Derecha: logo 13a0 y el RESULTADO DESTACADO en grande, que rota cada 8 segundos
+    entre los partidos más importantes: en vivo, fútbol uruguayo, goles de uruguayos.
+  · Sin ticker abajo (para no repetir información). Si alguna vez lo querés, en
+    config.js → tanda → mostrarTicker: true.
+  · Tiempos en config.js → tanda.
+  · Para probarla con datos de ejemplo: URL file:///…/ticker/tanda.html?demo
+  · Fotos: usá fotos propias, oficiales de prensa (clubes, AUF) o con licencia libre,
+    y poné de dónde salen en la columna credito_foto.
+
+
+4) NOTICIAS (planilla de Google)
+  · Subí planilla-ticker.xlsx a Google Drive y abrila como Hoja de cálculo de Google.
+  · Compartir → "Cualquier persona con el enlace" → Lector.
+  · Copiá el link y pegalo en config.js:  googleSheet: "https://docs.google.com/..."
+  · Mientras no esté conectada, se muestran noticias de ejemplo.
+  · Columnas: mostrar (SI/NO), titular, parrafo_1, parrafo_2, imagen (link),
+    credito_foto. Las palabras entre **dos asteriscos** se destacan en rojo.
+  · noticias.html (opcional) es un ticker de noticias aparte que usa titular, imagen
+    y categoria.
+  · Los cambios aparecen solos en alrededor de un minuto.
+  · La velocidad se cambia en config.js (velocidad).
+
+
+LÍMITES
+  · Los datos vienen de un servicio público gratuito: puede haber 1–2 minutos de
+    demora y alguna competencia puede faltar.
+  · La detección de uruguayos usa la nacionalidad que figura en los planteles de la
+    fuente; alguien con doble nacionalidad puede figurar con la otra.
+  · Los ingresos desde el banco dependen de que la fuente publique los cambios del
+    partido; si no los publica, solo se ven los titulares.
+  · Necesita internet (datos y tipografías).
+
+
+NOVEDADES (octubre 2026)
+  · La franja ahora mide 80 px de alto (config.js → altoFranja).
+  · La cinta sigue un ORDEN DISTINTO SEGÚN EL DÍA (config.js → programa): lunes y martes
+    resultados, miércoles fixture uruguayo, jueves y viernes fixtures, sábado y domingo
+    resultados y partidos a jugarse. Los bloques sin datos se saltean. Si hay un partido
+    uruguayo en vivo, vuelve a aparecer cada 3 bloques (vivoUruguayoCada).
+  · TABLAS en la cinta, con cartel de entrada:
+      - Fútbol uruguayo: torneo en disputa (en vivo), tabla anual (primeros 8) y descenso
+        por promedios (últimos 6).
+      - Segunda División, Argentina (primeros 8 de cada zona), Brasil (primeros 8 y últimos 4),
+        Inglaterra, España e Italia (primeros 6) y las copas en fase de grupos.
+      - "En vivo": mientras se juega, la tabla suma el resultado parcial (puntos en rojo).
+      - Los equipos con uruguayos llevan la bandera y los apellidos.
+  · Copas en eliminación directa: cada partido muestra la ronda, Ida/Vuelta y el global.
+  · Pestaña nueva de la planilla "tablas_uruguay" (la fuente no tiene estas tablas):
+      columnas: tabla | pos | equipo | pj | pts | dg | promedio | zona | logo
+      tabla = anual, promedios o segunda. El promedio se calcula solo (pts / pj).
+      zona: libertadores / sudamericana (anual), descenso (promedios), ascenso (Segunda).
+      Los nombres de los equipos van como los muestra el ticker (Maldonado, MC Torque,
+      Racing (M), Wanderers, Defensor…), así se cruzan con los partidos en vivo.
+  · Segunda División: la fuente de resultados no la cubre. Los resultados se cargan en
+    "resultados_manuales" con competencia "Segunda División"; la tabla, en "tablas_uruguay".
+  · Para revisar los bloques: abrir ticker.html?probar y en la consola usar window.__ticker.

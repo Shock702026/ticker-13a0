@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Noticias 13a0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500..900&family=Bitter:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+<div class="barra">
+  <div class="marca" id="marca"></div>
+  <div class="viewport" id="viewport"></div>
+</div>
+
+<script src="config.js"></script>
+<script src="comun.js"></script>
+<script src="demo-datos.js"></script>
+<script>
+(function () {
+  const T = window.Ticker, C = T.config;
+  T.marca(document.getElementById("marca"));
+
+  let noticias = [], indice = -1;
+  const sinPlanilla = !(C.googleSheet || "").trim();
+  const escapar = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const formatear = (s) => escapar(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\*(.+?)\*/g, "<b>$1</b>");
+
+  async function cargar() {
+    for (;;) {
+      if (T.demo || sinPlanilla) noticias = window.TickerDemo.noticias.slice();
+      else {
+        try {
+          const filas = await T.leerHoja(C.hojaNoticias || "noticias");
+          if (filas) noticias = filas.filter((f) => T.esSi(f.mostrar) && (f.titular || "").trim())
+            .map((f) => ({ cat: f.categoria || "", tit: f.titular, img: T.urlImagen(f.imagen) }));
+        } catch (e) { console.warn("No se pudo leer la planilla", e.message); }
+      }
+      await T.esperar((C.actualizarCadaSegundos || 60) * 1000);
+    }
+  }
+
+  function proximo() {
+    const seg = T.el("div", "seg");
+    if (!noticias.length) { seg.classList.add("esperando"); return seg; }
+    indice = (indice + 1) % noticias.length;
+    const n = noticias[indice];
+    const d = T.el("div", "noticia");
+    if (n.img) d.appendChild(T.img(n.img, "foto"));
+    if (n.cat) d.appendChild(T.el("div", "cat", n.cat));
+    const t = T.el("div", "tit");
+    t.innerHTML = formatear(n.tit);
+    d.appendChild(t);
+    seg.appendChild(d);
+    seg.appendChild(T.el("div", "sep-noticia"));
+    return seg;
+  }
+
+  cargar();
+  setTimeout(() => new T.Scroller(document.getElementById("viewport"), proximo), 1200);
+})();
+</script>
+</body>
+</html>
