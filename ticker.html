@@ -15,13 +15,15 @@
 </div>
 
 <script src="config.js"></script>
+<script src="escudos.js"></script>
 <script src="comun.js"></script>
 <script src="demo-datos.js"></script>
 <script>
 (function () {
   const T = window.Ticker, C = T.config;
   const BASE = "https://site.api.espn.com/apis/site/v2/sports/";
-  const BANDERA_URU = "https://a.espncdn.com/i/teamlogos/countries/500/uru.png";
+  const BANDERA_URU = "escudos/bandera-uruguay.png";   // propia (respaldo: la de ESPN)
+  if (T.respaldo) T.respaldo[BANDERA_URU] = "https://a.espncdn.com/i/teamlogos/countries/500/uru.png";
   if (T.params.has("sinlogo")) document.getElementById("marca").remove();   // en la pantalla de tanda el logo va arriba
   else T.marca(document.getElementById("marca"));
 
@@ -98,11 +100,12 @@
     const vis = cs.find((c) => c.homeAway === "away") || cs[1] || {};
     const inicio = comp.date || ev.date;
     const estado = (st.type && st.type.state) || "pre";
+    [loc, vis].forEach((c) => { if (c.team && c.team.id) NOMBRE_ID[String(c.team.id)] = [c.team.displayName, c.team.shortDisplayName]; });
     const eq = (c) => ({
       id: c.team && String(c.team.id),
       nombre: (c.team && (c.team.shortDisplayName || c.team.displayName || c.team.name)) || "",
       completo: (c.team && c.team.displayName) || "",
-      logo: (c.team && (c.team.logo || (c.team.logos && c.team.logos[0] && c.team.logos[0].href))) || "",
+      logo: T.escudo(c.team && c.team.id, c.team && [c.team.displayName, c.team.shortDisplayName], (c.team && (c.team.logo || (c.team.logos && c.team.logos[0] && c.team.logos[0].href))) || ""),
       goles: c.score != null ? String(c.score) : "",
       penales: c.shootoutScore != null ? String(c.shootoutScore) : "",
       gano: !!c.winner
@@ -165,7 +168,13 @@
   }
 
   /* Uruguayos */
-  function uruDeEquipo(id) { return (id && uru.equipos[id] && !esClubUruguayo(id)) ? uru.equipos[id].jugadores : null; }
+  const NOMBRE_ID = {};   // id de equipo -> nombres (para cruzar con la planilla)
+  function uruDeEquipo(id) {
+    if (!id || esClubUruguayo(id)) return null;
+    const base = uru.equipos[id] ? uru.equipos[id].jugadores : [];
+    const lista = T.uruCorregidos(NOMBRE_ID[String(id)] || (uru.equipos[id] ? [uru.equipos[id].nombre] : []), base);
+    return lista.length ? lista : null;
+  }
   function tieneUru(p) {
     if (/^uruguay$/i.test(p.local.completo) || /^uruguay$/i.test(p.visita.completo)) return true;
     return !!((!esClubUruguayo(p.local.id) && uruDeEquipo(p.local.id)) || (!esClubUruguayo(p.visita.id) && uruDeEquipo(p.visita.id)));
@@ -196,7 +205,7 @@
       try {
         const j = await T.fetchJSON(BASE + ruta + "/scoreboard?dates=" + f);
         const lg = (j.leagues || [])[0] || {};
-        cache[f] = { t: Date.now(), eventos: j.events || [], logo: (lg.logos && lg.logos[0] && lg.logos[0].href) || "" };
+        cache[f] = { t: Date.now(), eventos: j.events || [], logo: T.escudoLiga(liga, (lg.logos && lg.logos[0] && lg.logos[0].href) || "", nombre) };
         algunOk = true;
       } catch (e) { ultimoError = e; }
       await T.esperar(150);
@@ -231,7 +240,7 @@
       (((ev.competitions || [])[0] || {}).competitors || []).forEach((cp) => cp.team && marcarClubUruguayo(cp.team.id))));
     // partidos con equipos "a definir" no se muestran hasta que la fuente cargue los nombres
     partidos = partidos.filter((p) => !/^tbd\b/i.test(p.local.completo || p.local.nombre) && !/^tbd\b/i.test(p.visita.completo || p.visita.nombre));
-    datos[liga] = { nombre, logo, proxima, partidos: partidos.sort(ordenar), todos };
+    datos[liga] = { nombre, logo, proxima, partidos: T.corregirPartidos(partidos).sort(ordenar), todos: T.corregirPartidos(todos) };
     actualizarEnPantalla(liga);
   }
 
@@ -243,6 +252,7 @@
       filas.forEach((f, i) => {
         if (!T.esSi(f.mostrar)) return;
         const comp = f.competencia || "Resultados";
+        const esBasquet = /b[aá]squet|basket|lub\b|liga uruguaya/i.test(comp);
         const est = f.estado || "";
         const vivo = /vivo|\d+'|\d+\s*c\b|cuarto|tiempo|^q\d/i.test(est);
         const fin = /final|termin/i.test(est);
@@ -250,17 +260,18 @@
           id: "m" + i, deporte: "manual", dia: 0, inicio: "",
           estado: vivo ? "in" : (fin ? "post" : (f.goles_local || f.goles_visitante ? "post" : "pre")),
           etiqueta: est,
-          local: { nombre: f.local || "", logo: T.urlImagen(f.logo_local), goles: f.goles_local || "", gano: false },
-          visita: { nombre: f.visitante || "", logo: T.urlImagen(f.logo_visitante), goles: f.goles_visitante || "", gano: false },
+          local: { nombre: f.local || "", logo: T.urlImagen(f.logo_local) || T.escudo(null, esBasquet ? ["basquet:" + f.local] : [f.local], ""), goles: f.goles_local || "", gano: false },
+          visita: { nombre: f.visitante || "", logo: T.urlImagen(f.logo_visitante) || T.escudo(null, esBasquet ? ["basquet:" + f.visitante] : [f.visitante], ""), goles: f.goles_visitante || "", gano: false },
           goles: [], golesPorJugador: []
         };
         const gl = parseFloat(p.local.goles), gv = parseFloat(p.visita.goles);
         if (p.estado === "post" && !isNaN(gl) && !isNaN(gv)) { p.local.gano = gl > gv; p.visita.gano = gv > gl; }
         const n = (nuevo[comp] = nuevo[comp] || { logo: "", partidos: [] });
-        if (f.logo_competencia && !n.logo) n.logo = T.urlImagen(f.logo_competencia);
+        if (!n.logo) n.logo = f.logo_competencia ? T.urlImagen(f.logo_competencia) : T.escudoLiga("", "", comp);
         n.partidos.push(p);
       });
       Object.values(nuevo).forEach((n) => n.partidos.sort((x, y) => (RANGO[x.estado] ?? 1) - (RANGO[y.estado] ?? 1)));
+      Object.values(nuevo).forEach((n) => (n.partidos = T.corregirPartidos(n.partidos)));
       manuales = nuevo;
     } catch (e) { console.warn("No se pudo leer la planilla", e.message); }
   }
@@ -477,7 +488,7 @@
         (r.roster || []).forEach((e) => {
           const a = e.athlete || {};
           const aid = String(a.id || e.playerId || "");
-          if (!(uru.atletas[aid] || esUruguayo(a))) return;
+          if (!(uru.atletas[aid] || esUruguayo(a) || T.esUruAgregado(NOMBRE_ID[idEq], nombreCompleto(a)))) return;
           hay = true;
           let min = "";
           (e.plays || []).forEach((pl) => { if (pl.substitution && pl.clock && si(e.subbedIn)) min = pl.clock.displayValue || ""; });
@@ -572,7 +583,7 @@
     const d = T.el("div", "equipo " + lado + (perdio ? " perdio" : ""));
     const f1 = T.el("div", "fila1");
     if (e.logo) f1.appendChild(T.img(e.logo));
-    f1.appendChild(T.el("span", "nom", e.nombre));
+    f1.appendChild(T.el("span", "nom", T.nombreVisible(e.nombre, e.completo)));
     d.appendChild(f1);
     const gs = p.deporte === "soccer" ? goleadoresDe(p, e.id) : [];
     if (gs.length) {
@@ -779,8 +790,9 @@
             const st = {};
             (x.stats || []).forEach((s) => { st[s.abbreviation || s.name] = s.value != null ? s.value : num(s.displayValue); });
             const t = x.team || {};
+            if (t.id) NOMBRE_ID[String(t.id)] = [t.displayName, t.shortDisplayName];
             return { id: String(t.id || ""), nombre: (t.shortDisplayName || t.displayName || "").trim(), completo: t.displayName || "",
-                     logo: (t.logos && t.logos[0] && t.logos[0].href) || "", pos: st.R || st.rank || 0, pj: st.GP || 0, pts: st.P || 0, dg: st.GD || 0 };
+                     logo: T.escudo(t.id, [t.displayName, t.shortDisplayName], (t.logos && t.logos[0] && t.logos[0].href) || ""), pos: st.R || st.rank || 0, pj: st.GP || 0, pts: st.P || 0, dg: st.GD || 0 };
           }).sort((a, b) => a.pos - b.pos)
         })).filter((g) => g.filas.length);
         tablas[liga] = { t: Date.now(), grupos };
@@ -809,7 +821,7 @@
         if (!clave) return;
         (nuevo[clave] = nuevo[clave] || []).push({
           id: "", nombre: f.equipo || "", pos: num(f.pos) || 0, pj: num(f.pj) || 0, pts: num(f.pts) || 0, dg: num(f.dg) || 0,
-          promedio: promedioDe(f), zona: normEq(f.zona), logo: T.urlImagen(f.logo || "")
+          promedio: promedioDe(f), zona: normEq(f.zona), logo: T.urlImagen(f.logo || "") || T.escudo(null, [f.equipo], "")
         });
       });
       Object.values(nuevo).forEach((l) => l.sort((a, b) => a.pos - b.pos));
@@ -1057,7 +1069,7 @@
     const eq = T.el("div", "t-eq");
     if (f.logo) eq.appendChild(T.img(f.logo));
     const txt = T.el("div");
-    txt.appendChild(T.el("div", "t-nom", f.nombre));
+    txt.appendChild(T.el("div", "t-nom", T.nombreVisible(f.nombre, f.completo)));
     const jug = opc.uru && f.id && !esClubUruguayo(f.id) ? uruDeEquipo(f.id) : null;
     if (jug && jug.length) {
       const u = T.el("span", "t-uy");
@@ -1241,6 +1253,87 @@
     if (raros.length) console.warn("Bloques que no reconozco en la pestaña programa:", raros.join(" · "));
   }
 
+  /* Ventana "Corregir": arma la fila para la pestaña "correcciones" de la planilla */
+  const LINK_CORRECCIONES = (() => {
+    const m = String(C.googleSheet || "").match(/\/d\/([\w-]+)/);
+    return m ? "https://docs.google.com/spreadsheets/d/" + m[1] + "/edit#gid=690796228" : "";
+  })();
+  function abrirCorreccion(x) {
+    const viejo = document.getElementById("v-modal");
+    if (viejo) viejo.remove();
+    const esPartido = x.tipo === "partido";
+    const loc = esPartido ? x.p.local.nombre : x.f.nombre;
+    const vis = esPartido ? x.p.visita.nombre : "";
+    const fondo = T.el("div", "v-fondo"); fondo.id = "v-modal";
+    const caja = T.el("div", "v-caja");
+    fondo.appendChild(caja);
+    fondo.onclick = (e) => { if (e.target === fondo) fondo.remove(); };
+    caja.appendChild(T.el("h3", null, esPartido ? loc + " " + (x.p.local.goles || "") + " - " + (x.p.visita.goles || "") + " " + vis : loc));
+    const opciones = esPartido
+      ? [["Corregir marcador", "marcador"], ["Ocultar partido", "ocultar"], ["Cambiar nombre", "nombre"], ["Agregar uruguayos", "agregar"], ["Quitar uruguayos", "quitar"]]
+      : [["Cambiar nombre", "nombre"], ["Agregar uruguayos", "agregar"], ["Quitar uruguayos", "quitar"]];
+    const sel = T.el("select"); opciones.forEach(([t, v]) => { const o = T.el("option", null, t); o.value = v; sel.appendChild(o); });
+    const lab = (t, el) => { const l = T.el("label"); l.appendChild(T.el("span", null, t)); l.appendChild(el); return l; };
+    caja.appendChild(lab("Qué querés cambiar", sel));
+    const campos = T.el("div", "v-campos"); caja.appendChild(campos);
+    const salida = T.el("textarea", "v-salida"); salida.readOnly = true; salida.rows = 2;
+    const aviso = T.el("p", "v-aviso");
+    const ir = T.el("a", "v-ir", "Abrir la pestaña correcciones"); ir.href = LINK_CORRECCIONES; ir.target = "_blank"; ir.rel = "noopener";
+    const copiar = T.el("button", "v-copiar", "Copiar la fila");
+    let inputs = {};
+    function dibujarCampos() {
+      campos.innerHTML = ""; inputs = {};
+      const equipoSel = () => {
+        const s = T.el("select"); [loc, vis].filter(Boolean).forEach((n) => { const o = T.el("option", null, n); o.value = n; s.appendChild(o); });
+        return s;
+      };
+      const v = sel.value;
+      if (v === "marcador") {
+        inputs.gl = T.el("input"); inputs.gl.type = "number"; inputs.gl.min = 0; inputs.gl.value = x.p.local.goles || "";
+        inputs.gv = T.el("input"); inputs.gv.type = "number"; inputs.gv.min = 0; inputs.gv.value = x.p.visita.goles || "";
+        campos.appendChild(lab("Goles de " + loc, inputs.gl)); campos.appendChild(lab("Goles de " + vis, inputs.gv));
+      } else if (v === "nombre") {
+        inputs.eq = equipoSel(); inputs.nuevo = T.el("input"); inputs.nuevo.placeholder = "Nombre que querés que salga";
+        if (esPartido) campos.appendChild(lab("Equipo", inputs.eq));
+        campos.appendChild(lab("Nombre nuevo", inputs.nuevo));
+      } else if (v === "agregar" || v === "quitar") {
+        inputs.eq = equipoSel(); inputs.jug = T.el("input");
+        inputs.jug.placeholder = v === "agregar" ? "Ej.: Maxi Araújo, Rodrigo Zalazar" : "Vacío = sacar a todos";
+        if (esPartido) campos.appendChild(lab("Equipo", inputs.eq));
+        campos.appendChild(lab(v === "agregar" ? "Jugadores uruguayos (separados por coma)" : "Jugadores a sacar", inputs.jug));
+      } else campos.appendChild(T.el("p", "v-nota", "El partido deja de salir en la cinta."));
+      Object.values(inputs).forEach((i) => (i.oninput = i.onchange = armar));
+      armar();
+    }
+    function armar() {
+      const v = sel.value, eq = inputs.eq ? inputs.eq.value : loc;
+      let fila;
+      if (v === "marcador") fila = ["Corregir marcador", loc, vis, (inputs.gl.value || "0") + "-" + (inputs.gv.value || "0")];
+      else if (v === "ocultar") fila = ["Ocultar partido", loc, vis, ""];
+      else if (v === "nombre") fila = ["Cambiar nombre", eq, "", inputs.nuevo.value.trim()];
+      else if (v === "agregar") fila = ["Agregar uruguayos", eq, "", inputs.jug.value.trim()];
+      else fila = ["Quitar uruguayos", eq, "", inputs.jug.value.trim()];
+      salida.value = fila.concat(["desde la página de revisión " + fmtHora.format(new Date())]).join("\t");
+      const falta = (v === "nombre" && !fila[3]) || (v === "agregar" && !fila[3]);
+      copiar.disabled = falta;
+      aviso.textContent = falta ? "Completá el dato de arriba." : "Copiá la fila y pegala en la primera fila vacía de la pestaña correcciones (columna A). El cambio se ve en alrededor de un minuto.";
+    }
+    copiar.onclick = async () => {
+      try { await navigator.clipboard.writeText(salida.value); copiar.textContent = "¡Copiada!"; }
+      catch (e) { salida.focus(); salida.select(); copiar.textContent = "Seleccionada: Cmd+C para copiar"; }
+      setTimeout(() => (copiar.textContent = "Copiar la fila"), 2500);
+    };
+    sel.onchange = dibujarCampos;
+    caja.appendChild(salida); caja.appendChild(aviso);
+    const botones = T.el("div", "v-botones");
+    botones.appendChild(copiar); if (LINK_CORRECCIONES) botones.appendChild(ir);
+    const cerrar = T.el("button", "v-cerrar", "Cerrar"); cerrar.onclick = () => fondo.remove();
+    botones.appendChild(cerrar);
+    caja.appendChild(botones);
+    document.body.appendChild(fondo);
+    dibujarCampos();
+  }
+
   function iniciarVista() {
     document.documentElement.classList.add("vista");
     const cab = T.el("header", "v-cab");
@@ -1273,7 +1366,17 @@
         if (!piezas.length) sec.appendChild(T.el("p", "v-vacio", (vueltaCompleta || (principalesCargados && /^(uru|segunda|planilla)/.test(k))) ? "Sin datos ahora: este bloque se saltea en la cinta." : "Cargando…"));
         else {
           const seg = T.el("div", "seg v-seg");
-          piezas.forEach((x) => seg.appendChild(piezaDOM(x)));
+          piezas.forEach((x) => {
+            const el = piezaDOM(x);
+            // botón para armar una corrección de este partido o de esta fila de tabla
+            if (x.tipo === "partido" || x.tipo === "fila") {
+              el.classList.add("v-editable");
+              const b = T.el("button", "v-corregir", "Corregir");
+              b.onclick = (ev) => { ev.stopPropagation(); abrirCorreccion(x); };
+              el.appendChild(b);
+            }
+            seg.appendChild(el);
+          });
           sec.appendChild(seg);
         }
         cont.appendChild(sec);
@@ -1295,6 +1398,8 @@
       try {
         await T.cargarAjustes();
         await cargarProgramaHoja();
+        await T.cargarEscudosHoja();
+        await T.cargarCorrecciones();
         if (scroller && !T.params.get("velocidad") && C.velocidad) scroller.vel = C.velocidad;
       } catch (e) { console.warn("Ajustes de la planilla", e.message); }
       await T.esperar(60e3);

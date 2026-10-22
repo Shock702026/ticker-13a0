@@ -133,12 +133,14 @@
 <iframe class="ticker" id="ticker" scrolling="no"></iframe>
 
 <script src="config.js"></script>
+<script src="escudos.js"></script>
 <script src="comun.js"></script>
 <script src="demo-datos.js"></script>
 <script>
 (function () {
   const T = window.Ticker, C = T.config, TC = C.tanda || {};
-  const BANDERA_URU = "https://a.espncdn.com/i/teamlogos/countries/500/uru.png";
+  const BANDERA_URU = "escudos/bandera-uruguay.png";   // propia (respaldo: la de ESPN)
+  if (T.respaldo) T.respaldo[BANDERA_URU] = "https://a.espncdn.com/i/teamlogos/countries/500/uru.png";
 
   // Escala: todo está pensado para 1920 x 1080
   function medir() { document.documentElement.style.setProperty("--t", Math.min(innerWidth / 1920, innerHeight / 1080) + "px"); }

@@ -281,5 +281,27 @@ html.vista .barra { display: none; }
 .v-estado { width: 100%; font-family: var(--grotesca); font-size: 13px; opacity: .75; }
 .v-cont { padding: 10px 24px 40px; display: flex; flex-direction: column; gap: 22px; }
 .v-bloque h2 { font-family: var(--grotesca); font-weight: 800; font-size: 18px; color: var(--amarillo); margin-bottom: 8px; letter-spacing: .02em; }
-.v-seg { flex-wrap: wrap; height: auto; row-gap: var(--linea); padding: var(--linea); background: var(--negro); }
+.v-seg { flex-wrap: wrap; height: auto; row-gap: calc(var(--linea) + 10px); padding-top: 14px; padding: var(--linea); background: var(--negro); }
 .v-vacio { font-family: var(--grotesca); font-size: 15px; color: #b9b7cc; font-style: italic; }
+/* Botón "Corregir" y ventana para armar la fila de la pestaña correcciones (solo en la vista) */
+.v-editable { position: relative; }
+.v-corregir {
+  position: absolute; right: -2px; top: -9px; z-index: 1; padding: 1px 6px; border: 0; cursor: pointer;
+  background: var(--amarillo); color: var(--azul); font: 800 10px var(--grotesca); letter-spacing: .04em; text-transform: uppercase;
+  box-shadow: 0 0 0 2px var(--negro);
+}
+.v-corregir:hover { opacity: 1; }
+.v-fondo { position: fixed; inset: 0; z-index: 10; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.v-caja { width: min(520px, 100%); background: var(--blanco); color: var(--azul); padding: 20px 22px; border-top: 8px solid var(--rojo); font-family: var(--grotesca); display: flex; flex-direction: column; gap: 12px; }
+.v-caja h3 { font: 800 20px var(--slab); }
+.v-caja label { display: flex; flex-direction: column; gap: 4px; font-weight: 700; font-size: 13px; }
+.v-caja select, .v-caja input { font: 600 16px var(--grotesca); padding: 7px 8px; border: 2px solid var(--azul); color: var(--azul); background: var(--blanco); }
+.v-campos { display: flex; flex-direction: column; gap: 10px; }
+.v-salida { font: 13px ui-monospace, Menlo, monospace; padding: 6px; border: 1px dashed var(--gris); color: var(--azul); background: #f4f4f8; resize: none; }
+.v-aviso, .v-nota { font-size: 13px; color: var(--gris); }
+.v-botones { display: flex; flex-wrap: wrap; gap: 8px; }
+.v-botones button, .v-ir { padding: 8px 14px; border: 0; cursor: pointer; font: 800 14px var(--grotesca); text-decoration: none; }
+.v-copiar { background: var(--rojo); color: var(--blanco); }
+.v-copiar:disabled { opacity: .4; cursor: default; }
+.v-ir { background: var(--celeste); color: var(--blanco); }
+.v-cerrar { background: #e3e3ea; color: var(--azul); }

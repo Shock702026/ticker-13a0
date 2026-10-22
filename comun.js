@@ -153,6 +153,112 @@
     return cambio;
   };
 
+  /* ---- Escudos propios: carpeta escudos/ (índice en escudos.js) + pestaña "escudos" ----
+     Prioridad: pestaña "escudos" de la planilla > archivo propio > imagen original de la fuente. */
+  const ESC = window.ESCUDOS || { equipos: {}, nombres: {}, ligas: {} };
+  const slugEsc = (s) => sinTildes(s).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  T.respaldo = {};        // escudo propio -> imagen original (por si el archivo no está)
+  T.escudosHoja = {};     // nombre -> imagen cargada en la planilla
+  T.escudo = function (id, nombres, original) {
+    const ns = [].concat(nombres || []).filter(Boolean);
+    for (const n of ns) { const h = T.escudosHoja[slugEsc(n)]; if (h) return h; }
+    let p = (id && ESC.equipos[String(id)]) || null;
+    // básquetbol: "basquet:Nombre" busca primero en los escudos de la LUB
+    if (!p) for (const n of ns) if (/^basquet:/.test(n)) { p = (ESC.basquet || {})[slugEsc(n.slice(8))]; if (p) break; }
+    if (!p && !id) for (const n of ns) { p = ESC.nombres[slugEsc(n.replace(/^basquet:/, ""))]; if (p) break; }
+    if (p) { if (original) T.respaldo[p] = original; return p; }
+    return original || "";
+  };
+  T.escudoLiga = function (liga, original, nombre) {
+    const h = (nombre && T.escudosHoja[slugEsc(nombre)]) || T.escudosHoja[slugEsc(liga)];
+    if (h) return h;
+    const p = ESC.ligas[liga] || (nombre && (ESC.competencias || {})[slugEsc(nombre)]);
+    if (p) { if (original) T.respaldo[p] = original; return p; }
+    return original || "";
+  };
+  // Pestaña "escudos": equipo | liga | escudo | otros_nombres
+  // escudo = link de Drive, link a una imagen, o el nombre de un archivo de la carpeta escudos
+  T.cargarEscudosHoja = async function () {
+    if (T.demo) return;
+    let filas;
+    try { filas = await T.leerHoja("escudos"); } catch (e) { return; }
+    if (!filas || !filas.length || !("equipo" in filas[0])) return;
+    const nuevo = {};
+    filas.forEach((f) => {
+      let src = (f.escudo || "").trim();
+      if (!src) return;
+      if (!/^(https?:|data:|escudos\/)/.test(src)) src = "escudos/" + src;
+      src = T.urlImagen(src);
+      [f.equipo].concat(String(f.otros_nombres || "").split(/[,;]/)).map((x) => x.trim()).filter(Boolean)
+        .forEach((n) => (nuevo[slugEsc(n)] = src));
+    });
+    T.escudosHoja = nuevo;
+  };
+
+  /* ---- Pestaña "correcciones": pisar datos que vienen automáticos ----
+     tipo | equipo_o_local | visitante | valor | nota
+     tipos: ocultar partido · cambiar nombre · corregir marcador · agregar uruguayos · quitar uruguayos */
+  T.correcciones = { ocultar: [], nombres: {}, marcador: [], agregar: {}, quitar: {} };
+  // mismo equipo o jugador: igual nombre, sin tildes ni palabras de relleno ("Cerro" no es "Cerro Largo")
+  const limpio = (s) => slugEsc(s).split("-").filter((w) => w && !["club", "ca", "cd", "fc", "cf", "sc", "sad", "de", "del", "la", "el", "atletico"].includes(w)).join("-");
+  const mismo = (a, b) => { const x = limpio(a), y = limpio(b); return !!x && x === y; };
+  T.mismoNombre = mismo;
+  // jugadores: mismo nombre, o mismo apellido si uno de los dos se escribió solo con el apellido
+  const mismoJug = (a, b) => { if (mismo(a, b)) return true; const x = slugEsc(a).split("-"), y = slugEsc(b).split("-"); return (x.length === 1 || y.length === 1) && x[x.length - 1] === y[y.length - 1]; };
+  T.cargarCorrecciones = async function () {
+    if (T.demo) return;
+    let filas;
+    try { filas = await T.leerHoja("correcciones"); } catch (e) { return; }
+    if (!filas || !filas.length || !("tipo" in filas[0])) return;
+    const c = { ocultar: [], nombres: {}, marcador: [], agregar: {}, quitar: {} };
+    const lista = (s) => String(s || "").split(/[,;]/).map((x) => x.trim()).filter(Boolean);
+    filas.forEach((f) => {
+      const tipo = sinTildes(f.tipo), a = (f.equipo_o_local || "").trim(), b = (f.visitante || "").trim(), v = (f.valor || "").trim();
+      if (!tipo || !a) return;
+      if (tipo.startsWith("ocultar")) c.ocultar.push([a, b]);
+      else if (tipo.startsWith("cambiar nombre") && v) c.nombres[slugEsc(a)] = v;
+      else if (tipo.startsWith("corregir marcador")) {
+        const m = v.match(/(\d+)\s*[-a]\s*(\d+)/);
+        if (m && b) c.marcador.push({ a, b, gl: m[1], gv: m[2] });
+      } else if (tipo.startsWith("agregar uruguayo")) (c.agregar[slugEsc(a)] = c.agregar[slugEsc(a)] || []).push(...lista(v));
+      else if (tipo.startsWith("quitar uruguayo")) (c.quitar[slugEsc(a)] = c.quitar[slugEsc(a)] || []).push(...(lista(v).length ? lista(v) : ["*"]));
+    });
+    T.correcciones = c;
+  };
+  const delEquipo = (mapa, ...nombres) => { for (const k of Object.keys(mapa)) if (nombres.some((n) => mismo(k, n))) return mapa[k]; return null; };
+  // nombre a mostrar (cambiar nombre)
+  T.nombreVisible = function (nombre, completo) {
+    return delEquipo(T.correcciones.nombres, nombre, completo) || nombre;
+  };
+  // partidos: oculta y corrige marcadores
+  T.corregirPartidos = function (lista) {
+    const C2 = T.correcciones;
+    if (!C2.ocultar.length && !C2.marcador.length) return lista;
+    const es = (p, a, b) => (mismo(a, p.local.nombre) || mismo(a, p.local.completo)) && (!b || mismo(b, p.visita.nombre) || mismo(b, p.visita.completo));
+    return lista.filter((p) => !C2.ocultar.some(([a, b]) => es(p, a, b) || (!b && (mismo(a, p.visita.nombre) || mismo(a, p.visita.completo)))))
+      .map((p) => {
+        const m = C2.marcador.find((x) => es(p, x.a, x.b));
+        if (!m) return p;
+        const q = Object.assign({}, p, { local: Object.assign({}, p.local, { goles: m.gl }), visita: Object.assign({}, p.visita, { goles: m.gv }) });
+        if (q.estado === "post") { q.local.gano = +m.gl > +m.gv; q.visita.gano = +m.gv > +m.gl; }
+        return q;
+      });
+  };
+  // uruguayos de un equipo, con lo agregado o quitado en la planilla
+  T.uruCorregidos = function (nombresEquipo, base) {
+    const ns = [].concat(nombresEquipo || []).filter(Boolean);
+    let out = (base || []).slice();
+    const quitar = delEquipo(T.correcciones.quitar, ...ns);
+    if (quitar) out = quitar.includes("*") ? [] : out.filter((j) => !quitar.some((q) => mismoJug(q, j)));
+    const agregar = delEquipo(T.correcciones.agregar, ...ns);
+    if (agregar) agregar.forEach((j) => { if (!out.some((x) => mismoJug(x, j))) out.push(j); });
+    return out;
+  };
+  T.esUruAgregado = function (nombresEquipo, jugador) {
+    const agregar = delEquipo(T.correcciones.agregar, ...[].concat(nombresEquipo || []).filter(Boolean));
+    return !!agregar && agregar.some((j) => mismoJug(j, jugador));
+  };
+
   /* Links de imágenes de Google Drive → link directo que se puede mostrar */
   T.urlImagen = function (u) {
     if (!u) return "";
@@ -200,7 +306,12 @@
     i.alt = "";
     i.decoding = "async";
     if (src) i.src = src; else i.style.visibility = "hidden";
-    i.onerror = () => { i.style.visibility = "hidden"; };
+    // si el escudo propio no está, se usa la imagen original de la fuente
+    i.onerror = () => {
+      const r = src && T.respaldo && T.respaldo[src];
+      if (r && i.src !== r) { i.src = r; return; }
+      i.style.visibility = "hidden";
+    };
     return i;
   };
 
