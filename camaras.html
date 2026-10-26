@@ -129,7 +129,9 @@
 <script>
 (function () {
   const T = window.Ticker, C = T.config, CC = C.camaras || {};
-  const P = (T.params.get("p") || "a").toLowerCase();
+  // la pantalla sale de ?p=… o del nombre del archivo (cam-A-….html, cam-B-….html…), así en OBS alcanza con "Archivo local"
+  const porNombre = (decodeURIComponent(location.pathname).match(/cam-([a-h])[-.]/i) || [])[1];
+  const P = (T.params.get("p") || porNombre || "a").toLowerCase();
   const SOLO = (T.params.get("solo") || "").toLowerCase();   // F: mostrar una sola pieza (tema, dato, zocalo, redes)
   const pant = document.getElementById("pant");
   const CADA = (CC.animarCadaSegundos || 30) * 1000;
