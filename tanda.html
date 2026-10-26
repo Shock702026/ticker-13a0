@@ -70,6 +70,39 @@
   .noticia .texto { transition-delay: .22s; }
   .noticia.saliendo { opacity: 0; transition: opacity .35s; }
 
+  /* ---------- Placas entre noticias: logo animado, WhatsApp y redes (se intercalan) ---------- */
+  .placa { position: absolute; inset: 0; display: grid; gap: var(--g); overflow: hidden; }
+  .placa > * { transition: transform .7s cubic-bezier(.75,0,.2,1); }
+  .placa.entrando > :nth-child(odd)  { transform: translateX(-110%); }
+  .placa.entrando > :nth-child(even) { transform: translateX(110%); }
+  .placa > :nth-child(2) { transition-delay: .12s; } .placa > :nth-child(3) { transition-delay: .22s; }
+  .placa.saliendo { opacity: 0; transition: opacity .35s; }
+  /* logo: el logo grande y bloques de color que lo barren */
+  .pl-logo { grid-template-rows: 1fr calc(120 * var(--t)); }
+  .pl-logo .marca { position: relative; background: var(--blanco); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .pl-logo .marca img { width: 62%; height: auto; }
+  .pl-logo .marca i { position: absolute; left: 0; width: 100%; height: 34%; transform: translateX(-102%); }
+  .pl-logo .marca i:nth-of-type(1) { top: 0; background: var(--rojo); }
+  .pl-logo .marca i:nth-of-type(2) { top: 33%; background: var(--amarillo); }
+  .pl-logo .marca i:nth-of-type(3) { top: 66%; background: var(--celeste); }
+  .pl-logo.anim .marca i { animation: barrer 1.6s cubic-bezier(.75,0,.2,1) .5s both; }
+  .pl-logo.anim .marca i:nth-of-type(2) { animation-delay: .6s; } .pl-logo.anim .marca i:nth-of-type(3) { animation-delay: .7s; }
+  .pl-logo .franja { display: grid; grid-template-columns: 2fr 1fr 3fr 1fr; gap: var(--g); }
+  @keyframes barrer { 0% { transform: translateX(-102%); } 42%,58% { transform: translateX(0); } 100% { transform: translateX(102%); } }
+  /* WhatsApp y redes */
+  .pl-cont { grid-template-rows: calc(110 * var(--t)) 1fr; }
+  .pl-cont .et { display: flex; align-items: center; padding: 0 calc(40 * var(--t)); font-family: var(--slab); font-weight: 800; font-size: calc(46 * var(--t)); letter-spacing: .04em; text-transform: uppercase; color: var(--blanco); }
+  .pl-cont .cuerpo2 { background: var(--azul); color: var(--blanco); display: flex; flex-direction: column; justify-content: center; gap: calc(36 * var(--t)); padding: 0 calc(64 * var(--t)); }
+  .pl-cont .linea { display: flex; align-items: center; gap: calc(22 * var(--t)); }
+  .pl-cont .icos { display: flex; gap: calc(14 * var(--t)); }
+  .pl-cont .ico { flex: none; display: inline-flex; align-items: center; justify-content: center; width: calc(150 * var(--t)); height: calc(150 * var(--t)); color: var(--blanco); }
+  .pl-cont .ico svg { width: 66%; height: 66%; }
+  .pl-cont .ico.ce { background: var(--celeste); } .pl-cont .ico.ro { background: var(--rojo); } .pl-cont .ico.am { background: var(--amarillo); color: var(--azul); } .pl-cont .ico.ne { background: var(--negro); }
+  .pl-cont .grande { font-weight: 900; font-size: calc(130 * var(--t)); line-height: 1; letter-spacing: -.03em; white-space: nowrap; }
+  .pl-cont .medio { font-weight: 900; font-size: calc(92 * var(--t)); line-height: 1; letter-spacing: -.025em; white-space: nowrap; }
+  .pl-cont .chico { width: calc(96 * var(--t)); height: calc(96 * var(--t)); }
+  .pl-cont .bajada { font-weight: 600; font-size: calc(34 * var(--t)); color: var(--amarillo); }
+
   /* ---------- Columna derecha ---------- */
   .lateral { display: grid; grid-template-rows: auto 1fr; gap: var(--g); min-height: 0; }
   .logo { background: linear-gradient(90deg, var(--blanco) 0 calc(100% - 110 * var(--t) - var(--g)), var(--negro) 0 calc(100% - 110 * var(--t)), var(--rojo) 0);
@@ -122,6 +155,14 @@
 </style>
 </head>
 <body>
+<!-- íconos de las placas de WhatsApp y redes (planos, en la estética del programa) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-wa" viewBox="0 0 24 24"><circle cx="12.4" cy="11.4" r="8.2" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M3.6 21.4 5.2 15.9 8.9 19.4Z" fill="currentColor"/><path d="M9.2 7.6c-.6.2-1 .9-1 1.6 0 3.3 3.3 6.6 6.6 6.6.7 0 1.4-.4 1.6-1l.2-1.1-2.3-1.1-1 1.1c-1.5-.6-2.6-1.7-3.2-3.2l1.1-1-1.1-2.3Z" fill="currentColor"/></symbol>
+  <symbol id="i-ig" viewBox="0 0 24 24"><rect x="3.2" y="3.2" width="17.6" height="17.6" rx="5" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="12" cy="12" r="4.1" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="17.2" cy="6.8" r="1.5" fill="currentColor"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M3.8 3.8h4.8l11.6 16.4h-4.8Z" fill="currentColor"/><path d="M19.6 3.8 13.2 11M4.4 20.2l6.6-7.4" stroke="currentColor" stroke-width="2.2"/></symbol>
+  <symbol id="i-tt" viewBox="0 0 24 24"><path d="M13.6 3h3.1c.2 2 1.6 3.5 3.6 3.7v3.1a6.8 6.8 0 0 1-3.6-1.1v6.4a5.6 5.6 0 1 1-5.6-5.6l.9.1v3.2a2.5 2.5 0 1 0 1.6 2.3Z" fill="currentColor"/></symbol>
+  <symbol id="i-fb" viewBox="0 0 24 24"><path d="M13.6 21v-7.6h2.7l.4-3.1h-3.1V8.4c0-.9.3-1.5 1.6-1.5h1.7V4.1c-.3 0-1.3-.1-2.4-.1-2.4 0-4 1.4-4 4.1v2.2H8v3.1h2.5V21Z" fill="currentColor"/></symbol>
+</svg>
 <div class="marco"><i class="m-am" style="grid-area:1 / 1 / 2 / 2"></i><i class="m-bl" style="grid-area:1 / 2 / 2 / 3"></i><i class="m-ro" style="grid-area:1 / 3 / 2 / 5"></i><i class="m-bl" style="grid-area:1 / 5 / 2 / 6"></i><i class="m-ce" style="grid-area:1 / 6 / 2 / 8"></i><i class="m-az" style="grid-area:2 / 1 / 3 / 2"></i><i class="m-bl" style="grid-area:3 / 1 / 4 / 2"></i><i class="m-ro" style="grid-area:4 / 1 / 5 / 2"></i><i class="m-am" style="grid-area:2 / 7 / 4 / 8"></i><i class="m-az" style="grid-area:4 / 7 / 5 / 8"></i><i class="m-ce" style="grid-area:5 / 1 / 6 / 3"></i><i class="m-bl" style="grid-area:5 / 3 / 6 / 4"></i><i class="m-am" style="grid-area:5 / 4 / 6 / 5"></i><i class="m-az" style="grid-area:5 / 5 / 6 / 7"></i><i class="m-bl" style="grid-area:5 / 7 / 6 / 8"></i></div>
 <div class="pantalla">
   <div class="zona" id="zona-noticia"></div>
@@ -220,10 +261,56 @@
     if (actualN) { const v = actualN; v.classList.add("saliendo"); setTimeout(() => v.remove(), 500); }
     actualN = nueva;
   }
+  /* Placas entre noticias, en este orden y en ciclo: logo · WhatsApp · logo · redes
+     (NOTI 1 - logo - NOTI 2 - WhatsApp - NOTI 3 - logo - NOTI 4 - redes - NOTI 5 …).
+     Datos de contacto: config.js → redes (si no está, van estos). */
+  const RED = Object.assign({ whatsapp: "092 995 111", usuario: "@treceacero", facebook: "13a0" }, C.redes || (C.camaras || {}).redes || {});
+  const ORDEN_PLACAS = TC.placas || ["logo", "whatsapp", "logo", "redes"];
+  let iP = -1;
+  const ico = (id, color, extra) => `<i class="ico ${color}${extra ? " " + extra : ""}"><svg><use href="#${id}"/></svg></i>`;
+  function crearPlaca(tipo) {
+    const d = T.el("div", "placa entrando");
+    if (tipo === "whatsapp") {
+      d.classList.add("pl-cont");
+      d.innerHTML = `<div class="et" style="background:var(--celeste)">Escribinos</div>` +
+        `<div class="cuerpo2"><div class="linea">${ico("i-wa", "ce")}<div><div class="bajada">Mandanos tu mensaje por WhatsApp</div><div class="grande">${escapar(RED.whatsapp)}</div></div></div></div>`;
+    } else if (tipo === "redes") {
+      d.classList.add("pl-cont");
+      d.innerHTML = `<div class="et" style="background:var(--rojo)">Seguinos en las redes</div>` +
+        `<div class="cuerpo2"><div class="linea"><div class="icos">${ico("i-ig", "ro")}${ico("i-x", "ne")}${ico("i-tt", "am")}</div></div>` +
+        `<div class="grande">${escapar(RED.usuario)}</div>` +
+        `<div class="linea">${ico("i-fb", "ce", "chico")}<div class="medio">${escapar(RED.facebook)}</div></div></div>`;
+    } else {
+      d.classList.add("pl-logo");
+      d.innerHTML = `<div class="marca"><img src="logo.png" alt="13a0"><i></i><i></i><i></i></div>` +
+        `<div class="franja"><i class="m-ro"></i><i class="m-am"></i><i class="m-ce"></i><i class="m-az"></i></div>`;
+    }
+    return d;
+  }
+  function mostrarPlaca() {
+    iP = (iP + 1) % ORDEN_PLACAS.length;
+    const nueva = crearPlaca(ORDEN_PLACAS[iP]);
+    zonaN.appendChild(nueva);
+    void nueva.offsetWidth;
+    nueva.classList.remove("entrando");
+    if (nueva.classList.contains("pl-logo")) nueva.classList.add("anim");
+    if (actualN) { const v = actualN; v.classList.add("saliendo"); setTimeout(() => v.remove(), 500); }
+    actualN = nueva;
+  }
+
+  let tocaPlaca = false;
   function rotarNoticias() {
+    // mientras no haya noticias, se reintenta enseguida (sin placas)
+    if (!noticias.length) { siguienteNoticia(); setTimeout(rotarNoticias, 1000); return; }
+    if (tocaPlaca && TC.placas !== false) {
+      mostrarPlaca();
+      tocaPlaca = false;
+      setTimeout(rotarNoticias, (TC.segundosPorPlaca || 7) * 1000);
+      return;
+    }
     siguienteNoticia();
-    // mientras no haya ninguna noticia en pantalla, se reintenta enseguida
-    setTimeout(rotarNoticias, actualN ? (TC.segundosPorNoticia || 14) * 1000 : 1000);
+    tocaPlaca = true;
+    setTimeout(rotarNoticias, (TC.segundosPorNoticia || 14) * 1000);
   }
 
   /* ==============================================================
