@@ -63,7 +63,8 @@
   .vacio { padding:40px; text-align:center; color:var(--gris); font-weight:700; }
   /* aviso de guardado */
   #toast { position:fixed; right:24px; bottom:24px; background:var(--azul); color:#fff; font-weight:800; padding:14px 20px; transform:translateY(160%); transition:transform .25s; z-index:9; max-width:440px; }
-  #toast.on { transform:none; } #toast.error { background:var(--rojo); }
+  #toast.on { transform:none; opacity:1; } #toast.error { background:var(--rojo); }
+  #toast { opacity:0; pointer-events:none; transition:transform .25s, opacity .25s; }
   #cargando { position:fixed; inset:0; background:var(--fondo); display:flex; align-items:center; justify-content:center; font:800 22px var(--slab); z-index:10; }
   /* texto con palabras en rojo */
   .rico { border:2px solid var(--linea); background:#fff; }
@@ -121,7 +122,44 @@
   .inicio .card b { font:800 20px/1.1 var(--slab); } .inicio .card span { color:var(--gris); font-weight:600; }
   .inicio .card i { width:100%; height:6px; }
   @media (max-width:1300px) { .cuerpo.n { grid-template-columns:340px 1fr; } .cuerpo.n > .vista { grid-column:1 / -1; position:static; } }
-  @media (max-width:900px) { body { grid-template-columns:1fr; } .lado { position:static; height:auto; } .cuerpo, .cuerpo.n { grid-template-columns:1fr; } .inicio { grid-template-columns:1fr; } }
+  /* barra de abajo y cabecera: solo en el celular */
+  .tabbar, .movtop { display:none; }
+  .aire { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px; }
+  .aire .sw { background:#fff; outline:1px solid var(--linea); outline-offset:-1px; }
+  .atajos { display:grid; grid-template-columns:1fr 1fr; gap:10px; max-width:520px; }
+  .atajos .btn { padding:18px 12px; font-size:16px; }
+  .quien { display:flex; gap:8px; align-items:center; background:#FFF6CC; padding:10px; flex-wrap:wrap; }
+  .quien input { flex:1; min-width:160px; }
+  @media (max-width:760px) {
+    body { grid-template-columns:1fr; align-content:start; padding-bottom:calc(76px + env(safe-area-inset-bottom, 0px)); }
+    .vista .tit span:last-child, .vista .tit span:nth-child(2) { display:none; } .vista .tit { gap:6px; }
+    .cuerpo.n > .vista:empty { display:none; }
+    .lado { display:none; }
+    .movtop { display:flex; align-items:center; gap:10px; background:var(--azul); color:#fff; padding:10px 14px; position:sticky; top:0; z-index:5; }
+    .movtop b { background:#fff; color:var(--azul); font:900 19px/1 var(--f); padding:6px 8px; } .movtop b i { font-style:normal; color:var(--celeste); }
+    .movtop span { font:800 17px/1.1 var(--slab); } .movtop small { margin-left:auto; font:700 11px var(--f); color:#9fe0b4; }
+    .tabbar { display:grid; grid-template-columns:repeat(5,1fr); position:fixed; left:0; right:0; bottom:0; z-index:6; background:#fff; border-top:1px solid var(--linea); padding:6px 4px calc(8px + env(safe-area-inset-bottom, 0px)); }
+    .tabbar button { border:0; background:none; display:flex; flex-direction:column; align-items:center; gap:3px; font:800 11px var(--f); color:var(--gris); padding:2px 0; }
+    .tabbar button i { width:30px; height:28px; display:flex; align-items:center; justify-content:center; font-style:normal; font-size:16px; }
+    .tabbar button.on { color:var(--azul); } .tabbar button.on i { background:var(--amarillo); }
+    .main { padding:14px 12px 24px; gap:14px; }
+    .cab h1 { font-size:24px; } .cab .estado { display:none; }
+    .cuerpo, .cuerpo.n { grid-template-columns:1fr; gap:14px; }
+    .cuerpo > .vista, .cuerpo.n > .vista { order:-1; position:sticky; top:52px; z-index:4; padding:10px; }
+    .cuerpo.n > .vista { position:static; }
+    .vista .aviso { display:none; }
+    .form { padding:14px; }
+    .inicio { grid-template-columns:1fr; }
+    .lista { max-height:none; }
+    input[type=text], input[type=number], select, textarea { font-size:16px; padding:12px; }
+    .btn { padding:15px 16px; font-size:16px; }
+    .pie .btn { flex:1; }
+    .botonera .btn { padding:18px 8px; }
+    .escena { height:300px; }
+    .tiras { gap:8px; } .tira { width:120px; } .tira .mini { width:120px; height:67.5px; } .tira .mini iframe { transform:scale(.0625); }
+    table.ed { font-size:13px; } .cuerpo[style] { grid-template-columns:1fr !important; }
+    #toast { left:12px; right:12px; bottom:calc(84px + env(safe-area-inset-bottom, 0px)); }
+  }
 </style></head>
 <body>
 <div id="cargando">Cargando el panel…</div>
@@ -130,7 +168,9 @@
   <nav class="nav" id="nav"></nav>
   <div class="usuario" id="usuario"></div>
 </aside>
+<div class="movtop"><b>13<i>a</i>0</b><span id="movtit">Panel</span><small id="movest"></small></div>
 <main class="main" id="main"></main>
+<nav class="tabbar" id="tabbar"></nav>
 <div id="toast"></div>
 <script>
 // si algo falla al cargar, se muestra en pantalla (en vez de quedar en "Cargando…")
@@ -253,21 +293,49 @@ function nav() {
   document.querySelectorAll("#nav button").forEach((b) => (b.onclick = () => ir(b.dataset.s)));
   document.getElementById("usuario").innerHTML = esc(D.yo) + `<a href="${esc(D.url)}" target="_blank">Abrir la planilla ↗</a>`;
 }
-function ir(s) { seccion = s; nav(); const m = document.getElementById("main"); m.innerHTML = ""; (VISTAS[s] || VISTAS.inicio)(m); scrollTo(0, 0); }
+const TABS = [["inicio", "Inicio", "⌂"], ["noticias", "Noticias", "▤"], ["camaras", "Cámaras", "▣"], ["partido", "Partido", "⚽"], ["mas", "Más", "⋯"]];
+function tabbar() {
+  const t = document.getElementById("tabbar");
+  const activa = ["ticker", "correcciones", "escudos", "mas"].includes(seccion) ? "mas" : seccion;
+  t.innerHTML = TABS.map(([k, n, i]) => `<button data-s="${k}" class="${k === activa ? "on" : ""}"><i>${i}</i>${n}</button>`).join("");
+  t.querySelectorAll("button").forEach((b) => (b.onclick = () => ir(b.dataset.s)));
+  document.getElementById("movtit").textContent = ((SECC.find((x) => x[0] === seccion) || [0, "Panel"])[1]).replace(" y zócalos", "").replace(" en vivo", "");
+  document.getElementById("movest").textContent = ENAS ? "● conectado" : "modo prueba";
+}
+function ir(s) { seccion = s; nav(); tabbar(); const m = document.getElementById("main"); m.innerHTML = ""; (VISTAS[s] || VISTAS.inicio)(m); scrollTo(0, 0); }
 const titulo = (t, extra = "") => `<div class="cab"><h1>${t}</h1>${extra}<span class="estado${ENAS ? "" : " lectura"}"><i></i>${ENAS ? "Conectado a la planilla" : "Modo prueba: solo lectura"}</span></div>`;
 
 const VISTAS = {};
 
 /* ---------- Inicio ---------- */
+VISTAS.mas = (m) => { m.innerHTML = titulo("Más") + `<div class="inicio">` + SECC.slice(4).map(([k, t, c]) => `<div class="card" data-s="${k}"><i style="background:${c === "#fff" ? "var(--azul)" : c}"></i><b>${t}</b></div>`).join("") + `</div>`; m.querySelectorAll(".card").forEach((c) => (c.onclick = () => ir(c.dataset.s))); };
+// zócalos y cuadros que entran y salen (clave ".mostrar" de la pestaña camaras)
+const PIEZAS = [["a", "A · Una cámara", "a.nombre"], ["c", "C · Tres cámaras", "c.nombre"], ["g", "G · Zócalo bloques", "g.nombre"], ["h", "H · Charla", "h.texto"],
+  ["f.tema", "F · Cuadro de tema", "f.tema.texto"], ["f.dato", "F · Cuadro de dato", "f.dato.etiqueta"], ["f.zocalo", "F · Zócalo suelto", "f.zocalo.nombre"]];
 VISTAS.inicio = (m) => {
-  m.innerHTML = titulo("Hola 👋") + `<div class="inicio">` + SECC.slice(1).map(([k, t, c]) => `<div class="card" data-s="${k}"><i style="background:${c === "#fff" ? "var(--azul)" : c}"></i><b>${t}</b><span>${{
+  const v = valoresDe(D.camaras), nA = noticias().filter((n) => esSi(n.mostrar)).length;
+  m.innerHTML = titulo("Hola 👋") +
+    `<div class="grupo" style="border:0;padding:0"><b>Zócalos y cuadros al aire</b><div class="aire" id="aire"></div></div>` +
+    `<div class="grupo" style="border:0;padding:0"><b>Atajos</b><div class="atajos"><button class="btn am" data-a="nueva">📷 Noticia nueva</button><button class="btn ce" data-a="partido">⚽ Partido</button></div></div>` +
+    `<div class="grupo" style="border:0;padding:0"><b>Todo</b><div class="inicio" id="todo"></div></div>`;
+  const A = m.querySelector("#aire");
+  PIEZAS.forEach(([k, nom, txt]) => {
+    if (!((k + ".mostrar") in v)) return;
+    const on = esSi(v[k + ".mostrar"]);
+    A.appendChild(interruptor(nom, on, (v[txt] || "").replace(/\*\*/g, "") || "—", async (x) => {
+      try { await guardar("guardarClaves", "camaras", { [k + ".mostrar"]: x ? "SI" : "NO" }); await cargar(); } catch (e) { ir("inicio"); }
+    }));
+  });
+  m.querySelector('[data-a="nueva"]').onclick = () => { elegidaN = "nueva"; ir("noticias"); };
+  m.querySelector('[data-a="partido"]').onclick = () => ir("partido");
+  m.querySelector("#todo").innerHTML = SECC.slice(1).map(([k, t, c]) => `<div class="card" data-s="${k}"><i style="background:${c === "#fff" ? "var(--azul)" : c}"></i><b>${t}</b><span>${{
     noticias: "Cargar, ordenar y poner al aire las noticias de la tanda y TITULARES. Foto con encuadre.",
     camaras: "Nombres de los zócalos, temas de charla y cuadros de cada pantalla de cámaras.",
     partido: "Qué partido muestra la pantalla de partido, y la carga a mano para la Copa AUF.",
     ticker: "Qué bloques pasan cada día y los ajustes de la cinta (velocidad, alto, tiempos).",
     correcciones: "Corregir un resultado, un nombre o esconder un partido del ticker.",
-    escudos: "Cambiar el escudo de un equipo o de una competencia." }[k]}</span></div>`).join("") + `</div>`;
-  m.querySelectorAll(".card").forEach((c) => (c.onclick = () => ir(c.dataset.s)));
+    escudos: "Cambiar el escudo de un equipo o de una competencia." }[k]}${k === "noticias" ? ` · <b style="font-size:inherit;font-family:inherit">${nA} al aire</b>` : ""}</span></div>`).join("");
+  m.querySelectorAll("#todo .card").forEach((c) => (c.onclick = () => ir(c.dataset.s)));
 };
 
 /* ---------- Noticias ---------- */
@@ -367,8 +435,8 @@ function editorNoticia(E, V, n, todas) {
 /* Encuadre de la foto: el recuadro amarillo es lo que sale en la tanda (vertical, 504 × 920) */
 function encuadrador(onCambio) {
   const RAZON = 504 / 920, SAL_W = 1008, SAL_H = 1840;
-  const el = h(`<div class="encuadre"><div class="escena sin">Arrastrá una foto acá o tocá «Subir foto»</div><div class="zoom" style="display:none"><span>−</span><input type="range" min="1" max="4" step="0.01" value="1"><span>+</span></div><div class="pie"><label class="btn sec chico" style="flex-direction:row">📷 Subir foto<input type="file" accept="image/*" hidden></label><span class="ayuda" style="color:var(--gris);font-size:12px;font-weight:600">Se guarda sola en Drive al tocar Guardar</span></div></div>`);
-  const esc_ = el.querySelector(".escena"), zoom = el.querySelector(".zoom"), rango = zoom.querySelector("input"), file = el.querySelector("input[type=file]");
+  const el = h(`<div class="encuadre"><div class="escena sin">Arrastrá una foto acá o tocá «Subir foto»</div><div class="zoom" style="display:none"><span>−</span><input type="range" min="1" max="4" step="0.01" value="1"><span>+</span></div><div class="pie"><label class="btn az chico" style="flex-direction:row">📷 Sacar foto<input type="file" accept="image/*" capture="environment" hidden></label><label class="btn sec chico" style="flex-direction:row">🖼 Elegir foto<input type="file" accept="image/*" hidden></label><span class="ayuda" style="color:var(--gris);font-size:12px;font-weight:600">Se guarda sola en Drive al tocar Guardar</span></div></div>`);
+  const esc_ = el.querySelector(".escena"), zoom = el.querySelector(".zoom"), rango = zoom.querySelector("input"), files = el.querySelectorAll("input[type=file]");
   let im = null, base = 1, x = 0, y = 0, mw = 0, mx = 0;
   const marco = () => { const H = esc_.clientHeight; mw = H * RAZON; mx = (esc_.clientWidth - mw) / 2; return { H }; };
   function limitar() {
@@ -385,7 +453,7 @@ function encuadrador(onCambio) {
     if (!f || !/^image\//.test(f.type)) return;
     const r = new FileReader();
     r.onload = () => {
-      esc_.className = "escena"; esc_.innerHTML = `<img><div class="marco-v"></div><span class="mano">✥ Arrastrá para encuadrar</span>`;
+      esc_.className = "escena"; esc_.innerHTML = `<img><div class="marco-v"></div><span class="mano">✥ Arrastrá para encuadrar · pellizcá para zoom</span>`;
       im = esc_.querySelector("img"); im.onload = () => {
         const { H } = marco(); esc_.querySelector(".marco-v").style.cssText = `left:${mx}px;width:${mw}px`;
         base = Math.max(mw / im.naturalWidth, H / im.naturalHeight); rango.value = 1;
@@ -396,14 +464,24 @@ function encuadrador(onCambio) {
     };
     r.readAsDataURL(f);
   }
-  file.onchange = () => abrir(file.files[0]);
+  files.forEach((fi) => (fi.onchange = () => abrir(fi.files[0])));
   esc_.addEventListener("dragover", (e) => { e.preventDefault(); esc_.classList.add("arrastrando"); });
   esc_.addEventListener("dragleave", () => esc_.classList.remove("arrastrando"));
   esc_.addEventListener("drop", (e) => { e.preventDefault(); esc_.classList.remove("arrastrando"); abrir(e.dataTransfer.files[0]); });
-  let arr = null;
-  esc_.addEventListener("pointerdown", (e) => { if (!im) return; arr = [e.clientX - x, e.clientY - y]; esc_.setPointerCapture(e.pointerId); esc_.style.cursor = "grabbing"; });
-  esc_.addEventListener("pointermove", (e) => { if (!arr) return; x = e.clientX - arr[0]; y = e.clientY - arr[1]; limitar(); });
-  esc_.addEventListener("pointerup", () => { if (!arr) return; arr = null; esc_.style.cursor = ""; exportar(); });
+  // un dedo (o el mouse) mueve la foto; dos dedos la agrandan o achican
+  let arr = null; const dedos = new Map(); let pinza = null;
+  const dist = () => { const p = [...dedos.values()]; return Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y); };
+  esc_.addEventListener("pointerdown", (e) => {
+    if (!im) return; esc_.setPointerCapture(e.pointerId); dedos.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (dedos.size === 2) { arr = null; pinza = { d: dist(), z: +rango.value }; } else { arr = [e.clientX - x, e.clientY - y]; esc_.style.cursor = "grabbing"; }
+  });
+  esc_.addEventListener("pointermove", (e) => {
+    if (!dedos.has(e.pointerId)) return; dedos.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinza && dedos.size === 2) { rango.value = Math.min(4, Math.max(1, pinza.z * dist() / pinza.d)); rango.oninput(); return; }
+    if (arr) { x = e.clientX - arr[0]; y = e.clientY - arr[1]; limitar(); }
+  });
+  const soltar = (e) => { dedos.delete(e.pointerId); if (dedos.size < 2) pinza = null; if (!dedos.size) { arr = null; esc_.style.cursor = ""; exportar(); } };
+  esc_.addEventListener("pointerup", soltar); esc_.addEventListener("pointercancel", soltar);
   rango.oninput = () => {   // zoom alrededor del centro del recuadro
     const { H } = marco(); const s0 = parseFloat(im.style.transform.match(/scale\(([\d.]+)\)/)[1]), s = base * +rango.value;
     const cx = mx + mw / 2, cy = H / 2; x = cx - (cx - x) * s / s0; y = cy - (cy - y) * s / s0; limitar(); exportar();
@@ -510,7 +588,9 @@ VISTAS.partido = (m) => {
       <div class="marcador-m"><input type="number" min="0" value="${esc(st.goles_local)}" placeholder="–"><span class="g">–</span><input type="number" min="0" value="${esc(st.goles_visitante)}" placeholder="–"></div>
       <div class="lbl"><span>Estado: <b id="estado-t">${esc(st.estado || "Previa")}</b>${st.inicio_tiempo ? ` · arrancó ${esc(st.inicio_tiempo)}` : ""}</span></div>
       <div class="botonera"><button class="btn ce" data-e="1T">▶ Arrancó el 1.er tiempo</button><button class="btn sec" data-e="ET">⏸ Entretiempo</button><button class="btn ce" data-e="2T">▶ Arrancó el 2.º tiempo</button><button class="btn" data-e="FIN">■ Final</button></div>
-      <div class="botonera"><button class="btn am" data-g="L">+ Gol local</button><button class="btn am" data-g="V">+ Gol visitante</button><button class="btn ro" data-r="L">+ Roja local</button><button class="btn ro" data-r="V">+ Roja visitante</button></div>
+      <div class="botonera"><button class="btn am" data-g="L">+ Gol ${esc(st.local || "local")}</button><button class="btn am" data-g="V">+ Gol ${esc(st.visitante || "visitante")}</button><button class="btn ro" data-r="L">+ Roja ${esc(st.local || "local")}</button><button class="btn ro" data-r="V">+ Roja ${esc(st.visitante || "visitante")}</button></div>
+      <div id="quien"></div>
+      ${ultimoPartido ? `<button class="btn sec" id="deshacer">↶ Deshacer lo último</button>` : ""}
       <label>Incidencias<textarea rows="3">${esc(st.incidencias)}</textarea><span class="ayuda">Una por línea o separadas por «;». L = local, V = visitante. Ej.: L 21 Nombre Apellido · V 58 Otro Nombre roja</span></label></div>`);
     const ins = G2.querySelectorAll("input"), ta = G2.querySelector("textarea");
     const mapa = ["local", "visitante", "estadio", "fase", "goles_local", "goles_visitante"];
@@ -518,18 +598,25 @@ VISTAS.partido = (m) => {
     ta.oninput = () => set("incidencias", ta.value);
     const ahora = () => new Date().toTimeString().slice(0, 5);
     const minuto = () => { const mm = (st.inicio_tiempo || "").match(/(\d+):(\d+)/); if (!mm) return ""; const d = new Date(); d.setHours(+mm[1], +mm[2], 0, 0); let x = Math.max(1, Math.floor((Date.now() - d) / 60000) + 1); if (/2/.test(st.estado || "")) x += 45; return String(x); };
-    const vivo = async (c) => { Object.assign(cambios, c); Object.assign(st, c); try { await guardar("guardarClaves", "partido_vivo", c); await recargar(); } catch (e) { VISTAS.partido(m); } };
+    const vivo = async (c) => { ultimoPartido = Object.fromEntries(Object.keys(c).map((k) => [k, st[k] || ""])); Object.assign(cambios, c); Object.assign(st, c); try { await guardar("guardarClaves", "partido_vivo", c); await recargar(); } catch (e) { VISTAS.partido(m); } };
     G2.querySelectorAll("[data-e]").forEach((b) => (b.onclick = () => vivo(Object.assign({ estado: b.dataset.e }, /T$/.test(b.dataset.e) ? { inicio_tiempo: ahora() } : {}, b.dataset.e === "1T" && st.goles_local === "" ? { goles_local: "0", goles_visitante: "0" } : {}))));
     const agregar = (lado, roja) => {
-      const nom = window.prompt ? prompt((roja ? "Roja" : "Gol") + " de " + (lado === "L" ? st.local || "local" : st.visitante || "visitante") + ": ¿quién?", "") : "";
-      if (nom === null) return;
+      // se pregunta en pantalla quién fue (se puede dejar vacío)
+      const Q = G2.querySelector("#quien");
+      Q.innerHTML = `<div class="quien"><b>${roja ? "Roja" : "Gol"} de ${esc(lado === "L" ? st.local || "local" : st.visitante || "visitante")}: ¿quién?</b><input type="text" placeholder="Nombre (opcional)"><button class="btn am chico">Listo</button><button class="btn sec chico">Cancelar</button></div>`;
+      const inp = Q.querySelector("input"), [bOk, bNo] = Q.querySelectorAll("button");
+      inp.focus(); bNo.onclick = () => (Q.innerHTML = "");
+      const confirmar = () => { const nom = inp.value.trim(); Q.innerHTML = "";
       const lineas = (st.incidencias || "").trim(); const nueva = `${lado} ${minuto()} ${nom || ""}${roja ? " roja" : ""}`.replace(/\s+/g, " ").trim();
       const c = { incidencias: (lineas ? lineas + "; " : "") + nueva };
       if (!roja) { const k = lado === "L" ? "goles_local" : "goles_visitante"; c[k] = String((+st[k] || 0) + 1); }
-      vivo(c);
+      vivo(c); };
+      bOk.onclick = confirmar; inp.onkeydown = (e) => { if (e.key === "Enter") confirmar(); };
     };
     G2.querySelectorAll("[data-g]").forEach((b) => (b.onclick = () => agregar(b.dataset.g, false)));
     G2.querySelectorAll("[data-r]").forEach((b) => (b.onclick = () => agregar(b.dataset.r, true)));
+    const bDes = G2.querySelector("#deshacer");
+    if (bDes) bDes.onclick = async () => { const c = ultimoPartido; ultimoPartido = null; Object.assign(st, c); try { await guardar("guardarClaves", "partido_vivo", c); await recargar(); } catch (e) {} };
     F.appendChild(G2);
   }
   const pie = h(`<div class="pie"><button class="btn am">Guardar y mandar al aire</button></div>`);
@@ -537,7 +624,7 @@ VISTAS.partido = (m) => {
   F.appendChild(pie);
   refrescar();
 };
-let cambiosPend = {};
+let cambiosPend = {}, ultimoPartido = null;   // ultimoPartido: valores de antes del último botón (para Deshacer)
 function conValores(t, st) { const c = cab(t), iv = c.indexOf("valor"), ik = c.indexOf("clave"); return t.map((f, i) => { if (!i) return f; const k = (f[ik] || "").trim().toLowerCase(); if (k in st) { f = f.slice(); f[iv] = st[k]; } return f; }); }
 
 /* ---------- Tablas sueltas: Ticker (ajustes + programa), Correcciones, Escudos ---------- */
