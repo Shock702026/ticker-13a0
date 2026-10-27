@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Máscaras ATEM 13a0</title>
+<style>
+  /* Máscaras sin diseño para el SuperSource del ATEM: negro con huecos transparentes
+     donde van las cámaras, en el mismo lugar que los huecos de cam-B, cam-C, cam-D y cam-E.
+     ?p=b|c|d|e|j|k·  &guia = marca cada hueco con un borde y su número (para acomodar los cuadros) */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:1920px; height:1080px; overflow:hidden; background:transparent; }
+  #negro { position:absolute; inset:0; background:#000; }
+  .hueco { position:absolute; outline:4px solid #fff; outline-offset:0; }
+  .hueco b { position:absolute; left:16px; top:12px; font:800 44px/1 Arial, sans-serif; color:#fff; background:#000; padding:6px 14px; }
+</style>
+</head>
+<body>
+<div id="negro"></div>
+<script>
+  const HUECOS = {
+    b: [[16, 118, 936, 700], [968, 118, 936, 700]],
+    c: [[16, 16, 1236, 978], [1268, 142, 636, 358], [1268, 516, 636, 358]],
+    d: [[188, 118, 764, 430], [968, 118, 764, 430], [188, 564, 764, 430], [968, 564, 764, 430]],
+    e: [[16, 118, 1116, 876]],
+    // J y K: cuatro cámaras (SuperSource) + la videollamada (llave DVE), que es el hueco 5
+    j: [[16, 118, 684, 430], [16, 564, 684, 430], [1220, 118, 684, 430], [1220, 564, 684, 430], [716, 118, 488, 876]],
+    k: [[16, 534, 460, 460], [492, 534, 460, 460], [968, 534, 460, 460], [1444, 534, 460, 460], [514, 16, 892, 502]]
+  };
+  const q = new URLSearchParams(location.search);
+  const h = HUECOS[(q.get("p") || "b").toLowerCase()] || HUECOS.b;
+  document.getElementById("negro").style.clipPath =
+    'path(evenodd, "M0 0H1920V1080H0Z ' + h.map(([x, y, w, a]) => `M${x} ${y}H${x + w}V${y + a}H${x}Z`).join(" ") + '")';
+  if (q.has("guia")) h.forEach(([x, y, w, a], i) => {
+    const d = document.createElement("div");
+    d.className = "hueco";
+    d.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${a}px`;
+    d.innerHTML = "<b>" + (i + 1) + "</b>";
+    document.body.appendChild(d);
+  });
+</script>
+</body>
+</html>

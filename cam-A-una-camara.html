@@ -37,6 +37,7 @@
   .redes.anim::before { animation:barrer 1.1s cubic-bezier(.75,0,.2,1) both; }
   .redes .lst { display:flex; flex-direction:column; gap:8px; white-space:nowrap; }
   .redes .fila { display:flex; align-items:center; gap:22px; }
+  .redes.col { padding:0 26px; } .redes.col .lst { gap:16px; }
   .redes .v { display:inline-flex; align-items:center; gap:8px; }
   .redes .v b { margin-left:6px; font-weight:800; font-size:30px; color:#fff; letter-spacing:-.01em; }
   .ico { flex:none; display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; color:#fff; }
@@ -141,7 +142,7 @@
 (function () {
   const T = window.Ticker, C = T.config, CC = C.camaras || {};
   // la pantalla sale de ?p=… o del nombre del archivo (cam-A-….html, cam-B-….html…), así en OBS alcanza con "Archivo local"
-  const porNombre = (decodeURIComponent(location.pathname).match(/cam-([a-i])[-.]/i) || [])[1];
+  const porNombre = (decodeURIComponent(location.pathname).match(/cam-([a-k])[-.]/i) || [])[1];
   const P = (T.params.get("p") || porNombre || "a").toLowerCase();
   const PNG = T.params.has("png");   // imagen fija: sin animaciones ni titulares que rotan
   if (PNG) document.documentElement.classList.add("png");
@@ -218,7 +219,26 @@
     // H · cuadro de tema, independiente
     h: () => `<div class="tema2 pieza arriba" data-m="h" data-color="h.color" style="left:64px;top:64px"><div class="et" data-k="h.etiqueta"></div><div class="tx" data-k="h.texto" data-rojo></div><div class="cola"></div></div>`,
     // I · solo el logo animado, arriba a la derecha
-    i: () => logo("left:1652px;top:24px;width:244px;height:96px")
+i: () => logo("left:1652px;top:24px;width:244px;height:96px"),
+// J · cinco: cuatro cámaras a los costados y la videollamada vertical (9:16) al medio
+j: () => negro(0, 0, 1920, 1010).replace('class="negro"', 'class="negro" data-fondo') +
+     b("am", 16, 16, 156, 86) + redes("left:188px;top:16px;width:944px;height:86px", false) + b("bl", 1148, 16, 312, 86) +
+     logo("left:1476px;top:16px;width:428px;height:86px") +
+     `<div class="pest ro" style="left:16px;top:502px">${k("j.nombre1")}</div>` +
+     `<div class="pest am" style="left:16px;top:948px">${k("j.nombre2")}</div>` +
+     `<div class="pest ce" style="left:1904px;top:502px;transform:translateX(-100%)">${k("j.nombre3")}</div>` +
+     `<div class="pest az" style="left:1904px;top:948px;transform:translateX(-100%)">${k("j.nombre4")}</div>` +
+     `<div class="pest ro" style="left:716px;top:948px">${k("j.llamada")}</div>`,
+// K · cinco: la videollamada horizontal arriba y cuatro cámaras cuadradas abajo
+k: () => negro(0, 0, 1920, 1010).replace('class="negro"', 'class="negro" data-fondo') +
+     logo("left:16px;top:16px;width:482px;height:150px") + b("am", 16, 182, 233, 110) + b("ro", 265, 182, 233, 110) +
+     `<div class="redes col" style="left:16px;top:308px;width:482px;height:210px"><div class="lst">${vWa()}${vArroba()}${vFb()}</div></div>` +
+     b("ce", 1422, 16, 482, 240) + b("bl", 1422, 272, 233, 246) + b("az", 1671, 272, 233, 246) +
+     `<div class="pest ro" style="left:514px;top:472px">${k("k.llamada")}</div>` +
+     `<div class="pest ro" style="left:16px;top:948px">${k("k.nombre1")}</div>` +
+     `<div class="pest ce" style="left:492px;top:948px">${k("k.nombre2")}</div>` +
+     `<div class="pest am" style="left:968px;top:948px">${k("k.nombre3")}</div>` +
+     `<div class="pest az" style="left:1444px;top:948px">${k("k.nombre4")}</div>`
   };
   // textos de ejemplo hasta que se cargue la pestaña "camaras" (o si no existe)
   const BASE = {
@@ -230,13 +250,20 @@
     "f.dato.etiqueta": "Dato", "f.dato.numero": "0", "f.dato.pie": "Explicación del dato",
     "f.zocalo.nombre": "Nombre Apellido", "f.zocalo.rol": "Rol o cargo",
     "g.nombre": "Nombre Apellido", "g.rol": "Rol o cargo",
-    "h.etiqueta": "Charla", "h.texto": "Tema de la charla", "h.color": "rojo"
+    "h.etiqueta": "Charla", "h.texto": "Tema de la charla", "h.color": "rojo",
+    "j.nombre1": "", "j.nombre2": "", "j.nombre3": "", "j.nombre4": "", "j.llamada": "",
+    "k.nombre1": "", "k.nombre2": "", "k.nombre3": "", "k.nombre4": "", "k.llamada": ""
   };
-  if (!PANTALLAS[P]) { pant.innerHTML = '<div class="tit-vacio" style="width:1920px;height:300px">Pantalla "' + esc(P) + '" no existe: usá ?p=a … ?p=i</div>'; return; }
+  if (!PANTALLAS[P]) { pant.innerHTML = '<div class="tit-vacio" style="width:1920px;height:300px">Pantalla "' + esc(P) + '" no existe: usá ?p=a … ?p=k</div>'; return; }
   pant.innerHTML = PANTALLAS[P]();
   // en la D el fondo negro va solo donde hay marco: se recortan los huecos de las cámaras
   const fondoD = pant.querySelector("[data-fondo]");
-  if (fondoD) fondoD.style.clipPath = 'path(evenodd, "M0 0H1920V1010H0Z M188 118H952V548H188Z M968 118H1732V548H968Z M188 564H952V994H188Z M968 564H1732V994H968Z")';
+  const HUECOS = {
+    d: [[188, 118, 764, 430], [968, 118, 764, 430], [188, 564, 764, 430], [968, 564, 764, 430]],
+    j: [[16, 118, 684, 430], [16, 564, 684, 430], [716, 118, 488, 876], [1220, 118, 684, 430], [1220, 564, 684, 430]],
+    k: [[514, 16, 892, 502], [16, 534, 460, 460], [492, 534, 460, 460], [968, 534, 460, 460], [1444, 534, 460, 460]]
+  };
+  if (fondoD) fondoD.style.clipPath = 'path(evenodd, "M0 0H1920V1010H0Z ' + HUECOS[P].map(([x, y, w, h]) => `M${x} ${y}H${x + w}V${y + h}H${x}Z`).join(" ") + '")';
 
   /* ---- Textos: parámetros de la URL > pestaña "camaras" de la planilla > ejemplo ---- */
   let valores = Object.assign({}, BASE);
