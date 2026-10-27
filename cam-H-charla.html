@@ -48,6 +48,14 @@
   .redes.una .lst .v.out { transform:translateY(-140%); }
   .redes.una .v b { font-size:32px; }
   .redes.una .ico { width:46px; height:46px; } .redes.una .ico svg { width:32px; height:32px; }
+  /* versión chica (A): una sola vía por vez, letra más chica, sin puntos */
+  .redes.chica { padding:0 16px; }
+  .redes.chica .lst { height:40px; }
+  .redes.chica .v b { font-size:24px; margin-left:4px; }
+  .redes.chica .ico { width:34px; height:34px; } .redes.chica .ico svg { width:22px; height:22px; }
+  .redes.chica .puntos { display:none; }
+  /* ?png: sin animaciones, para sacar imágenes fijas (ATEM) */
+  .png .pant * { transition:none !important; animation:none !important; }
   .redes .puntos { position:absolute; right:14px; bottom:8px; display:flex; gap:7px; }
   .redes .puntos i { width:9px; height:9px; border:2px solid var(--celeste); }
   .redes .puntos i.on { background:var(--celeste); }
@@ -57,6 +65,8 @@
   .pieza:not(.on) > * { transform:translateX(-130%); }
   .pieza.arriba:not(.on) > * { transform:translateY(-160%); }
   .pieza.derecha:not(.on) > * { transform:translateX(130%); }
+  /* al salir, cuando termina el movimiento, la pieza se oculta entera (si no, quedaban a la vista la tira y la cola) */
+  .pieza { visibility:visible; } .pieza:not(.on) { visibility:hidden; transition:visibility 0s .7s; }
   .pieza.on > *:nth-child(2) { transition-delay:.1s; } .pieza.on > *:nth-child(3) { transition-delay:.2s; }
 
   /* Zócalo de nombre */
@@ -99,6 +109,7 @@
   .tit-cab span { font:800 40px/1 var(--slab); letter-spacing:.06em; text-transform:uppercase; }
   .tit-cab i { flex:1; }
   .tit-cab b { font:800 30px/1 var(--grotesca); background:var(--blanco); color:var(--azul); padding:10px 14px; }
+  .tit-cab b:empty { display:none; }
   .tit-zona { position:absolute; overflow:hidden; }
   .tit-not { position:absolute; inset:0; background:var(--blanco); padding:40px 48px 60px; display:flex; flex-direction:column; gap:26px; overflow:hidden;
              transition:transform .7s cubic-bezier(.75,0,.2,1); }
@@ -130,8 +141,10 @@
 (function () {
   const T = window.Ticker, C = T.config, CC = C.camaras || {};
   // la pantalla sale de ?p=… o del nombre del archivo (cam-A-….html, cam-B-….html…), así en OBS alcanza con "Archivo local"
-  const porNombre = (decodeURIComponent(location.pathname).match(/cam-([a-h])[-.]/i) || [])[1];
+  const porNombre = (decodeURIComponent(location.pathname).match(/cam-([a-i])[-.]/i) || [])[1];
   const P = (T.params.get("p") || porNombre || "a").toLowerCase();
+  const PNG = T.params.has("png");   // imagen fija: sin animaciones ni titulares que rotan
+  if (PNG) document.documentElement.classList.add("png");
   const SOLO = (T.params.get("solo") || "").toLowerCase();   // F: mostrar una sola pieza (tema, dato, zocalo, redes)
   const pant = document.getElementById("pant");
   const CADA = (CC.animarCadaSegundos || 30) * 1000;
@@ -150,8 +163,8 @@
   const vWa = () => `<span class="v">${ico("i-wa", "ce")}<b>${esc(R.whatsapp)}</b></span>`;
   const vArroba = () => `<span class="v">${ico("i-ig", "ro")}${ico("i-x", "ne")}${ico("i-tt", "am")}<b>${esc(R.usuario)}</b></span>`;
   const vFb = () => `<span class="v">${ico("i-fb", "ce")}<b>${esc(R.facebook)}</b></span>`;
-  const redes = (st, una) => una
-    ? `<div class="redes una" style="${st}"><div class="lst">${vWa()}${vArroba()}${vFb()}</div></div>`
+  const redes = (st, una, cls = "") => una
+    ? `<div class="redes una ${cls}" style="${st}"><div class="lst">${vWa()}${vArroba()}${vFb()}</div></div>`
     : `<div class="redes" style="${st}"><div class="lst"><span class="fila">${vWa()}${vArroba()}${vFb()}</span></div></div>`;
   const logo = (st) => `<div class="logo" style="${st}"><img src="logo.png" alt="13a0"><span class="barras"><i></i><i></i><i></i></span></div>`;
   const b = (c, l, t, w, h) => `<div class="b ${c}" style="left:${l}px;top:${t}px;width:${w}px;height:${h}px"></div>`;
@@ -163,9 +176,9 @@
   /* ---- Las pantallas (posiciones en px de 1920 x 1080; las cámaras van en los huecos) ---- */
   const PANTALLAS = {
     // A · una cámara
-    a: () => b("ro", 1784, 0, 136, 72) + b("am", 1784, 88, 136, 36) + negro(1768, 0, 16, 124) + negro(1784, 72, 136, 16) +
-         redes("left:1016px;top:0;width:468px;height:124px", true) + logo("left:1500px;top:0;width:268px;height:124px") +
-         negro(1484, 0, 16, 124) + zoc("a", 64, 836),
+    a: () => redes("left:1236px;top:24px;width:360px;height:64px", true, "chica") + negro(1596, 24, 16, 64) +
+         logo("left:1612px;top:24px;width:196px;height:64px;padding:8px 14px") + negro(1808, 24, 16, 64) +
+         b("am", 1824, 24, 72, 24) + negro(1824, 48, 72, 8) + b("ro", 1824, 56, 72, 32) + zoc("a", 64, 836),
     // B · dos cámaras
     b: () => negro(0, 0, 1920, 118) + negro(0, 118, 16, 892) + negro(952, 118, 16, 892) + negro(1904, 118, 16, 892) + negro(0, 818, 1920, 192) +
          b("am", 16, 16, 300, 86) + b("bl", 332, 16, 600, 86) + redes("left:948px;top:16px;width:560px;height:86px", true) +
@@ -203,7 +216,9 @@
     g: () => logo("left:1636px;top:16px;width:268px;height:110px") +
          `<div class="zoc2 pieza" data-m="g" style="left:64px;top:780px"><div class="cuad">13<b>a</b>0</div>${k("g.nombre", "div", "nom")}${k("g.rol", "div", "rol")}</div>`,
     // H · cuadro de tema, independiente
-    h: () => `<div class="tema2 pieza arriba" data-m="h" data-color="h.color" style="left:64px;top:64px"><div class="et" data-k="h.etiqueta"></div><div class="tx" data-k="h.texto" data-rojo></div><div class="cola"></div></div>`
+    h: () => `<div class="tema2 pieza arriba" data-m="h" data-color="h.color" style="left:64px;top:64px"><div class="et" data-k="h.etiqueta"></div><div class="tx" data-k="h.texto" data-rojo></div><div class="cola"></div></div>`,
+    // I · solo el logo animado, arriba a la derecha
+    i: () => logo("left:1652px;top:24px;width:244px;height:96px")
   };
   // textos de ejemplo hasta que se cargue la pestaña "camaras" (o si no existe)
   const BASE = {
@@ -217,7 +232,7 @@
     "g.nombre": "Nombre Apellido", "g.rol": "Rol o cargo",
     "h.etiqueta": "Charla", "h.texto": "Tema de la charla", "h.color": "rojo"
   };
-  if (!PANTALLAS[P]) { pant.innerHTML = '<div class="tit-vacio" style="width:1920px;height:300px">Pantalla "' + esc(P) + '" no existe: usá ?p=a … ?p=h</div>'; return; }
+  if (!PANTALLAS[P]) { pant.innerHTML = '<div class="tit-vacio" style="width:1920px;height:300px">Pantalla "' + esc(P) + '" no existe: usá ?p=a … ?p=i</div>'; return; }
   pant.innerHTML = PANTALLAS[P]();
   // en la D el fondo negro va solo donde hay marco: se recortan los huecos de las cámaras
   const fondoD = pant.querySelector("[data-fondo]");
@@ -293,7 +308,7 @@
       }, 450);
     });
   }
-  setTimeout(() => { animar(); setInterval(animar, CADA); }, 4000);
+  if (!PNG) setTimeout(() => { animar(); setInterval(animar, CADA); }, 4000);
 
   /* ---- TITULARES: las mismas noticias de la tanda (SI en la planilla), sin foto ---- */
   if (P === "e") {
@@ -340,8 +355,8 @@
       tiempo.style.transition = "width " + SEG_NOT + "ms linear"; tiempo.style.width = "100%";
       setTimeout(siguiente, SEG_NOT);
     }
-    cargar();
-    setTimeout(siguiente, 1200);
+    if (!PNG) { cargar(); setTimeout(siguiente, 1200); }
+    else zona.innerHTML = '<div class="tit-vacio"></div>';
   }
 })();
 </script>

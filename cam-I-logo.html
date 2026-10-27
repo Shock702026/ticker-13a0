@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Cámaras 13a0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500..900&family=Bitter:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  /* Pantallas de cámaras 13a0 para OBS — 1920 x 1080, fondo transparente.
+     Cada pantalla se elige con ?p=a … ?p=h (ver LEEME). Lo que no tiene color es
+     transparente: ahí van las cámaras, en capas de OBS debajo de esta fuente.
+     Abajo quedan libres los 70 px de la cinta del ticker. */
+  :root { --negro:#000; --blanco:#fff; --azul:#180B5B; --celeste:#0086C3; --amarillo:#F9BE02; --rojo:#C5021E; --gris:#6E6A86;
+          --grotesca:"Archivo","Helvetica Neue",Arial,sans-serif; --slab:"Bitter",Georgia,serif; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { width:100%; height:100%; overflow:hidden; background:transparent; }
+  .pant { position:absolute; left:0; top:0; width:1920px; height:1080px; transform-origin:0 0; font-family:var(--grotesca); color:var(--azul); -webkit-font-smoothing:antialiased; }
+  /* las líneas negras del marco: el fondo negro detrás de los bloques, solo donde hay marco */
+  .negro { position:absolute; background:var(--negro); }
+  .b { position:absolute; } .ro{background:var(--rojo)} .am{background:var(--amarillo)} .ce{background:var(--celeste)} .az{background:var(--azul)} .bl{background:var(--blanco)}
+
+  /* Logo */
+  .logo { position:absolute; background:var(--blanco); display:flex; align-items:center; justify-content:center; overflow:hidden; padding:10px 18px; }
+  .logo img { max-width:100%; max-height:100%; object-fit:contain; }
+  .logo .barras { position:absolute; inset:0; pointer-events:none; }
+  .logo .barras i { position:absolute; left:0; width:100%; height:34%; transform:translateX(-102%); }
+  .logo .barras i:nth-child(1) { top:0; background:var(--rojo); }
+  .logo .barras i:nth-child(2) { top:33%; background:var(--amarillo); }
+  .logo .barras i:nth-child(3) { top:66%; background:var(--celeste); }
+  .logo.anim .barras i { animation:barrer 1.5s cubic-bezier(.75,0,.2,1) both; }
+  .logo.anim .barras i:nth-child(2) { animation-delay:.1s; } .logo.anim .barras i:nth-child(3) { animation-delay:.2s; }
+  @keyframes barrer { 0% { transform:translateX(-102%); } 42%,58% { transform:translateX(0); } 100% { transform:translateX(102%); } }
+
+  /* Redes y contacto */
+  .redes { position:absolute; background:var(--azul); color:#fff; display:flex; align-items:center; gap:18px; padding:0 22px; overflow:hidden; }
+  .redes::before { content:""; position:absolute; inset:0; background:var(--celeste); transform:translateX(-102%); z-index:2; }
+  .redes.anim::before { animation:barrer 1.1s cubic-bezier(.75,0,.2,1) both; }
+  .redes .lst { display:flex; flex-direction:column; gap:8px; white-space:nowrap; }
+  .redes .fila { display:flex; align-items:center; gap:22px; }
+  .redes .v { display:inline-flex; align-items:center; gap:8px; }
+  .redes .v b { margin-left:6px; font-weight:800; font-size:30px; color:#fff; letter-spacing:-.01em; }
+  .ico { flex:none; display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; color:#fff; }
+  .ico svg { width:30px; height:30px; }
+  .ico.ce { background:var(--celeste); } .ico.ro { background:var(--rojo); } .ico.am { background:var(--amarillo); color:var(--azul); } .ico.ne { background:var(--negro); }
+  .redes.una .lst { position:relative; width:100%; height:52px; overflow:hidden; }
+  .redes.una .lst .v { position:absolute; left:0; top:0; transform:translateY(140%); transition:transform .6s cubic-bezier(.75,0,.2,1); }
+  .redes.una .lst .v.on { transform:none; }
+  .redes.una .lst .v.out { transform:translateY(-140%); }
+  .redes.una .v b { font-size:32px; }
+  .redes.una .ico { width:46px; height:46px; } .redes.una .ico svg { width:32px; height:32px; }
+  /* versión chica (A): una sola vía por vez, letra más chica, sin puntos */
+  .redes.chica { padding:0 16px; }
+  .redes.chica .lst { height:40px; }
+  .redes.chica .v b { font-size:24px; margin-left:4px; }
+  .redes.chica .ico { width:34px; height:34px; } .redes.chica .ico svg { width:22px; height:22px; }
+  .redes.chica .puntos { display:none; }
+  /* ?png: sin animaciones, para sacar imágenes fijas (ATEM) */
+  .png .pant * { transition:none !important; animation:none !important; }
+  .redes .puntos { position:absolute; right:14px; bottom:8px; display:flex; gap:7px; }
+  .redes .puntos i { width:9px; height:9px; border:2px solid var(--celeste); }
+  .redes .puntos i.on { background:var(--celeste); }
+
+  /* Piezas que entran y salen (zócalos, tema, dato): con "mostrar" en NO se van */
+  .pieza > * { transition:transform .7s cubic-bezier(.75,0,.2,1); }
+  .pieza:not(.on) > * { transform:translateX(-130%); }
+  .pieza.arriba:not(.on) > * { transform:translateY(-160%); }
+  .pieza.derecha:not(.on) > * { transform:translateX(130%); }
+  /* al salir, cuando termina el movimiento, la pieza se oculta entera (si no, quedaban a la vista la tira y la cola) */
+  .pieza { visibility:visible; } .pieza:not(.on) { visibility:hidden; transition:visibility 0s .7s; }
+  .pieza.on > *:nth-child(2) { transition-delay:.1s; } .pieza.on > *:nth-child(3) { transition-delay:.2s; }
+
+  /* Zócalo de nombre */
+  .zoc { position:absolute; display:flex; height:118px; }
+  .zoc .tira { width:22px; background:var(--rojo); }
+  .zoc .txt { background:var(--blanco); padding:14px 30px 0 26px; }
+  .zoc .nom { font-weight:900; font-size:46px; line-height:1; letter-spacing:-.02em; white-space:nowrap; }
+  .zoc .rol { margin-top:10px; font-weight:600; font-size:24px; color:var(--gris); white-space:nowrap; }
+  .zoc .cola { width:118px; background:var(--celeste); }
+  .zoc.chico { height:96px; } .zoc.chico .nom { font-size:40px; } .zoc.chico .rol { font-size:22px; margin-top:6px; }
+
+  /* Zócalo, otra opción (bloques apilados) */
+  .zoc2 { position:absolute; display:grid; grid-template-columns:auto auto; grid-template-rows:auto auto; column-gap:16px; justify-content:start; }
+  .zoc2 .cuad { grid-row:1 / 3; width:118px; background:var(--rojo); display:flex; align-items:center; justify-content:center; padding:12px; }
+  .zoc2 .cuad { font:900 34px/1 var(--grotesca); color:#fff; letter-spacing:-.02em; }
+  .zoc2 .cuad b { color:var(--amarillo); }
+  .zoc2 .nom { background:var(--azul); color:#fff; font-weight:900; font-size:50px; line-height:1; letter-spacing:-.02em; padding:18px 34px 16px; white-space:nowrap; }
+  .zoc2 .rol { justify-self:start; background:var(--amarillo); color:var(--azul); font-weight:800; font-size:26px; letter-spacing:.06em; text-transform:uppercase; padding:10px 34px; margin-top:16px; white-space:nowrap; }
+
+  /* Cuadro de tema */
+  .tema2 { position:absolute; display:flex; align-items:stretch; max-width:1790px; }
+  .tema2 .et { flex:none; background:var(--rojo); color:#fff; font:800 30px/1 var(--slab); letter-spacing:.05em; text-transform:uppercase; padding:0 30px; display:flex; align-items:center; }
+  .tema2.azul .et { background:var(--azul); } .tema2.celeste .et { background:var(--celeste); }
+  .tema2 .tx { background:var(--blanco); color:var(--azul); font-weight:900; font-size:46px; line-height:1.05; letter-spacing:-.02em; padding:22px 34px; display:flex; align-items:center; }
+  .tema2 .tx em, .tit-not em { font-style:normal; color:var(--rojo); }
+  .tema2 .cola { flex:none; width:22px; background:var(--amarillo); }
+
+  /* Cuadro de dato */
+  .dato { position:absolute; display:grid; grid-template-rows:auto auto auto; }
+  .dato .et { background:var(--azul); color:#fff; font:800 24px var(--grotesca); letter-spacing:.12em; text-transform:uppercase; padding:14px 22px; }
+  .dato .num { background:var(--amarillo); font:900 120px/1 var(--grotesca); padding:18px 22px; letter-spacing:-.03em; }
+  .dato .pie { background:var(--blanco); font-weight:600; font-size:24px; padding:12px 22px; }
+
+  /* Pestaña de nombre (cuatro cámaras) */
+  .pest { position:absolute; height:46px; display:flex; align-items:center; padding:0 18px; color:#fff; font-weight:800; font-size:24px; white-space:nowrap; }
+  .pest.am { color:var(--azul); }
+
+  /* TITULARES */
+  .tit-cab { position:absolute; display:flex; align-items:center; gap:16px; background:var(--rojo); color:#fff; padding:0 26px; }
+  .tit-cab span { font:800 40px/1 var(--slab); letter-spacing:.06em; text-transform:uppercase; }
+  .tit-cab i { flex:1; }
+  .tit-cab b { font:800 30px/1 var(--grotesca); background:var(--blanco); color:var(--azul); padding:10px 14px; }
+  .tit-cab b:empty { display:none; }
+  .tit-zona { position:absolute; overflow:hidden; }
+  .tit-not { position:absolute; inset:0; background:var(--blanco); padding:40px 48px 60px; display:flex; flex-direction:column; gap:26px; overflow:hidden;
+             transition:transform .7s cubic-bezier(.75,0,.2,1); }
+  .tit-not.entra { transform:translateX(105%); }
+  .tit-not.sale { transform:translateX(-105%); }
+  .tit-not .cat { align-self:flex-start; background:var(--azul); color:#fff; font:800 22px/1 var(--grotesca); letter-spacing:.12em; text-transform:uppercase; padding:10px 14px; }
+  .tit-not .t { font-weight:900; font-size:66px; line-height:1.02; letter-spacing:-.025em; border-left:20px solid var(--rojo); padding-left:26px; }
+  .tit-not .cuerpo { display:flex; flex-direction:column; gap:22px; min-height:0; overflow:hidden; font-size:32px; }
+  .tit-not p { font-weight:500; font-size:1em; line-height:1.38; }
+  .tit-not p:first-child { font-weight:700; }
+  .tit-barra { position:absolute; height:22px; background:var(--celeste); overflow:hidden; }
+  .tit-barra i { display:block; height:100%; width:0; background:var(--amarillo); }
+  .tit-vacio { position:absolute; inset:0; background:var(--blanco); display:flex; align-items:center; justify-content:center; font:800 40px var(--slab); text-align:center; padding:40px; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-wa" viewBox="0 0 24 24"><circle cx="12.4" cy="11.4" r="8.2" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M3.6 21.4 5.2 15.9 8.9 19.4Z" fill="currentColor"/><path d="M9.2 7.6c-.6.2-1 .9-1 1.6 0 3.3 3.3 6.6 6.6 6.6.7 0 1.4-.4 1.6-1l.2-1.1-2.3-1.1-1 1.1c-1.5-.6-2.6-1.7-3.2-3.2l1.1-1-1.1-2.3Z" fill="currentColor"/></symbol>
+  <symbol id="i-ig" viewBox="0 0 24 24"><rect x="3.2" y="3.2" width="17.6" height="17.6" rx="5" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="12" cy="12" r="4.1" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="17.2" cy="6.8" r="1.5" fill="currentColor"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M3.8 3.8h4.8l11.6 16.4h-4.8Z" fill="currentColor"/><path d="M19.6 3.8 13.2 11M4.4 20.2l6.6-7.4" stroke="currentColor" stroke-width="2.2"/></symbol>
+  <symbol id="i-tt" viewBox="0 0 24 24"><path d="M13.6 3h3.1c.2 2 1.6 3.5 3.6 3.7v3.1a6.8 6.8 0 0 1-3.6-1.1v6.4a5.6 5.6 0 1 1-5.6-5.6l.9.1v3.2a2.5 2.5 0 1 0 1.6 2.3Z" fill="currentColor"/></symbol>
+  <symbol id="i-fb" viewBox="0 0 24 24"><path d="M13.6 21v-7.6h2.7l.4-3.1h-3.1V8.4c0-.9.3-1.5 1.6-1.5h1.7V4.1c-.3 0-1.3-.1-2.4-.1-2.4 0-4 1.4-4 4.1v2.2H8v3.1h2.5V21Z" fill="currentColor"/></symbol>
+</svg>
+<div class="pant" id="pant"></div>
+<script src="config.js"></script>
+<script src="comun.js"></script>
+<script src="demo-datos.js"></script>
+<script>
+(function () {
+  const T = window.Ticker, C = T.config, CC = C.camaras || {};
+  // la pantalla sale de ?p=… o del nombre del archivo (cam-A-….html, cam-B-….html…), así en OBS alcanza con "Archivo local"
+  const porNombre = (decodeURIComponent(location.pathname).match(/cam-([a-i])[-.]/i) || [])[1];
+  const P = (T.params.get("p") || porNombre || "a").toLowerCase();
+  const PNG = T.params.has("png");   // imagen fija: sin animaciones ni titulares que rotan
+  if (PNG) document.documentElement.classList.add("png");
+  const SOLO = (T.params.get("solo") || "").toLowerCase();   // F: mostrar una sola pieza (tema, dato, zocalo, redes)
+  const pant = document.getElementById("pant");
+  const CADA = (CC.animarCadaSegundos || 30) * 1000;
+  const SEG_NOT = (CC.segundosPorTitular || 20) * 1000;
+
+  // escala: pensado para 1920 x 1080
+  function medir() { pant.style.transform = "scale(" + Math.min(innerWidth / 1920, innerHeight / 1080) + ")"; }
+  medir(); addEventListener("resize", medir);
+
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const rojo = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<em>$1</em>").replace(/\*(.+?)\*/g, "<em>$1</em>");
+
+  /* ---- Contacto y redes (se cambian en config.js → camaras.redes) ---- */
+  const R = Object.assign({ whatsapp: "092 995 111", usuario: "@treceacero", facebook: "13a0" }, CC.redes || {});
+  const ico = (id, color) => `<i class="ico ${color}"><svg><use href="#${id}"/></svg></i>`;
+  const vWa = () => `<span class="v">${ico("i-wa", "ce")}<b>${esc(R.whatsapp)}</b></span>`;
+  const vArroba = () => `<span class="v">${ico("i-ig", "ro")}${ico("i-x", "ne")}${ico("i-tt", "am")}<b>${esc(R.usuario)}</b></span>`;
+  const vFb = () => `<span class="v">${ico("i-fb", "ce")}<b>${esc(R.facebook)}</b></span>`;
+  const redes = (st, una, cls = "") => una
+    ? `<div class="redes una ${cls}" style="${st}"><div class="lst">${vWa()}${vArroba()}${vFb()}</div></div>`
+    : `<div class="redes" style="${st}"><div class="lst"><span class="fila">${vWa()}${vArroba()}${vFb()}</span></div></div>`;
+  const logo = (st) => `<div class="logo" style="${st}"><img src="logo.png" alt="13a0"><span class="barras"><i></i><i></i><i></i></span></div>`;
+  const b = (c, l, t, w, h) => `<div class="b ${c}" style="left:${l}px;top:${t}px;width:${w}px;height:${h}px"></div>`;
+  const negro = (l, t, w, h) => `<div class="negro" style="left:${l}px;top:${t}px;width:${w}px;height:${h}px"></div>`;
+  // textos editables: data-k = clave de la pestaña "camaras"; data-m = pieza que entra y sale con "<clave>.mostrar"
+  const k = (clave, tag = "span", cls = "") => `<${tag} class="${cls}" data-k="${clave}"></${tag}>`;
+  const zoc = (id, l, t, chico, w) => `<div class="zoc pieza${chico ? " chico" : ""}" data-m="${id}" style="left:${l}px;top:${t}px"><div class="tira"></div><div class="txt"${w ? ` style="width:${w}px"` : ""}>${k(id + ".nombre", "div", "nom")}${k(id + ".rol", "div", "rol")}</div>${chico ? "" : '<div class="cola"></div>'}</div>`;
+
+  /* ---- Las pantallas (posiciones en px de 1920 x 1080; las cámaras van en los huecos) ---- */
+  const PANTALLAS = {
+    // A · una cámara
+    a: () => redes("left:1236px;top:24px;width:360px;height:64px", true, "chica") + negro(1596, 24, 16, 64) +
+         logo("left:1612px;top:24px;width:196px;height:64px;padding:8px 14px") + negro(1808, 24, 16, 64) +
+         b("am", 1824, 24, 72, 24) + negro(1824, 48, 72, 8) + b("ro", 1824, 56, 72, 32) + zoc("a", 64, 836),
+    // B · dos cámaras
+    b: () => negro(0, 0, 1920, 118) + negro(0, 118, 16, 892) + negro(952, 118, 16, 892) + negro(1904, 118, 16, 892) + negro(0, 818, 1920, 192) +
+         b("am", 16, 16, 300, 86) + b("bl", 332, 16, 600, 86) + redes("left:948px;top:16px;width:560px;height:86px", true) +
+         logo("left:1524px;top:16px;width:380px;height:86px") +
+         zoc("b1", 16, 834, true, 914) +
+         `<div class="zoc pieza chico" data-m="b2" style="left:968px;top:834px"><div class="tira" style="background:var(--celeste)"></div><div class="txt" style="width:914px">${k("b2.nombre", "div", "nom")}${k("b2.rol", "div", "rol")}</div></div>` +
+         b("ce", 16, 946, 420, 48) + b("bl", 452, 946, 700, 48) + b("az", 1168, 946, 736, 48),
+    // C · tres cámaras
+    c: () => negro(0, 0, 16, 1010) + negro(0, 0, 1920, 16) + negro(0, 994, 1920, 16) +
+         negro(1252, 0, 668, 142) + negro(1252, 500, 668, 16) + negro(1252, 874, 668, 136) + negro(1252, 142, 16, 732) + negro(1904, 142, 16, 732) +
+         redes("left:1268px;top:16px;width:432px;height:110px;gap:12px;padding:0 14px", true) + logo("left:1716px;top:16px;width:188px;height:110px") +
+         b("am", 1268, 890, 200, 104) + b("ro", 1484, 890, 420, 104) + zoc("c", 56, 836),
+    // D · cuatro cámaras, con marco y cinta arriba
+    d: () => negro(0, 0, 1920, 1010) .replace('class="negro"', 'class="negro" data-fondo') +
+         b("am", 16, 16, 156, 86) + redes("left:188px;top:16px;width:944px;height:86px", false) + b("bl", 1148, 16, 312, 86) +
+         logo("left:1476px;top:16px;width:428px;height:86px") +
+         b("az", 16, 118, 156, 282) + b("ro", 16, 416, 156, 184) + b("bl", 16, 616, 156, 378) +
+         b("bl", 1748, 118, 156, 200) + b("am", 1748, 334, 156, 360) + b("ce", 1748, 710, 156, 284) +
+         `<div class="pest ro" style="left:188px;top:502px">${k("d.nombre1")}</div>` +
+         `<div class="pest ce" style="left:1732px;top:502px;transform:translateX(-100%)">${k("d.nombre2")}</div>` +
+         `<div class="pest am" style="left:188px;top:948px">${k("d.nombre3")}</div>` +
+         `<div class="pest az" style="left:1732px;top:948px;transform:translateX(-100%)">${k("d.nombre4")}</div>`,
+    // E · TITULARES
+    e: () => negro(0, 0, 1920, 118) + negro(0, 118, 16, 892) + negro(1132, 118, 788, 892) + negro(0, 994, 1920, 16) +
+         b("am", 16, 16, 200, 86) + redes("left:232px;top:16px;width:900px;height:86px", false) + logo("left:1148px;top:16px;width:756px;height:86px") +
+         `<div class="tit-cab" style="left:1148px;top:118px;width:756px;height:86px"><span>Titulares</span><i></i><b id="tit-cuenta"></b></div>` +
+         `<div class="tit-zona" id="tit-zona" style="left:1148px;top:220px;width:756px;height:752px"></div>` +
+         `<div class="tit-barra" style="left:1148px;top:972px;width:756px"><i id="tit-tiempo"></i></div>`,
+    // F · cuadros sueltos (con ?solo=tema|dato|zocalo|redes se ve uno solo)
+    f: () => (!SOLO || SOLO === "tema" ? `<div class="tema2 pieza arriba" data-m="f.tema" data-color="f.tema.color" style="left:64px;top:64px"><div class="et" data-k="f.tema.etiqueta"></div><div class="tx" data-k="f.tema.texto" data-rojo></div><div class="cola"></div></div>` : "") +
+         (!SOLO || SOLO === "dato" ? `<div class="dato pieza derecha" data-m="f.dato" style="left:1500px;top:64px;width:356px">${k("f.dato.etiqueta", "div", "et")}${k("f.dato.numero", "div", "num")}${k("f.dato.pie", "div", "pie")}</div>` : "") +
+         (!SOLO || SOLO === "zocalo" ? zoc("f.zocalo", 64, 836) : "") +
+         (!SOLO || SOLO === "redes" ? redes("left:1340px;top:880px;width:540px;height:100px", true) : ""),
+    // G · zócalo, otra opción
+    g: () => logo("left:1636px;top:16px;width:268px;height:110px") +
+         `<div class="zoc2 pieza" data-m="g" style="left:64px;top:780px"><div class="cuad">13<b>a</b>0</div>${k("g.nombre", "div", "nom")}${k("g.rol", "div", "rol")}</div>`,
+    // H · cuadro de tema, independiente
+    h: () => `<div class="tema2 pieza arriba" data-m="h" data-color="h.color" style="left:64px;top:64px"><div class="et" data-k="h.etiqueta"></div><div class="tx" data-k="h.texto" data-rojo></div><div class="cola"></div></div>`,
+    // I · solo el logo animado, arriba a la derecha
+    i: () => logo("left:1652px;top:24px;width:244px;height:96px")
+  };
+  // textos de ejemplo hasta que se cargue la pestaña "camaras" (o si no existe)
+  const BASE = {
+    "a.nombre": "Nombre Apellido", "a.rol": "Rol o cargo",
+    "b1.nombre": "Invitado uno", "b1.rol": "Rol", "b2.nombre": "Invitado dos", "b2.rol": "Rol",
+    "c.nombre": "Conductor", "c.rol": "13a0",
+    "d.nombre1": "", "d.nombre2": "", "d.nombre3": "", "d.nombre4": "",
+    "f.tema.etiqueta": "Charla", "f.tema.texto": "Tema de la charla", "f.tema.color": "rojo",
+    "f.dato.etiqueta": "Dato", "f.dato.numero": "0", "f.dato.pie": "Explicación del dato",
+    "f.zocalo.nombre": "Nombre Apellido", "f.zocalo.rol": "Rol o cargo",
+    "g.nombre": "Nombre Apellido", "g.rol": "Rol o cargo",
+    "h.etiqueta": "Charla", "h.texto": "Tema de la charla", "h.color": "rojo"
+  };
+  if (!PANTALLAS[P]) { pant.innerHTML = '<div class="tit-vacio" style="width:1920px;height:300px">Pantalla "' + esc(P) + '" no existe: usá ?p=a … ?p=i</div>'; return; }
+  pant.innerHTML = PANTALLAS[P]();
+  // en la D el fondo negro va solo donde hay marco: se recortan los huecos de las cámaras
+  const fondoD = pant.querySelector("[data-fondo]");
+  if (fondoD) fondoD.style.clipPath = 'path(evenodd, "M0 0H1920V1010H0Z M188 118H952V548H188Z M968 118H1732V548H968Z M188 564H952V994H188Z M968 564H1732V994H968Z")';
+
+  /* ---- Textos: parámetros de la URL > pestaña "camaras" de la planilla > ejemplo ---- */
+  let valores = Object.assign({}, BASE);
+  const deUrl = {};
+  T.params.forEach((v, clave) => { if (clave !== "p" && clave !== "solo") deUrl[clave.includes(".") ? clave : P + "." + clave] = v; });
+  function aplicar() {
+    const V = Object.assign({}, valores, deUrl);
+    pant.querySelectorAll("[data-k]").forEach((el) => {
+      const v = V[el.dataset.k] || "";
+      // en un span: así no se pierden los espacios al lado de las palabras en rojo
+      if (el.hasAttribute("data-rojo")) el.innerHTML = "<span>" + rojo(v) + "</span>"; else el.textContent = v;
+      if (el.closest(".pest")) el.closest(".pest").style.display = v ? "" : "none";
+    });
+    pant.querySelectorAll("[data-color]").forEach((el) => {
+      const c = T.sinTildes ? T.sinTildes(V[el.dataset.color] || "") : String(V[el.dataset.color] || "").toLowerCase();
+      el.classList.toggle("azul", /azul/.test(c)); el.classList.toggle("celeste", /celeste/.test(c));
+    });
+    pant.querySelectorAll("[data-m]").forEach((el) => {
+      const m = V[el.dataset.m + ".mostrar"];
+      el.classList.toggle("on", !m || T.esSi(m));   // sin dato = se muestra
+    });
+  }
+  async function leerTextos() {
+    for (;;) {
+      if (!T.demo && (C.googleSheet || "").trim()) {
+        try {
+          // headers=1: el encabezado es solo la primera fila (si no, un número en "valor" confunde a la planilla)
+          const url = T.urlHoja(CC.hoja || "camaras");
+          const filas = url ? T.parseCSV(await T.fetchText(url + "&headers=1")) : null;
+          if (filas && filas.length && "clave" in filas[0]) {
+            const v = Object.assign({}, BASE);
+            filas.forEach((f) => { const c = (f.clave || "").trim().toLowerCase(); if (c) v[c] = (f.valor || "").trim(); });
+            valores = v;
+          }
+        } catch (e) { /* sin pestaña: quedan los textos de ejemplo */ }
+      }
+      aplicar();
+      await T.esperar((CC.leerCadaSegundos || 10) * 1000);
+    }
+  }
+  aplicar();
+  // al prenderse la fuente, las piezas entran (empiezan afuera y se ponen en su lugar)
+  const piezas = [...pant.querySelectorAll(".pieza")];
+  piezas.forEach((el) => el.classList.remove("on"));
+  setTimeout(aplicar, 300);
+  leerTextos();
+
+  /* ---- Animaciones cada 30 s: logo barrido y redes que rotan ---- */
+  pant.querySelectorAll(".redes.una").forEach((r) => {
+    const vs = r.querySelectorAll(".lst .v");
+    vs[0].classList.add("on");
+    const p = T.el("div", "puntos");
+    vs.forEach((_, i) => { const d = T.el("i", i ? "" : "on"); p.appendChild(d); });
+    r.appendChild(p); r.dataset.i = 0;
+  });
+  const reiniciar = (el, c) => { el.classList.remove(c); void el.offsetWidth; el.classList.add(c); };
+  function animar() {
+    pant.querySelectorAll(".logo").forEach((l) => reiniciar(l, "anim"));
+    pant.querySelectorAll(".redes").forEach((r) => {
+      reiniciar(r, "anim");
+      if (!r.classList.contains("una")) return;
+      const vs = [...r.querySelectorAll(".lst .v")], dots = [...r.querySelectorAll(".puntos i")];
+      const i = +r.dataset.i, j = (i + 1) % vs.length;
+      setTimeout(() => {
+        vs.forEach((v) => { if (v.classList.contains("out")) { v.style.transition = "none"; v.classList.remove("out"); void v.offsetWidth; v.style.transition = ""; } });
+        vs[i].classList.remove("on"); vs[i].classList.add("out"); vs[j].classList.add("on");
+        dots.forEach((d, n) => d.classList.toggle("on", n === j));
+        r.dataset.i = j;
+      }, 450);
+    });
+  }
+  if (!PNG) setTimeout(() => { animar(); setInterval(animar, CADA); }, 4000);
+
+  /* ---- TITULARES: las mismas noticias de la tanda (SI en la planilla), sin foto ---- */
+  if (P === "e") {
+    const zona = document.getElementById("tit-zona"), cuenta = document.getElementById("tit-cuenta"), tiempo = document.getElementById("tit-tiempo");
+    let noticias = [], i = -1, actual = null;
+    async function cargar() {
+      for (;;) {
+        if (T.demo || !(C.googleSheet || "").trim()) noticias = (window.TickerDemo.noticiasTanda || []).slice();
+        else {
+          try {
+            const filas = await T.leerHoja(C.hojaNoticias || "noticias");
+            if (filas) noticias = filas.filter((f) => T.esSi(f.mostrar) && (f.titular || "").trim())
+              .map((f) => ({ tit: f.titular, cat: f.categoria || "", parrafos: [f.parrafo_1, f.parrafo_2].filter((x) => (x || "").trim()) }));
+          } catch (e) { console.warn("No se pudo leer la planilla", e.message); }
+        }
+        await T.esperar((C.actualizarCadaSegundos || 60) * 1000);
+      }
+    }
+    function encajar(el, min) {
+      el.style.fontSize = "";
+      let tam = parseFloat(getComputedStyle(el).fontSize);
+      while (el.scrollHeight > el.clientHeight + 1 && tam > min) { tam -= 1; el.style.fontSize = tam + "px"; }
+    }
+    function siguiente() {
+      if (!noticias.length) {
+        if (!zona.querySelector(".tit-vacio")) zona.innerHTML = '<div class="tit-vacio">Cargando titulares…</div>';
+        cuenta.textContent = ""; setTimeout(siguiente, 1500); return;
+      }
+      i = (i + 1) % noticias.length;
+      const n = noticias[i];
+      const d = T.el("div", "tit-not entra");
+      d.innerHTML = (n.cat ? `<div class="cat">${esc(n.cat)}</div>` : "") + `<div class="t">${rojo(n.tit)}</div>` +
+        `<div class="cuerpo">${n.parrafos.map((p) => "<p>" + rojo(p) + "</p>").join("")}</div>`;
+      zona.querySelector(".tit-vacio") && zona.querySelector(".tit-vacio").remove();
+      zona.appendChild(d);
+      const t = d.querySelector(".t"); t.style.maxHeight = "300px"; t.style.overflow = "hidden"; encajar(t, 44);
+      encajar(d.querySelector(".cuerpo"), 22);
+      void d.offsetWidth; d.classList.remove("entra");
+      if (actual) { const v = actual; v.classList.add("sale"); setTimeout(() => v.remove(), 800); }
+      actual = d;
+      cuenta.textContent = (i + 1) + " / " + noticias.length;
+      // barra amarilla: el tiempo que le queda a esta noticia
+      tiempo.style.transition = "none"; tiempo.style.width = "0"; void tiempo.offsetWidth;
+      tiempo.style.transition = "width " + SEG_NOT + "ms linear"; tiempo.style.width = "100%";
+      setTimeout(siguiente, SEG_NOT);
+    }
+    if (!PNG) { cargar(); setTimeout(siguiente, 1200); }
+    else zona.innerHTML = '<div class="tit-vacio"></div>';
+  }
+})();
+</script>
+</body>
+</html>
