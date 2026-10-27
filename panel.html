@@ -133,19 +133,30 @@
 <main class="main" id="main"></main>
 <div id="toast"></div>
 <script>
+// si algo falla al cargar, se muestra en pantalla (en vez de quedar en "Cargando…")
+function mostrarFalla(txt) { const c = document.getElementById("cargando"); if (c) c.innerHTML = '<div style="max-width:640px;text-align:center;padding:20px;font:700 16px/1.4 Arial">No pudo cargar el panel:<br><br><code style="color:#C5021E">' + String(txt).replace(/</g, "&lt;") + '</code><br><br>Mandale una captura de esto a Claude.</div>'; }
+window.addEventListener("error", (e) => mostrarFalla((e.message || "error") + " · línea " + (e.lineno || "?")));
+window.addEventListener("unhandledrejection", (e) => mostrarFalla((e.reason && (e.reason.message || e.reason)) || "error"));
+setTimeout(() => { if (document.getElementById("cargando")) mostrarFalla("La planilla no respondió en 20 segundos (google.script.run " + (typeof google !== "undefined" && google.script ? "existe" : "NO existe") + ")"); }, 20000);
+</script>
+<script>
 const WEB = new URLSearchParams(location.search).get("web") || "https://shock702026.github.io/ticker-13a0/";
-const ENAS = typeof google !== "undefined" && google.script && google.script.run;   // dentro de Apps Script
+const PUENTE = new URLSearchParams(location.search).has("puente");   // abierto desde Apps Script (el puente guarda en la planilla)
+const ENAS = PUENTE || (typeof google !== "undefined" && google.script && google.script.run);
 let D = null, seccion = "inicio";
 
 /* ---------- Conexión con la planilla ---------- */
+let pedidoN = 0; const pedidos = {};
+addEventListener("message", (e) => { const d = e.data || {}; const p = pedidos[d.panelRespuesta]; if (!p) return; delete pedidos[d.panelRespuesta]; "error" in d ? p.mal(new Error(d.error)) : p.ok(d.ok); });
 function srv(fn, ...args) {
+  if (PUENTE) return new Promise((ok, mal) => { const id = ++pedidoN; pedidos[id] = { ok, mal }; parent.postMessage({ panelPide: true, id, fn, args }, "*"); });
   if (!ENAS) return Promise.reject(new Error("Modo prueba: abrí el panel desde su link para poder guardar."));
   return new Promise((ok, mal) => google.script.run.withSuccessHandler(ok).withFailureHandler(mal)[fn](...args));
 }
 async function cargar() {
   if (ENAS) D = await srv("leer");
   else {   // modo prueba: lee la planilla publicada (solo lectura)
-    const ID = new URLSearchParams(location.search).get("planilla") || "1C0k0yhLyxliRM5ceWlGw7oPr84oGlg9J";
+    const ID = new URLSearchParams(location.search).get("planilla") || "1RWYJrnosHmqeEXJoR9lqTS8V6bsuwzusLhwZLm2D1Hc";
     const hoja = async (n) => { try { const r = await fetch("https://docs.google.com/spreadsheets/d/" + ID + "/gviz/tq?tqx=out:csv&headers=1&sheet=" + n); return csv(await r.text()); } catch (e) { return null; } };
     D = { yo: "modo prueba (solo lectura)", url: "https://docs.google.com/spreadsheets/d/" + ID };
     for (const [k, n] of [["noticias", "noticias"], ["camaras", "camaras"], ["partido", "partido_vivo"], ["ajustes", "ajustes"], ["programa", "programa"], ["correcciones", "correcciones"], ["escudos", "escudos"]]) D[k] = await hoja(n);
