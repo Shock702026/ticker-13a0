@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Panel 13a0</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400..900&family=Bitter:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  /* Panel de control 13a0. Se abre desde Google Apps Script (que guarda en la planilla);
+     abierto suelto (sin Apps Script) muestra los datos en modo lectura, para probar. */
+  :root { --azul:#180B5B; --celeste:#0086C3; --amarillo:#F9BE02; --rojo:#C5021E; --gris:#6E6A86; --fondo:#F3F2F7; --linea:#E3E1EC; --verde:#1a8a46;
+          --f:"Archivo","Helvetica Neue",Arial,sans-serif; --slab:"Bitter",Georgia,serif; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { height:100%; }
+  body { font:15px/1.4 var(--f); color:var(--azul); background:var(--fondo); display:grid; grid-template-columns:240px 1fr; min-height:100vh; }
+  button { font:inherit; cursor:pointer; }
+  /* barra lateral */
+  .lado { background:var(--azul); color:#fff; display:flex; flex-direction:column; padding:22px 14px; gap:4px; position:sticky; top:0; height:100vh; }
+  .marca { display:flex; align-items:center; gap:10px; margin:0 6px 22px; }
+  .marca b { background:#fff; color:var(--azul); font:900 26px/1 var(--f); padding:8px 10px; letter-spacing:-.02em; } .marca b i { font-style:normal; color:var(--celeste); }
+  .marca span { font:800 15px/1.1 var(--slab); letter-spacing:.08em; text-transform:uppercase; }
+  .nav button { width:100%; display:flex; align-items:center; gap:12px; padding:11px 12px; color:#d8d5ea; background:none; border:0; font-weight:700; font-size:16px; text-align:left; }
+  .nav button i { width:12px; height:12px; flex:none; } .nav button.on { background:rgba(255,255,255,.12); color:#fff; } .nav button.on i { outline:3px solid #fff; outline-offset:2px; }
+  .nav small { margin-left:auto; background:var(--rojo); color:#fff; font:800 12px/1 var(--f); padding:4px 7px; }
+  .usuario { margin-top:auto; padding:12px; border-top:1px solid rgba(255,255,255,.15); font-size:12px; color:#d8d5ea; word-break:break-all; }
+  .usuario a { color:#fff; display:block; margin-top:8px; font-weight:700; }
+  /* contenido */
+  .main { padding:24px 28px 40px; display:flex; flex-direction:column; gap:18px; min-width:0; }
+  .cab { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  .cab h1 { font:800 30px/1 var(--slab); }
+  .estado { margin-left:auto; display:flex; align-items:center; gap:8px; font-weight:700; color:var(--verde); font-size:14px; }
+  .estado i { width:10px; height:10px; background:currentColor; } .estado.lectura { color:var(--rojo); }
+  .btn { font:800 15px/1 var(--f); border:0; padding:13px 20px; background:var(--azul); color:#fff; white-space:nowrap; }
+  .btn.am { background:var(--amarillo); color:var(--azul); } .btn.sec { background:#fff; color:var(--azul); outline:2px solid var(--linea); outline-offset:-2px; }
+  .btn.ro { background:var(--rojo); } .btn.ce { background:var(--celeste); } .btn.chico { padding:9px 12px; font-size:13px; }
+  .btn:disabled { opacity:.45; cursor:default; }
+  .card { background:#fff; outline:1px solid var(--linea); }
+  .cuerpo { display:grid; grid-template-columns:minmax(380px,460px) 1fr; gap:20px; align-items:start; }
+  .form { padding:20px 22px; display:flex; flex-direction:column; gap:14px; }
+  .form h2 { font:800 19px/1.1 var(--slab); display:flex; align-items:center; gap:10px; }
+  .form h2 i { width:14px; height:14px; flex:none; }
+  .grupo { display:flex; flex-direction:column; gap:10px; padding-top:14px; border-top:2px solid var(--linea); }
+  .grupo > b { font:800 12px/1 var(--f); letter-spacing:.12em; text-transform:uppercase; color:var(--gris); }
+  label, .lbl { display:flex; flex-direction:column; gap:5px; font-weight:700; font-size:13px; }
+  .lbl .ayuda, label .ayuda { font-weight:600; color:var(--gris); font-size:12px; }
+  input[type=text], input[type=number], select, textarea { font:600 16px/1.2 var(--f); color:var(--azul); border:2px solid var(--linea); padding:10px 12px; background:#fff; width:100%; }
+  input:focus, select:focus, textarea:focus, .rico:focus-within { outline:none; border-color:var(--celeste); box-shadow:0 0 0 3px rgba(0,134,195,.18); }
+  .dos { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .sw { display:flex; align-items:center; justify-content:space-between; gap:12px; font-weight:700; font-size:14px; padding:10px 12px; background:var(--fondo); cursor:pointer; user-select:none; }
+  .sw .t { width:54px; height:30px; background:#cfccdc; position:relative; flex:none; transition:background .15s; } .sw .t::after { content:""; position:absolute; left:4px; top:4px; width:22px; height:22px; background:#fff; transition:left .15s; }
+  .sw.on .t { background:#1a9a4a; } .sw.on .t::after { left:28px; }
+  .sw small { display:block; font-weight:600; color:var(--gris); font-size:12px; }
+  .chips { display:flex; gap:8px; flex-wrap:wrap; } .chip { padding:8px 12px; font-weight:800; font-size:13px; background:var(--fondo); border:0; outline:2px solid var(--linea); outline-offset:-2px; color:var(--azul); }
+  .chip.on { background:var(--azul); color:#fff; outline-color:var(--azul); }
+  .chip.c-rojo.on { background:var(--rojo); outline-color:var(--rojo); } .chip.c-celeste.on { background:var(--celeste); outline-color:var(--celeste); }
+  .vista { padding:18px; display:flex; flex-direction:column; gap:12px; min-width:0; position:sticky; top:16px; }
+  .vista .tit { display:flex; align-items:center; gap:10px; font-weight:800; font-size:14px; flex-wrap:wrap; }
+  .vista .tit .et { background:var(--rojo); color:#fff; font:800 12px/1 var(--f); letter-spacing:.1em; padding:6px 8px; }
+  .vista .tit .et.az { background:var(--azul); }
+  .vista .tit span:last-child { margin-left:auto; color:var(--gris); font-weight:600; }
+  .pv { width:100%; aspect-ratio:16/9; position:relative; overflow:hidden; background:repeating-linear-gradient(45deg,#7a7a7a 0 22px,#848484 22px 44px); }
+  .pv.negro { background:#000; } .pv.gris { background:#3a3f4a; }
+  .pv iframe { position:absolute; left:0; top:0; width:1920px; height:1080px; border:0; transform-origin:0 0; pointer-events:none; }
+  .aviso { background:#FFF6CC; padding:10px 14px; font-size:13px; font-weight:600; }
+  .pie { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:4px; }
+  .vacio { padding:40px; text-align:center; color:var(--gris); font-weight:700; }
+  /* aviso de guardado */
+  #toast { position:fixed; right:24px; bottom:24px; background:var(--azul); color:#fff; font-weight:800; padding:14px 20px; transform:translateY(160%); transition:transform .25s; z-index:9; max-width:440px; }
+  #toast.on { transform:none; } #toast.error { background:var(--rojo); }
+  #cargando { position:fixed; inset:0; background:var(--fondo); display:flex; align-items:center; justify-content:center; font:800 22px var(--slab); z-index:10; }
+  /* texto con palabras en rojo */
+  .rico { border:2px solid var(--linea); background:#fff; }
+  .barra-r { display:flex; align-items:center; gap:8px; padding:6px; background:var(--fondo); border-bottom:2px solid var(--linea); flex-wrap:wrap; }
+  .barra-r button { font:800 13px/1 var(--f); border:0; padding:7px 10px; }
+  .rojo-btn { background:var(--rojo); color:#fff; } .quitar-btn { background:#fff; color:var(--azul); outline:2px solid var(--linea); outline-offset:-2px; }
+  .barra-r span { color:var(--gris); font-size:12px; font-weight:600; margin-left:auto; }
+  .txt-r { padding:10px 12px; font:900 22px/1.25 var(--f); min-height:48px; outline:none; white-space:pre-wrap; }
+  .txt-r.p { font:600 15px/1.4 var(--f); min-height:66px; }
+  .txt-r em { font-style:normal; color:var(--rojo); }
+  .contador { font:700 12px var(--f); color:var(--gris); } .contador.ok { color:var(--verde); } .contador.mal { color:var(--rojo); }
+  .lbl-fila { display:flex; justify-content:space-between; align-items:baseline; }
+  /* noticias */
+  .cuerpo.n { grid-template-columns:380px minmax(420px,1fr) minmax(360px,520px); }
+  .lista { padding:12px; display:flex; flex-direction:column; gap:8px; max-height:calc(100vh - 130px); overflow:auto; }
+  .filtros { display:flex; gap:6px; margin-bottom:4px; }
+  .noti { display:grid; grid-template-columns:64px 1fr auto; gap:10px; align-items:center; padding:8px; background:var(--fondo); cursor:pointer; }
+  .noti.on { outline:3px solid var(--amarillo); outline-offset:-3px; background:#fff; }
+  .noti .ft { width:64px; height:64px; background:var(--azul) center/cover no-repeat; }
+  .noti b { font-weight:900; font-size:15px; line-height:1.2; display:block; } .noti b em { font-style:normal; color:var(--rojo); }
+  .noti small { display:block; color:var(--gris); font-weight:600; font-size:12px; margin-top:3px; }
+  .noti .acc { display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+  .noti .mov { display:flex; gap:4px; } .noti .mov button { border:0; background:#fff; width:28px; height:24px; font-weight:900; color:var(--azul); outline:1px solid var(--linea); }
+  .noti .sw { background:none; padding:0; }
+  /* foto */
+  .encuadre { display:flex; flex-direction:column; gap:10px; }
+  .escena { position:relative; height:330px; background:#222; overflow:hidden; touch-action:none; cursor:grab; }
+  .escena img { position:absolute; left:0; top:0; transform-origin:0 0; user-select:none; -webkit-user-drag:none; pointer-events:none; }
+  .escena .marco-v { position:absolute; top:0; height:100%; outline:3px solid var(--amarillo); outline-offset:-3px; box-shadow:0 0 0 2000px rgba(10,6,40,.62); pointer-events:none; }
+  .escena .mano { position:absolute; right:10px; bottom:10px; background:var(--amarillo); color:var(--azul); font:800 12px/1 var(--f); padding:7px 9px; pointer-events:none; }
+  .escena.sin { display:flex; align-items:center; justify-content:center; color:#bbb; font-weight:700; cursor:default; border:3px dashed #555; }
+  .escena.arrastrando { outline:4px solid var(--celeste); }
+  .zoom { display:flex; align-items:center; gap:10px; font-weight:900; } .zoom input { flex:1; accent-color:var(--celeste); }
+  .foto-actual { display:grid; grid-template-columns:110px 1fr; gap:12px; align-items:center; } .foto-actual .ft { width:110px; height:200px; background:#222 center/cover no-repeat; }
+  /* cámaras */
+  .tiras { display:flex; gap:10px; overflow-x:auto; padding-bottom:6px; }
+  .tira { flex:none; width:160px; cursor:pointer; background:none; border:0; text-align:left; color:var(--azul); }
+  .tira .mini { width:160px; height:90px; position:relative; overflow:hidden; background:#7a7a7a; outline:3px solid transparent; outline-offset:-3px; }
+  .tira.on .mini { outline-color:var(--amarillo); }
+  .tira .mini iframe { position:absolute; left:0; top:0; width:1920px; height:1080px; border:0; transform:scale(.08333); transform-origin:0 0; pointer-events:none; }
+  .tira span { display:block; font-weight:800; font-size:13px; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tira span em { font-style:normal; color:var(--gris); font-weight:600; }
+  /* partido */
+  .botonera { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .botonera .btn { padding:14px 10px; }
+  .marcador-m { display:grid; grid-template-columns:1fr auto 1fr; gap:10px; align-items:center; text-align:center; font-weight:900; }
+  .marcador-m .g { font-size:40px; } .marcador-m input { text-align:center; }
+  /* tablas sueltas */
+  table.ed { width:100%; border-collapse:collapse; } table.ed th { font:800 11px/1 var(--f); letter-spacing:.1em; text-transform:uppercase; color:var(--gris); text-align:left; padding:6px; }
+  table.ed td { padding:3px; } table.ed input, table.ed select { padding:7px 8px; font-size:14px; }
+  table.ed td.esc img { width:34px; height:34px; object-fit:contain; display:block; }
+  table.ed td.quitar button { border:0; background:none; color:var(--rojo); font-weight:900; font-size:18px; }
+  .inicio { display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; }
+  .inicio .card { padding:20px; display:flex; flex-direction:column; gap:10px; cursor:pointer; }
+  .inicio .card b { font:800 20px/1.1 var(--slab); } .inicio .card span { color:var(--gris); font-weight:600; }
+  .inicio .card i { width:100%; height:6px; }
+  @media (max-width:1300px) { .cuerpo.n { grid-template-columns:340px 1fr; } .cuerpo.n > .vista { grid-column:1 / -1; position:static; } }
+  @media (max-width:900px) { body { grid-template-columns:1fr; } .lado { position:static; height:auto; } .cuerpo, .cuerpo.n { grid-template-columns:1fr; } .inicio { grid-template-columns:1fr; } }
+</style></head>
+<body>
+<div id="cargando">Cargando el panel…</div>
+<aside class="lado">
+  <div class="marca"><b>13<i>a</i>0</b><span>Panel</span></div>
+  <nav class="nav" id="nav"></nav>
+  <div class="usuario" id="usuario"></div>
+</aside>
+<main class="main" id="main"></main>
+<div id="toast"></div>
+<script>
+const WEB = new URLSearchParams(location.search).get("web") || "https://shock702026.github.io/ticker-13a0/";
+const ENAS = typeof google !== "undefined" && google.script && google.script.run;   // dentro de Apps Script
+let D = null, seccion = "inicio";
+
+/* ---------- Conexión con la planilla ---------- */
+function srv(fn, ...args) {
+  if (!ENAS) return Promise.reject(new Error("Modo prueba: abrí el panel desde su link para poder guardar."));
+  return new Promise((ok, mal) => google.script.run.withSuccessHandler(ok).withFailureHandler(mal)[fn](...args));
+}
+async function cargar() {
+  if (ENAS) D = await srv("leer");
+  else {   // modo prueba: lee la planilla publicada (solo lectura)
+    const ID = new URLSearchParams(location.search).get("planilla") || "1C0k0yhLyxliRM5ceWlGw7oPr84oGlg9J";
+    const hoja = async (n) => { try { const r = await fetch("https://docs.google.com/spreadsheets/d/" + ID + "/gviz/tq?tqx=out:csv&headers=1&sheet=" + n); return csv(await r.text()); } catch (e) { return null; } };
+    D = { yo: "modo prueba (solo lectura)", url: "https://docs.google.com/spreadsheets/d/" + ID };
+    for (const [k, n] of [["noticias", "noticias"], ["camaras", "camaras"], ["partido", "partido_vivo"], ["ajustes", "ajustes"], ["programa", "programa"], ["correcciones", "correcciones"], ["escudos", "escudos"]]) D[k] = await hoja(n);
+  }
+}
+function csv(t) {
+  const filas = []; let f = [], c = "", q = false;
+  for (let i = 0; i < t.length; i++) { const ch = t[i];
+    if (q) { if (ch === '"') { if (t[i + 1] === '"') { c += '"'; i++; } else q = false; } else c += ch; }
+    else if (ch === '"') q = true; else if (ch === ",") { f.push(c); c = ""; } else if (ch === "\n") { f.push(c); filas.push(f); f = []; c = ""; } else if (ch !== "\r") c += ch; }
+  if (c !== "" || f.length) { f.push(c); filas.push(f); }
+  return filas;
+}
+const cab = (t) => (t && t[0] || []).map((x) => String(x).trim().toLowerCase());
+function aviso(txt, error) { const t = document.getElementById("toast"); t.textContent = txt; t.className = "on" + (error ? " error" : ""); clearTimeout(aviso.t); aviso.t = setTimeout(() => (t.className = ""), error ? 6000 : 2600); }
+async function guardar(fn, ...args) {
+  try { const r = await srv(fn, ...args); aviso("Guardado ✓ · OBS lo toma en unos segundos"); return r; }
+  catch (e) { aviso(e.message || String(e), true); throw e; }
+}
+
+/* ---------- Utilidades ---------- */
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const rojoHTML = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<em>$1</em>").replace(/\*(.+?)\*/g, "<em>$1</em>");
+const sinT = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+const esSi = (v) => /^(si|sí|s|x|1|true|verdadero|yes)$/i.test(String(v || "").trim());
+function img(u) {
+  if (!u) return "";
+  const m = u.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:export=\w+&)?id=)([a-zA-Z0-9-_]+)/);
+  if (m) return "https://drive.google.com/thumbnail?id=" + m[1] + "&sz=w600";
+  if (/^escudos\//.test(u)) return WEB + u;
+  if (!/^(https?:|data:)/.test(u)) return WEB + "escudos/" + u;
+  return u;
+}
+const h = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; };
+const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+function escalar(pv) { const f = pv.querySelector("iframe"); if (f) f.style.transform = "scale(" + (pv.clientWidth / 1920) + ")"; }
+addEventListener("resize", () => document.querySelectorAll(".pv").forEach(escalar));
+
+/* Editor con palabras en rojo: se marca la palabra y se toca "Rojo" (en la planilla queda **así**) */
+function editorRojo(valor, opc = {}) {
+  const el = h(`<div class="rico"><div class="barra-r"><button type="button" class="rojo-btn">■ Rojo</button><button type="button" class="quitar-btn">Quitar rojo</button><span>Marcá la palabra y tocá Rojo</span></div><div class="txt-r${opc.parrafo ? " p" : ""}" contenteditable="true"></div></div>`);
+  const tx = el.querySelector(".txt-r");
+  tx.innerHTML = rojoHTML(valor);
+  const cambio = () => opc.onInput && opc.onInput(el.valor());
+  el.valor = () => {
+    let s = "";
+    tx.childNodes.forEach(function rec(n) {
+      if (n.nodeType === 3) s += n.textContent;
+      else if (n.nodeName === "EM") { const t = n.textContent; s += t.trim() ? "**" + t + "**" : t; }
+      else if (n.nodeName === "BR") s += " ";
+      else n.childNodes.forEach(rec);
+    });
+    return s.replace(/\*\*\*\*/g, "").replace(/\s+/g, " ").trim();
+  };
+  el.querySelector(".rojo-btn").onmousedown = (e) => {
+    e.preventDefault();
+    const sel = getSelection(); if (!sel.rangeCount) return;
+    const r = sel.getRangeAt(0); if (r.collapsed || !tx.contains(r.commonAncestorContainer)) { aviso("Primero marcá la palabra con el mouse", true); return; }
+    const em = document.createElement("em"); em.appendChild(r.extractContents());
+    em.querySelectorAll("em").forEach((x) => x.replaceWith(...x.childNodes));
+    r.insertNode(em); sel.removeAllRanges(); cambio();
+  };
+  el.querySelector(".quitar-btn").onmousedown = (e) => {
+    e.preventDefault();
+    const sel = getSelection();
+    tx.querySelectorAll("em").forEach((x) => { if (!sel.rangeCount || sel.getRangeAt(0).intersectsNode(x)) x.replaceWith(...x.childNodes); });
+    tx.normalize(); cambio();
+  };
+  tx.addEventListener("paste", (e) => { e.preventDefault(); document.execCommand("insertText", false, (e.clipboardData.getData("text/plain") || "").replace(/\s+/g, " ")); });
+  tx.addEventListener("keydown", (e) => { if (e.key === "Enter") e.preventDefault(); });
+  tx.addEventListener("input", cambio);
+  return el;
+}
+const largo = (s) => s.replace(/\*\*/g, "").length;
+function contador(el, max, txt) { const n = largo(txt); el.textContent = n + " / " + max; el.className = "contador " + (n === 0 ? "" : n <= max ? "ok" : "mal"); }
+function interruptor(texto, on, sub, onChange) {
+  const el = h(`<div class="sw${on ? " on" : ""}"><span>${esc(texto)}${sub ? `<small>${esc(sub)}</small>` : ""}</span><span class="t"></span></div>`);
+  el.onclick = (e) => { e.stopPropagation(); el.classList.toggle("on"); onChange && onChange(el.classList.contains("on")); };
+  el.valor = () => el.classList.contains("on");
+  return el;
+}
+function vistaPrevia(src, cls = "") {
+  const pv = h(`<div class="pv ${cls}"><iframe src="${src}"></iframe></div>`);
+  requestAnimationFrame(() => escalar(pv)); setTimeout(() => escalar(pv), 300);
+  return pv;
+}
+
+/* ---------- Navegación ---------- */
+const SECC = [["inicio", "Inicio", "var(--celeste)"], ["noticias", "Noticias", "var(--amarillo)"], ["camaras", "Cámaras y zócalos", "var(--rojo)"],
+  ["partido", "Partido en vivo", "var(--celeste)"], ["ticker", "Ticker", "var(--amarillo)"], ["correcciones", "Correcciones", "var(--rojo)"], ["escudos", "Escudos", "#fff"]];
+function nav() {
+  const alAire = noticias().filter((n) => esSi(n.mostrar)).length;
+  document.getElementById("nav").innerHTML = SECC.map(([k, t, c]) => `<button data-s="${k}" class="${k === seccion ? "on" : ""}"><i style="background:${c}"></i>${t}${k === "noticias" ? `<small>${alAire} al aire</small>` : ""}</button>`).join("");
+  document.querySelectorAll("#nav button").forEach((b) => (b.onclick = () => ir(b.dataset.s)));
+  document.getElementById("usuario").innerHTML = esc(D.yo) + `<a href="${esc(D.url)}" target="_blank">Abrir la planilla ↗</a>`;
+}
+function ir(s) { seccion = s; nav(); const m = document.getElementById("main"); m.innerHTML = ""; (VISTAS[s] || VISTAS.inicio)(m); scrollTo(0, 0); }
+const titulo = (t, extra = "") => `<div class="cab"><h1>${t}</h1>${extra}<span class="estado${ENAS ? "" : " lectura"}"><i></i>${ENAS ? "Conectado a la planilla" : "Modo prueba: solo lectura"}</span></div>`;
+
+const VISTAS = {};
+
+/* ---------- Inicio ---------- */
+VISTAS.inicio = (m) => {
+  m.innerHTML = titulo("Hola 👋") + `<div class="inicio">` + SECC.slice(1).map(([k, t, c]) => `<div class="card" data-s="${k}"><i style="background:${c === "#fff" ? "var(--azul)" : c}"></i><b>${t}</b><span>${{
+    noticias: "Cargar, ordenar y poner al aire las noticias de la tanda y TITULARES. Foto con encuadre.",
+    camaras: "Nombres de los zócalos, temas de charla y cuadros de cada pantalla de cámaras.",
+    partido: "Qué partido muestra la pantalla de partido, y la carga a mano para la Copa AUF.",
+    ticker: "Qué bloques pasan cada día y los ajustes de la cinta (velocidad, alto, tiempos).",
+    correcciones: "Corregir un resultado, un nombre o esconder un partido del ticker.",
+    escudos: "Cambiar el escudo de un equipo o de una competencia." }[k]}</span></div>`).join("") + `</div>`;
+  m.querySelectorAll(".card").forEach((c) => (c.onclick = () => ir(c.dataset.s)));
+};
+
+/* ---------- Noticias ---------- */
+const COLS_N = ["mostrar", "titular", "parrafo_1", "parrafo_2", "imagen", "credito_foto", "categoria"];
+function noticias() {
+  const t = D.noticias; if (!t) return [];
+  const c = cab(t);
+  return t.slice(1).map((f, i) => { const o = { fila: i + 2 }; c.forEach((k, j) => (o[k] = f[j] || "")); return o; }).filter((n) => n.titular.trim() || n.parrafo_1.trim());
+}
+let filtroN = "aire", elegidaN = null;
+VISTAS.noticias = (m) => {
+  const todas = noticias();
+  const lista = todas.filter((n) => filtroN === "todas" || (filtroN === "aire" ? esSi(n.mostrar) : !esSi(n.mostrar)));
+  if (filtroN !== "aire") lista.reverse();   // guardadas y todas: las más nuevas arriba
+  m.innerHTML = titulo("Noticias", `<button class="btn am" id="nueva">+ Nueva noticia</button>`) + `<div class="cuerpo n"><div class="card lista" id="lista"></div><div class="card form" id="ed"></div><div class="card vista" id="vn"></div></div>`;
+  m.querySelector("#nueva").onclick = () => { elegidaN = "nueva"; ir("noticias"); };
+  const L = m.querySelector("#lista");
+  const nA = todas.filter((n) => esSi(n.mostrar)).length;
+  L.appendChild(h(`<div class="filtros">${[["aire", "Al aire (" + nA + ")"], ["guardadas", "Guardadas"], ["todas", "Todas"]].map(([k, t]) => `<button class="chip${k === filtroN ? " on" : ""}" data-f="${k}">${t}</button>`).join("")}</div>`));
+  L.querySelectorAll(".chip").forEach((b) => (b.onclick = () => { filtroN = b.dataset.f; ir("noticias"); }));
+  if (!lista.length) L.appendChild(h(`<div class="vacio">No hay noticias acá.</div>`));
+  lista.forEach((n, i) => {
+    const it = h(`<div class="noti${elegidaN && elegidaN.fila === n.fila ? " on" : ""}"><span class="ft" style="${n.imagen ? `background-image:url('${img(n.imagen)}')` : ""}"></span><div><b>${rojoHTML(n.titular) || "<i>(sin titular)</i>"}</b><small>${n.imagen ? "Con foto" : "Sin foto"} · ${esSi(n.mostrar) ? "al aire" : "guardada"}${n.categoria ? " · " + esc(n.categoria) : ""}</small></div><div class="acc"></div></div>`);
+    const acc = it.querySelector(".acc");
+    acc.appendChild(interruptor("", esSi(n.mostrar), "", async (on) => {
+      try { await guardar("guardarNoticia", n.fila, { mostrar: on ? "SI" : "NO" }); await recargar(); } catch (e) { ir("noticias"); }
+    }));
+    if (filtroN === "aire") {
+      const mv = h(`<div class="mov"><button title="Subir">▲</button><button title="Bajar">▼</button></div>`);
+      const mover = async (d) => { const otra = lista[i + d]; if (!otra) return; try { await guardar("moverNoticia", n.fila, otra.fila); if (elegidaN && elegidaN.fila === n.fila) elegidaN = { fila: otra.fila }; await recargar(); } catch (e) {} };
+      mv.children[0].onclick = (e) => { e.stopPropagation(); mover(-1); };
+      mv.children[1].onclick = (e) => { e.stopPropagation(); mover(1); };
+      acc.appendChild(mv);
+    }
+    it.onclick = () => { elegidaN = { fila: n.fila }; ir("noticias"); };
+    L.appendChild(it);
+  });
+  const n = elegidaN === "nueva" ? { fila: null, mostrar: "SI", titular: "", parrafo_1: "", parrafo_2: "", imagen: "", credito_foto: "", categoria: "" }
+    : elegidaN ? todas.find((x) => x.fila === elegidaN.fila) : lista[0];
+  if (!n) { m.querySelector("#ed").innerHTML = `<div class="vacio">Elegí una noticia de la lista o creá una nueva.</div>`; return; }
+  editorNoticia(m.querySelector("#ed"), m.querySelector("#vn"), n, todas);
+};
+function editorNoticia(E, V, n, todas) {
+  E.innerHTML = `<h2><i style="background:var(--amarillo)"></i>${n.fila ? "Editando noticia" : "Noticia nueva"}</h2>`;
+  const st = Object.assign({}, n); let fotoNueva = null;   // fotoNueva = dataURL encuadrado, se sube al guardar
+  // vista previa (tanda y TITULARES) con la noticia que se está editando
+  V.innerHTML = `<div class="tit"><span class="et">VISTA PREVIA</span><span>Así sale en la tanda</span></div>`;
+  const pvT = vistaPrevia(WEB + "tanda.html?previa", "negro"); V.appendChild(pvT);
+  V.appendChild(h(`<div class="tit"><span class="et az">TITULARES</span><span>Así sale en la pantalla E</span></div>`));
+  const pvE = vistaPrevia(WEB + "cam-E-titulares.html?previa&png"); V.appendChild(pvE);
+  const mandar = debounce(() => {
+    const msj = { panel13a0: true, noticia: { tit: st.titular || " ", cat: st.categoria, parrafos: [st.parrafo_1, st.parrafo_2].filter((x) => (x || "").trim()), img: fotoNueva || img(st.imagen).replace("sz=w600", "sz=w1600"), credito: st.credito_foto } };
+    [pvT, pvE].forEach((pv) => { try { pv.querySelector("iframe").contentWindow.postMessage(msj, "*"); } catch (e) {} });
+  }, 250);
+  [pvT, pvE].forEach((pv) => pv.querySelector("iframe").addEventListener("load", () => setTimeout(mandar, 1500)));
+
+  const campo = (k, titulo, max, parrafo) => {
+    const w = h(`<div class="lbl"><div class="lbl-fila"><span>${titulo}</span><span class="contador"></span></div></div>`);
+    const cnt = w.querySelector(".contador");
+    const ed = editorRojo(st[k], { parrafo, onInput: (v) => { st[k] = v; contador(cnt, max, v); mandar(); } });
+    contador(cnt, max, st[k]); w.appendChild(ed); return w;
+  };
+  E.appendChild(campo("titular", "Titular (corto: entre 15 y 25 letras)", 25));
+  E.appendChild(campo("parrafo_1", "Párrafo 1", 110, true));
+  E.appendChild(campo("parrafo_2", "Párrafo 2 (opcional)", 110, true));
+  const cats = [...new Set(todas.map((x) => x.categoria).filter(Boolean))];
+  const fila2 = h(`<div class="dos"><label>Categoría<input type="text" list="cats" value="${esc(st.categoria)}"><datalist id="cats">${cats.map((c) => `<option value="${esc(c)}">`).join("")}</datalist></label><label>Crédito de la foto<input type="text" value="${esc(st.credito_foto)}" placeholder="Ej.: AdHoc"></label></div>`);
+  const [inCat, inCred] = fila2.querySelectorAll("input");
+  inCat.oninput = () => { st.categoria = inCat.value; mandar(); }; inCred.oninput = () => { st.credito_foto = inCred.value; mandar(); };
+  E.appendChild(fila2);
+  // foto: subir y encuadrar
+  const g = h(`<div class="grupo"><b>Foto</b></div>`); E.appendChild(g);
+  const editorFoto = encuadrador((url) => { fotoNueva = url; mandar(); });
+  if (st.imagen) {
+    const act = h(`<div class="foto-actual"><span class="ft" style="background-image:url('${img(st.imagen)}')"></span><div><b>Foto actual</b><div class="ayuda" style="color:var(--gris);font-size:12px;font-weight:600;margin:4px 0 10px">Para cambiarla, subí otra abajo y encuadrala.</div><button class="btn sec chico">Quitar la foto</button></div></div>`);
+    act.querySelector("button").onclick = () => { st.imagen = ""; fotoNueva = null; act.remove(); mandar(); };
+    g.appendChild(act);
+  }
+  g.appendChild(editorFoto);
+  // botones
+  const pie = h(`<div class="pie"><button class="btn am">Guardar</button><button class="btn sec">${esSi(st.mostrar) ? "Sacar del aire" : "Poner al aire"}</button></div>`);
+  const [bG, bA] = pie.querySelectorAll("button");
+  bG.onclick = async () => {
+    bG.disabled = true; bG.textContent = "Guardando…";
+    try {
+      if (fotoNueva) { bG.textContent = "Subiendo la foto…"; st.imagen = await srv("subirFoto", fotoNueva.split(",")[1], "noticia-" + Date.now() + ".jpg"); }
+      const datos = {}; COLS_N.forEach((k) => (datos[k] = st[k] || ""));
+      const fila = await guardar("guardarNoticia", st.fila, datos);
+      elegidaN = { fila }; await recargar();
+    } catch (e) { aviso(e.message || String(e), true); bG.disabled = false; bG.textContent = "Guardar"; }
+  };
+  bA.onclick = async () => { st.mostrar = esSi(st.mostrar) ? "NO" : "SI"; if (!st.fila) { bA.textContent = esSi(st.mostrar) ? "Sacar del aire" : "Poner al aire"; return; } try { await guardar("guardarNoticia", st.fila, { mostrar: st.mostrar }); await recargar(); } catch (e) {} };
+  E.appendChild(pie);
+  if (!ENAS) E.appendChild(h(`<div class="aviso">Modo prueba: se puede editar y ver la vista previa, pero no guardar.</div>`));
+}
+
+/* Encuadre de la foto: el recuadro amarillo es lo que sale en la tanda (vertical, 504 × 920) */
+function encuadrador(onCambio) {
+  const RAZON = 504 / 920, SAL_W = 1008, SAL_H = 1840;
+  const el = h(`<div class="encuadre"><div class="escena sin">Arrastrá una foto acá o tocá «Subir foto»</div><div class="zoom" style="display:none"><span>−</span><input type="range" min="1" max="4" step="0.01" value="1"><span>+</span></div><div class="pie"><label class="btn sec chico" style="flex-direction:row">📷 Subir foto<input type="file" accept="image/*" hidden></label><span class="ayuda" style="color:var(--gris);font-size:12px;font-weight:600">Se guarda sola en Drive al tocar Guardar</span></div></div>`);
+  const esc_ = el.querySelector(".escena"), zoom = el.querySelector(".zoom"), rango = zoom.querySelector("input"), file = el.querySelector("input[type=file]");
+  let im = null, base = 1, x = 0, y = 0, mw = 0, mx = 0;
+  const marco = () => { const H = esc_.clientHeight; mw = H * RAZON; mx = (esc_.clientWidth - mw) / 2; return { H }; };
+  function limitar() {
+    const { H } = marco(), s = base * +rango.value, w = im.naturalWidth * s, hh = im.naturalHeight * s;
+    x = Math.min(mx, Math.max(mx + mw - w, x)); y = Math.min(0, Math.max(H - hh, y));
+    im.style.transform = `translate(${x}px,${y}px) scale(${s})`;
+  }
+  const exportar = debounce(() => {
+    const s = base * +rango.value, c = document.createElement("canvas"); c.width = SAL_W; c.height = SAL_H;
+    c.getContext("2d").drawImage(im, (mx - x) / s, (0 - y) / s, mw / s, esc_.clientHeight / s, 0, 0, SAL_W, SAL_H);
+    onCambio(c.toDataURL("image/jpeg", 0.88));
+  }, 200);
+  function abrir(f) {
+    if (!f || !/^image\//.test(f.type)) return;
+    const r = new FileReader();
+    r.onload = () => {
+      esc_.className = "escena"; esc_.innerHTML = `<img><div class="marco-v"></div><span class="mano">✥ Arrastrá para encuadrar</span>`;
+      im = esc_.querySelector("img"); im.onload = () => {
+        const { H } = marco(); esc_.querySelector(".marco-v").style.cssText = `left:${mx}px;width:${mw}px`;
+        base = Math.max(mw / im.naturalWidth, H / im.naturalHeight); rango.value = 1;
+        x = mx + (mw - im.naturalWidth * base) / 2; y = (H - im.naturalHeight * base) * 0.3;
+        zoom.style.display = ""; limitar(); exportar();
+      };
+      im.src = r.result;
+    };
+    r.readAsDataURL(f);
+  }
+  file.onchange = () => abrir(file.files[0]);
+  esc_.addEventListener("dragover", (e) => { e.preventDefault(); esc_.classList.add("arrastrando"); });
+  esc_.addEventListener("dragleave", () => esc_.classList.remove("arrastrando"));
+  esc_.addEventListener("drop", (e) => { e.preventDefault(); esc_.classList.remove("arrastrando"); abrir(e.dataTransfer.files[0]); });
+  let arr = null;
+  esc_.addEventListener("pointerdown", (e) => { if (!im) return; arr = [e.clientX - x, e.clientY - y]; esc_.setPointerCapture(e.pointerId); esc_.style.cursor = "grabbing"; });
+  esc_.addEventListener("pointermove", (e) => { if (!arr) return; x = e.clientX - arr[0]; y = e.clientY - arr[1]; limitar(); });
+  esc_.addEventListener("pointerup", () => { if (!arr) return; arr = null; esc_.style.cursor = ""; exportar(); });
+  rango.oninput = () => {   // zoom alrededor del centro del recuadro
+    const { H } = marco(); const s0 = parseFloat(im.style.transform.match(/scale\(([\d.]+)\)/)[1]), s = base * +rango.value;
+    const cx = mx + mw / 2, cy = H / 2; x = cx - (cx - x) * s / s0; y = cy - (cy - y) * s / s0; limitar(); exportar();
+  };
+  return el;
+}
+
+/* ---------- Cámaras y zócalos (pestaña "camaras": Qué cambia | valor | Ayuda | clave) ---------- */
+const PANT = [["A", "Una cámara", "cam-A-una-camara"], ["B", "Mano a mano", "cam-B-mano-a-mano"], ["C", "Tres cámaras", "cam-C-tres-camaras"], ["D", "Mesa de cuatro", "cam-D-mesa-de-cuatro"],
+  ["E", "TITULARES", "cam-E-titulares"], ["F", "Cuadros sueltos", "cam-F-cuadros-sueltos"], ["G", "Zócalo bloques", "cam-G-zocalo-bloques"], ["H", "Charla", "cam-H-charla"],
+  ["I", "Solo logo", "cam-I-logo"], ["J", "Cinco vertical", "cam-J-cinco-vertical"], ["K", "Cinco horizontal", "cam-K-cinco-horizontal"]];
+let pantalla = "A";
+function filasClave(t) {
+  const c = cab(t), iq = c.indexOf("qué cambia") >= 0 ? c.indexOf("qué cambia") : 0, iv = c.indexOf("valor"), ia = c.indexOf("ayuda"), ik = c.indexOf("clave");
+  return (t || []).slice(1).map((f) => ({ que: f[iq] || "", valor: f[iv] || "", ayuda: ia >= 0 ? f[ia] || "" : "", clave: (f[ik] || "").trim().toLowerCase() }));
+}
+const valoresDe = (t) => Object.fromEntries(filasClave(t).filter((r) => r.clave).map((r) => [r.clave, r.valor]));
+VISTAS.camaras = (m) => {
+  const vals = valoresDe(D.camaras);
+  m.innerHTML = titulo("Cámaras y zócalos") + `<div class="tiras" id="tiras"></div><div class="cuerpo"><div class="card form" id="fc"></div><div class="card vista" id="vc"></div></div>`;
+  const T = m.querySelector("#tiras");
+  PANT.forEach(([l, n, f]) => {
+    const b = h(`<button class="tira${l === pantalla ? " on" : ""}"><div class="mini"><iframe src="${WEB + f}.html?png"></iframe></div><span>${l} · <em>${n}</em></span></button>`);
+    b.onclick = () => { pantalla = l; ir("camaras"); };
+    T.appendChild(b);
+  });
+  const [l, nombre, archivo] = PANT.find((p) => p[0] === pantalla);
+  const F = m.querySelector("#fc"), V = m.querySelector("#vc");
+  F.innerHTML = `<h2><i style="background:var(--rojo)"></i>${l} · ${esc(nombre)}</h2>`;
+  V.innerHTML = `<div class="tit"><span class="et">VISTA PREVIA</span><span>Así se ve en OBS (lo gris es la cámara)</span><span>1920 × 1080</span></div>`;
+  const pv = vistaPrevia(WEB + archivo + ".html?png"); V.appendChild(pv);
+  V.appendChild(h(`<div class="aviso">Lo que cambiás se ve acá al instante. Recién al tocar <b>Guardar</b> va a la planilla y sale al aire.</div>`));
+  // filas de esta pantalla: claves que empiezan con la letra (a.nombre, b1.rol, f.tema.texto…)
+  const filas = filasClave(D.camaras).filter((r) => r.clave && r.clave.split(".")[0].replace(/\d+$/, "") === l.toLowerCase());
+  const st = {}; filas.forEach((r) => (st[r.clave] = r.valor));
+  const cambios = {};
+  const mandar = debounce(() => { try { pv.querySelector("iframe").contentWindow.postMessage({ panel13a0: true, valores: st }, "*"); } catch (e) {} }, 150);
+  pv.querySelector("iframe").addEventListener("load", () => setTimeout(mandar, 1200));
+  const set = (k, v) => { st[k] = v; cambios[k] = v; mandar(); };
+  if (!filas.length) F.appendChild(h(`<div class="aviso">${l === "E" ? "TITULARES no tiene textos propios: muestra las noticias que están al aire (se cargan en <b>Noticias</b>)." : "Esta pantalla no tiene textos para cambiar."}</div>`));
+  // agrupar: f.tema / f.dato / f.zocalo / b1 / b2 …
+  const grupos = {};
+  filas.forEach((r) => { const p = r.clave.split("."); const g = p.length > 2 ? p[1] : /\d$/.test(p[0]) ? p[0] : "_"; (grupos[g] = grupos[g] || []).push(r); });
+  const NOMG = { tema: "Cuadro de tema", dato: "Cuadro de dato", zocalo: "Zócalo suelto", b1: "Cámara izquierda", b2: "Cámara derecha", _: "" };
+  Object.entries(grupos).forEach(([g, rs]) => {
+    const G = h(`<div class="grupo">${NOMG[g] !== undefined ? (NOMG[g] ? `<b>${NOMG[g]}</b>` : "") : `<b>${esc(g)}</b>`}</div>`);
+    rs.forEach((r) => {
+      const fin = r.clave.split(".").pop();
+      if (fin === "mostrar") G.appendChild(interruptor(r.que.replace(/^.*·\s*/, "") || "¿Se ve?", esSi(r.valor) || r.valor === "", "SI = entra con su animación · NO = sale", (on) => set(r.clave, on ? "SI" : "NO")));
+      else if (fin === "color") {
+        const w = h(`<div class="lbl"><span>${esc(r.que)}</span><div class="chips">${["rojo", "azul", "celeste"].map((c) => `<button class="chip c-${c}${sinT(r.valor || "rojo") === c ? " on" : ""}" data-c="${c}">${c[0].toUpperCase() + c.slice(1)}</button>`).join("")}</div></div>`);
+        w.querySelectorAll(".chip").forEach((b) => (b.onclick = () => { w.querySelectorAll(".chip").forEach((x) => x.classList.remove("on")); b.classList.add("on"); set(r.clave, b.dataset.c); }));
+        G.appendChild(w);
+      } else if (fin === "texto") {
+        const w = h(`<div class="lbl"><span>${esc(r.que)}</span></div>`);
+        w.appendChild(editorRojo(r.valor, { onInput: (v) => set(r.clave, v) })); G.appendChild(w);
+      } else {
+        const w = h(`<label>${esc(r.que)}<input type="text" value="${esc(r.valor)}">${r.ayuda ? `<span class="ayuda">${esc(r.ayuda)}</span>` : ""}</label>`);
+        const inp = w.querySelector("input"); inp.oninput = () => set(r.clave, inp.value); G.appendChild(w);
+      }
+    });
+    F.appendChild(G);
+  });
+  if (filas.length) {
+    const pie = h(`<div class="pie"><button class="btn am">Guardar y mandar al aire</button><button class="btn sec">Deshacer</button></div>`);
+    const [bG, bD] = pie.querySelectorAll("button");
+    bG.onclick = async () => { if (!Object.keys(cambios).length) { aviso("No hay cambios"); return; } bG.disabled = true; try { await guardar("guardarClaves", "camaras", cambios); await recargar(); } catch (e) { bG.disabled = false; } };
+    bD.onclick = () => ir("camaras");
+    F.appendChild(pie);
+  }
+};
+
+/* ---------- Partido en vivo (pestaña "partido_vivo") ---------- */
+const EQUIPOS = ["Albion", "Boston River", "Central Español", "Cerro", "Cerro Largo", "Danubio", "Defensor Sporting", "Deportivo Maldonado", "Juventud", "Liverpool", "Montevideo City Torque", "Montevideo Wanderers", "Nacional", "Peñarol", "Progreso", "Racing"];
+VISTAS.partido = (m) => {
+  const v = valoresDe(D.partido);
+  const st = Object.assign({}, v), cambios = {};
+  const set = (k, x) => { st[k] = x; cambios[k] = x; refrescar(); };
+  m.innerHTML = titulo("Partido en vivo") + `<div class="cuerpo"><div class="card form" id="fp"></div><div class="card vista" id="vp"></div></div>`;
+  const F = m.querySelector("#fp"), V = m.querySelector("#vp");
+  V.innerHTML = `<div class="tit"><span class="et">VISTA PREVIA</span><span>Así se ve en OBS</span></div>`;
+  const pv = vistaPrevia(WEB + "partido.html", "gris"); V.appendChild(pv);
+  V.appendChild(h(`<div class="aviso">La vista previa usa lo que tenés en pantalla (aunque no lo hayas guardado). Los datos del partido salen de ESPN y se actualizan cada 30 segundos.</div>`));
+  const refrescar = debounce(() => {
+    const q = new URLSearchParams(); Object.entries(st).forEach(([k, x]) => q.set(k, x || "")); q.set("_", Date.now());
+    pv.querySelector("iframe").src = WEB + "partido.html?" + q.toString();
+  }, 700);
+  F.innerHTML = `<h2><i style="background:var(--celeste)"></i>¿Qué partido mostramos?</h2>`;
+  const manual = /auf|manual/i.test(st.competencia || "");
+  const G1 = h(`<div class="grupo"><b>Competencia</b><div class="chips">${[["", "Automático"], ["uruguay", "Uruguay"], ["libertadores", "Libertadores"], ["sudamericana", "Sudamericana"], ["copa auf", "Copa AUF (a mano)"]].map(([k, t]) => `<button class="chip${sinT(st.competencia || "") === k ? " on" : ""}" data-k="${k}">${t}</button>`).join("")}</div></div>`);
+  G1.querySelectorAll(".chip").forEach((b) => (b.onclick = () => { set("competencia", b.dataset.k); D.partido = conValores(D.partido, st); VISTAS.partido(m); Object.assign(cambiosPend, cambios); }));
+  F.appendChild(G1);
+  if (!manual) {
+    const G2 = h(`<div class="grupo"><b>Equipo</b><label><input type="text" list="eqs" value="${esc(st.equipo)}" placeholder="Vacío = el que se esté jugando con un uruguayo"><datalist id="eqs">${EQUIPOS.map((e) => `<option value="${e}">`).join("")}</datalist></label></div>`);
+    const inE = G2.querySelector("input"); inE.oninput = () => set("equipo", inE.value); F.appendChild(G2);
+    const G3 = h(`<div class="grupo"><b>Tablas</b><div class="dos"><label>Descienden<input type="number" min="0" max="6" value="${esc(st.descensos || "3")}"></label><label>Texto al lado del torneo<input type="text" value="${esc(st.fase)}" placeholder="Automático"></label></div><label>Sanciones de la AUF<input type="text" value="${esc(st["ajuste.puntos"])}" placeholder="Ej.: Nacional -3; Peñarol -1"><span class="ayuda">Se aplican a la tabla anual y a los promedios</span></label></div>`);
+    const [iD, iF, iS] = G3.querySelectorAll("input");
+    iD.oninput = () => set("descensos", iD.value); iF.oninput = () => set("fase", iF.value); iS.oninput = () => set("ajuste.puntos", iS.value);
+    F.appendChild(G3);
+  } else {
+    const G2 = h(`<div class="grupo"><b>Partido (carga a mano)</b>
+      <div class="dos"><label>Local<input type="text" list="eqs" value="${esc(st.local)}"></label><label>Visitante<input type="text" list="eqs" value="${esc(st.visitante)}"></label></div><datalist id="eqs">${EQUIPOS.map((e) => `<option value="${e}">`).join("")}</datalist>
+      <div class="dos"><label>Estadio<input type="text" value="${esc(st.estadio)}"></label><label>Fase<input type="text" value="${esc(st.fase)}" placeholder="Ej.: Cuartos de final"></label></div>
+      <div class="marcador-m"><input type="number" min="0" value="${esc(st.goles_local)}" placeholder="–"><span class="g">–</span><input type="number" min="0" value="${esc(st.goles_visitante)}" placeholder="–"></div>
+      <div class="lbl"><span>Estado: <b id="estado-t">${esc(st.estado || "Previa")}</b>${st.inicio_tiempo ? ` · arrancó ${esc(st.inicio_tiempo)}` : ""}</span></div>
+      <div class="botonera"><button class="btn ce" data-e="1T">▶ Arrancó el 1.er tiempo</button><button class="btn sec" data-e="ET">⏸ Entretiempo</button><button class="btn ce" data-e="2T">▶ Arrancó el 2.º tiempo</button><button class="btn" data-e="FIN">■ Final</button></div>
+      <div class="botonera"><button class="btn am" data-g="L">+ Gol local</button><button class="btn am" data-g="V">+ Gol visitante</button><button class="btn ro" data-r="L">+ Roja local</button><button class="btn ro" data-r="V">+ Roja visitante</button></div>
+      <label>Incidencias<textarea rows="3">${esc(st.incidencias)}</textarea><span class="ayuda">Una por línea o separadas por «;». L = local, V = visitante. Ej.: L 21 Nombre Apellido · V 58 Otro Nombre roja</span></label></div>`);
+    const ins = G2.querySelectorAll("input"), ta = G2.querySelector("textarea");
+    const mapa = ["local", "visitante", "estadio", "fase", "goles_local", "goles_visitante"];
+    ins.forEach((inp, i) => (inp.oninput = () => set(mapa[i], inp.value)));
+    ta.oninput = () => set("incidencias", ta.value);
+    const ahora = () => new Date().toTimeString().slice(0, 5);
+    const minuto = () => { const mm = (st.inicio_tiempo || "").match(/(\d+):(\d+)/); if (!mm) return ""; const d = new Date(); d.setHours(+mm[1], +mm[2], 0, 0); let x = Math.max(1, Math.floor((Date.now() - d) / 60000) + 1); if (/2/.test(st.estado || "")) x += 45; return String(x); };
+    const vivo = async (c) => { Object.assign(cambios, c); Object.assign(st, c); try { await guardar("guardarClaves", "partido_vivo", c); await recargar(); } catch (e) { VISTAS.partido(m); } };
+    G2.querySelectorAll("[data-e]").forEach((b) => (b.onclick = () => vivo(Object.assign({ estado: b.dataset.e }, /T$/.test(b.dataset.e) ? { inicio_tiempo: ahora() } : {}, b.dataset.e === "1T" && st.goles_local === "" ? { goles_local: "0", goles_visitante: "0" } : {}))));
+    const agregar = (lado, roja) => {
+      const nom = window.prompt ? prompt((roja ? "Roja" : "Gol") + " de " + (lado === "L" ? st.local || "local" : st.visitante || "visitante") + ": ¿quién?", "") : "";
+      if (nom === null) return;
+      const lineas = (st.incidencias || "").trim(); const nueva = `${lado} ${minuto()} ${nom || ""}${roja ? " roja" : ""}`.replace(/\s+/g, " ").trim();
+      const c = { incidencias: (lineas ? lineas + "; " : "") + nueva };
+      if (!roja) { const k = lado === "L" ? "goles_local" : "goles_visitante"; c[k] = String((+st[k] || 0) + 1); }
+      vivo(c);
+    };
+    G2.querySelectorAll("[data-g]").forEach((b) => (b.onclick = () => agregar(b.dataset.g, false)));
+    G2.querySelectorAll("[data-r]").forEach((b) => (b.onclick = () => agregar(b.dataset.r, true)));
+    F.appendChild(G2);
+  }
+  const pie = h(`<div class="pie"><button class="btn am">Guardar y mandar al aire</button></div>`);
+  pie.querySelector("button").onclick = async (e) => { const c = Object.assign({}, cambiosPend, cambios); if (!Object.keys(c).length) { aviso("No hay cambios"); return; } e.target.disabled = true; try { await guardar("guardarClaves", "partido_vivo", c); cambiosPend = {}; await recargar(); } catch (x) { e.target.disabled = false; } };
+  F.appendChild(pie);
+  refrescar();
+};
+let cambiosPend = {};
+function conValores(t, st) { const c = cab(t), iv = c.indexOf("valor"), ik = c.indexOf("clave"); return t.map((f, i) => { if (!i) return f; const k = (f[ik] || "").trim().toLowerCase(); if (k in st) { f = f.slice(); f[iv] = st[k]; } return f; }); }
+
+/* ---------- Tablas sueltas: Ticker (ajustes + programa), Correcciones, Escudos ---------- */
+function tablaEditable(cont, t, cols, opc = {}) {
+  const c = cab(t); const idx = cols.map((k) => c.indexOf(k));
+  let filas = (t || []).slice(1).map((f) => idx.map((i) => (i >= 0 ? f[i] || "" : ""))).filter((f) => f.some((x) => x.trim()));
+  const tb = h(`<table class="ed"><thead><tr>${cols.map((k) => `<th>${esc(opc.titulos ? opc.titulos[k] || k : k)}</th>`).join("")}${opc.fijas ? "" : "<th></th>"}</tr></thead><tbody></tbody></table>`);
+  const body = tb.querySelector("tbody");
+  const dibujar = () => {
+    body.innerHTML = "";
+    filas.forEach((f, r) => {
+      const tr = document.createElement("tr");
+      cols.forEach((k, j) => {
+        const td = document.createElement("td");
+        if (opc.soloLectura && opc.soloLectura.includes(k)) { td.innerHTML = `<b style="font-size:14px">${esc(f[j])}</b>`; }
+        else if (opc.opciones && opc.opciones[k]) { td.innerHTML = `<select>${["", ...opc.opciones[k]].map((o) => `<option${o === f[j] ? " selected" : ""}>${esc(o)}</option>`).join("")}${f[j] && !opc.opciones[k].includes(f[j]) ? `<option selected>${esc(f[j])}</option>` : ""}</select>`; td.firstChild.onchange = (e) => { f[j] = e.target.value; opc.onCambio && opc.onCambio(); }; }
+        else { td.innerHTML = `<input type="text" value="${esc(f[j])}">`; td.firstChild.oninput = (e) => { f[j] = e.target.value; opc.onCambio && opc.onCambio(); if (opc.imagen === k) { const i = tr.querySelector(".esc img"); if (i) i.src = img(f[j]); } }; }
+        tr.appendChild(td);
+      });
+      if (opc.imagen) { const td = document.createElement("td"); td.className = "esc"; td.innerHTML = `<img src="${esc(img(f[cols.indexOf(opc.imagen)]))}" onerror="this.style.visibility='hidden'">`; tr.insertBefore(td, tr.children[cols.indexOf(opc.imagen) + 1] || null); }
+      if (!opc.fijas) { const td = document.createElement("td"); td.className = "quitar"; td.innerHTML = `<button title="Quitar">✕</button>`; td.firstChild.onclick = () => { filas.splice(r, 1); dibujar(); }; tr.appendChild(td); }
+      body.appendChild(tr);
+    });
+  };
+  dibujar(); cont.appendChild(tb);
+  if (!opc.fijas) { const b = h(`<button class="btn sec chico" style="align-self:flex-start">+ Agregar fila</button>`); b.onclick = () => { filas.push(cols.map(() => "")); dibujar(); }; cont.appendChild(b); }
+  return { filas: () => filas };
+}
+VISTAS.ticker = (m) => {
+  m.innerHTML = titulo("Ticker") + `<div class="cuerpo" style="grid-template-columns:minmax(420px,1fr) minmax(420px,1fr)"><div style="display:flex;flex-direction:column;gap:20px"><div class="card form" id="fa"></div><div class="card form" id="fpr"></div></div><div class="card vista" id="vt"></div></div>`;
+  const V = m.querySelector("#vt");
+  V.innerHTML = `<div class="tit"><span class="et">EN VIVO</span><span>El ticker como está ahora</span></div>`;
+  V.appendChild(vistaPrevia(WEB + "ticker.html", "negro"));
+  V.appendChild(h(`<div class="aviso">Para ver todos los bloques de un día: <a href="${WEB}" target="_blank">página de revisión del ticker ↗</a></div>`));
+  const A = m.querySelector("#fa"); A.innerHTML = `<h2><i style="background:var(--amarillo)"></i>Ajustes de la cinta</h2>`;
+  const ta = tablaEditable(A, D.ajustes, ["ajuste", "valor", "explicación"], { fijas: true, soloLectura: ["ajuste", "explicación"], titulos: { ajuste: "Ajuste", valor: "Valor", "explicación": "Qué es" } });
+  const pa = h(`<div class="pie"><button class="btn am">Guardar ajustes</button></div>`); pa.firstChild.onclick = () => guardar("guardarTabla", "ajustes", ta.filas(), 3).then(recargar).catch(() => {}); A.appendChild(pa);
+  const P = m.querySelector("#fpr"); P.innerHTML = `<h2><i style="background:var(--celeste)"></i>Qué pasa cada día</h2><div class="aviso">Cada columna es un día; los bloques pasan en ese orden. Un día vacío usa el orden de siempre.</div>`;
+  const c = cab(D.programa), ib = c.findIndex((x) => /bloques disponibles/.test(x));
+  const bloques = ib >= 0 ? D.programa.slice(1).map((f) => f[ib]).filter(Boolean) : [];
+  const DIAS = ["orden", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"];
+  const tp = tablaEditable(P, D.programa, DIAS, { opciones: Object.fromEntries(DIAS.slice(1).map((d) => [d, bloques])), titulos: { orden: "#" } });
+  const pp = h(`<div class="pie"><button class="btn am">Guardar el programa</button></div>`); pp.firstChild.onclick = () => guardar("guardarTabla", "programa", tp.filas().map((f, i) => [String(i + 1), ...f.slice(1)]), 8).then(recargar).catch(() => {}); P.appendChild(pp);
+};
+VISTAS.correcciones = (m) => {
+  m.innerHTML = titulo("Correcciones") + `<div class="card form" id="fc"></div>`;
+  const F = m.querySelector("#fc"); F.innerHTML = `<h2><i style="background:var(--rojo)"></i>Correcciones del ticker</h2><div class="aviso">Sirven para pisar lo que viene automático: esconder un partido, cambiar un nombre, corregir un marcador.</div>`;
+  const c = cab(D.correcciones), it = c.findIndex((x) => /tipos posibles/.test(x));
+  const tipos = it >= 0 ? D.correcciones.slice(1).map((f) => f[it]).filter(Boolean) : [];
+  const t = tablaEditable(F, D.correcciones, ["tipo", "equipo_o_local", "visitante", "valor", "nota"], { opciones: { tipo: tipos }, titulos: { equipo_o_local: "Equipo o local" } });
+  const p = h(`<div class="pie"><button class="btn am">Guardar correcciones</button></div>`); p.firstChild.onclick = () => guardar("guardarTabla", "correcciones", t.filas(), 5).then(recargar).catch(() => {}); F.appendChild(p);
+};
+VISTAS.escudos = (m) => {
+  m.innerHTML = titulo("Escudos") + `<div class="card form" id="fe"></div>`;
+  const F = m.querySelector("#fe"); F.innerHTML = `<h2><i style="background:var(--azul)"></i>Escudos propios</h2><div class="aviso">En «escudo» va un link de Drive, un link a una imagen o el nombre de un archivo de la carpeta escudos. Se ve al lado.</div>`;
+  const t = tablaEditable(F, D.escudos, ["equipo", "liga", "escudo", "otros_nombres", "nota"], { imagen: "escudo", titulos: { otros_nombres: "Otros nombres" } });
+  const p = h(`<div class="pie"><button class="btn am">Guardar escudos</button></div>`); p.firstChild.onclick = () => guardar("guardarTabla", "escudos", t.filas(), 5).then(recargar).catch(() => {}); F.appendChild(p);
+};
+
+async function recargar() { await cargar(); ir(seccion); }
+(async () => {
+  try { await cargar(); document.getElementById("cargando").remove(); ir(new URLSearchParams(location.search).get("seccion") || "inicio"); }
+  catch (e) { document.getElementById("cargando").innerHTML = `<div style="max-width:560px;text-align:center;padding:20px">${esc(e.message || e)}</div>`; }
+})();
+</script>
+</body></html>

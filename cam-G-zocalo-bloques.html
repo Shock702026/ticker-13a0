@@ -304,6 +304,11 @@ k: () => negro(0, 0, 1920, 1010).replace('class="negro"', 'class="negro" data-fo
       await T.esperar((CC.leerCadaSegundos || 10) * 1000);
     }
   }
+  // el panel de control manda los textos mientras se escriben (vista previa al instante)
+  addEventListener("message", (ev) => {
+    const d = ev.data || {};
+    if (d.panel13a0 && d.valores) { Object.assign(deUrl, d.valores); aplicar(); }
+  });
   aplicar();
   // al prenderse la fuente, las piezas entran (empiezan afuera y se ponen en su lugar)
   const piezas = [...pant.querySelectorAll(".pieza")];
@@ -380,9 +385,15 @@ k: () => negro(0, 0, 1920, 1010).replace('class="negro"', 'class="negro" data-fo
       // barra amarilla: el tiempo que le queda a esta noticia
       tiempo.style.transition = "none"; tiempo.style.width = "0"; void tiempo.offsetWidth;
       tiempo.style.transition = "width " + SEG_NOT + "ms linear"; tiempo.style.width = "100%";
-      setTimeout(siguiente, SEG_NOT);
+      clearTimeout(siguiente.t); siguiente.t = setTimeout(siguiente, SEG_NOT);
     }
-    if (!PNG) { cargar(); setTimeout(siguiente, 1200); }
+    if (T.params.has("previa")) {
+      // el panel manda la noticia que se está editando
+      addEventListener("message", (ev) => {
+        const d = ev.data || {};
+        if (d.panel13a0 && d.noticia) { noticias = [{ tit: d.noticia.tit, cat: d.noticia.cat || "", parrafos: d.noticia.parrafos || [] }]; i = -1; siguiente(); }
+      });
+    } else if (!PNG) { cargar(); setTimeout(siguiente, 1200); }
     else zona.innerHTML = '<div class="tit-vacio"></div>';
   }
 })();

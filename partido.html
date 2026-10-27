@@ -399,7 +399,7 @@
     /HALFTIME/.test(p.nombreEstado) ? "Entretiempo" : /SHOOTOUT|PENALT/.test(p.nombreEstado) ? "Penales" :
     p.periodo > 2 ? "Alargue" : p.periodo === 2 ? "2.º tiempo" : "1.er tiempo";
   function minTxt(p) {
-    if (p.estado === "pre") return [horaTxt(p), ""];
+    if (p.estado === "pre") return [p.manual ? "Previa" : horaTxt(p), ""];
     if (p.estado === "post") return ["Final", " fin"];
     if (/HALFTIME/.test(p.nombreEstado || "") || p.reloj === "Entretiempo") return ["Entretiempo", ""];
     return [p.reloj || "En vivo", ""];

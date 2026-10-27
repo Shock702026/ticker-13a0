@@ -410,8 +410,26 @@
     setTimeout(rotarResultados, actualR && actualR.estado === "in" ? seg * 1.5 : seg);
   }
 
-  cargarNoticias();
-  setTimeout(rotarNoticias, 800);
+  // ?previa: la usa el panel de control. Muestra solo la noticia que se está editando (sin placas)
+  if (T.params.has("previa")) {
+    window.addEventListener("message", (ev) => {
+      const d = ev.data || {};
+      if (!d.panel13a0 || !d.noticia) return;
+      // se reemplaza en el lugar, sin animación (se actualiza con cada tecla)
+      const nueva = crearNoticia(d.noticia);
+      nueva.classList.remove("entrando");
+      zonaN.querySelectorAll(".noticia").forEach((x) => x.remove());
+      zonaN.appendChild(nueva);
+      const tit = nueva.querySelector(".titular");
+      tit.style.maxHeight = (300 * parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--t"))) + "px";
+      tit.style.overflow = "hidden";
+      encajar(tit); encajar(nueva.querySelector(".texto"));
+      actualN = nueva;
+    });
+  } else {
+    cargarNoticias();
+    setTimeout(rotarNoticias, 800);
+  }
   setTimeout(rotarResultados, 2500);
 })();
 </script>
