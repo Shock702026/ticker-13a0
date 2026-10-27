@@ -99,7 +99,7 @@ window.TICKER_CONFIG = {
      Pegá acá el link de tu planilla de Google Sheets. La planilla tiene que
      estar compartida como "Cualquier persona con el enlace: Lector".
      Si lo dejás vacío, los tickers muestran datos de ejemplo.            */
-  googleSheet: "https://docs.google.com/spreadsheets/d/1C0k0yhLyxliRM5ceWlGw7oPr84oGlg9J/edit?usp=sharing",
+  googleSheet: "https://docs.google.com/spreadsheets/d/1RWYJrnosHmqeEXJoR9lqTS8V6bsuwzusLhwZLm2D1Hc/edit?usp=sharing",
   hojaNoticias: "noticias",
   hojaResultadosManuales: "resultados_manuales",
 
