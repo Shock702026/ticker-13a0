@@ -39,26 +39,28 @@ window.TICKER_CONFIG = {
        segunda-resultados  Segunda División: en vivo y últimos resultados (pestaña resultados_manuales)
        segunda-fixture     Segunda División: partidos a jugarse (pestaña resultados_manuales)
        segunda-tabla       Segunda División: tabla (pestaña tablas_uruguay)
-       planilla            otras competencias cargadas a mano (básquetbol, Copa AUF…)
+       planilla            otras competencias cargadas a mano (Copa AUF…)
+       lub                 Liga Uruguaya de Básquetbol (automático, de fubb.org.uy)
+       nba                 NBA: partidos de hoy y resultados de anoche
        copas               Libertadores, Sudamericana, Champions, Europa y Conference: la fecha + tablas
        arg-vivo / arg-jugados / arg-fixture / arg-tabla      fútbol argentino
        bra-resultados / bra-fixture / bra-tabla             fútbol brasileño (con copas y estaduales)
        europa-resultados / europa-fixture                   Inglaterra, España e Italia + primeros 6 */
   programa: {
-    lunes:     ["uru-vivo", "uru-jugados", "uru-tablas", "exterior", "segunda-resultados", "segunda-tabla", "planilla", "copas",
-                "arg-vivo", "arg-jugados", "arg-tabla", "bra-resultados", "bra-tabla", "europa-resultados"],
-    martes:    ["uru-vivo", "uru-jugados", "uru-tablas", "exterior", "segunda-resultados", "segunda-tabla", "planilla", "copas",
-                "arg-vivo", "arg-jugados", "arg-tabla", "bra-resultados", "bra-tabla", "europa-resultados"],
-    miercoles: ["uru-vivo", "uru-fixture", "uru-tablas", "exterior", "segunda-tabla", "planilla", "copas",
-                "arg-vivo", "arg-tabla", "bra-resultados", "bra-tabla"],
-    jueves:    ["uru-vivo", "uru-fixture", "uru-tablas", "exterior", "segunda-fixture", "segunda-tabla", "planilla", "copas",
-                "arg-vivo", "arg-fixture", "arg-tabla", "bra-fixture", "bra-tabla", "europa-fixture"],
-    viernes:   ["uru-vivo", "uru-fixture", "uru-tablas", "exterior", "segunda-fixture", "segunda-tabla", "planilla", "copas",
-                "arg-vivo", "arg-fixture", "arg-tabla", "bra-fixture", "bra-tabla", "europa-fixture"],
-    sabado:    ["uru-vivo", "uru-fecha", "uru-tablas", "exterior", "segunda-resultados", "segunda-tabla", "planilla", "copas",
-                "arg-vivo", "arg-jugados", "arg-tabla", "bra-resultados", "bra-tabla", "europa-resultados"],
-    domingo:   ["uru-vivo", "uru-fecha", "uru-tablas", "exterior", "segunda-resultados", "segunda-tabla", "planilla", "copas",
-                "arg-vivo", "arg-jugados", "arg-tabla", "bra-resultados", "bra-tabla", "europa-resultados"]
+    lunes:     ["uru-vivo", "uru-jugados", "uru-tablas", "exterior", "segunda-resultados", "segunda-tabla", "lub", "planilla", "copas",
+                "arg-vivo", "arg-jugados", "arg-tabla", "bra-resultados", "bra-tabla", "europa-resultados", "nba"],
+    martes:    ["uru-vivo", "uru-jugados", "uru-tablas", "exterior", "segunda-resultados", "segunda-tabla", "lub", "planilla", "copas",
+                "arg-vivo", "arg-jugados", "arg-tabla", "bra-resultados", "bra-tabla", "europa-resultados", "nba"],
+    miercoles: ["uru-vivo", "uru-fixture", "uru-tablas", "exterior", "segunda-tabla", "lub", "planilla", "copas",
+                "arg-vivo", "arg-tabla", "bra-resultados", "bra-tabla", "nba"],
+    jueves:    ["uru-vivo", "uru-fixture", "uru-tablas", "exterior", "segunda-fixture", "segunda-tabla", "lub", "planilla", "copas",
+                "arg-vivo", "arg-fixture", "arg-tabla", "bra-fixture", "bra-tabla", "europa-fixture", "nba"],
+    viernes:   ["uru-vivo", "uru-fixture", "uru-tablas", "exterior", "segunda-fixture", "segunda-tabla", "lub", "planilla", "copas",
+                "arg-vivo", "arg-fixture", "arg-tabla", "bra-fixture", "bra-tabla", "europa-fixture", "nba"],
+    sabado:    ["uru-vivo", "uru-fecha", "uru-tablas", "exterior", "segunda-resultados", "segunda-tabla", "lub", "planilla", "copas",
+                "arg-vivo", "arg-jugados", "arg-tabla", "bra-resultados", "bra-tabla", "europa-resultados", "nba"],
+    domingo:   ["uru-vivo", "uru-fecha", "uru-tablas", "exterior", "segunda-resultados", "segunda-tabla", "lub", "planilla", "copas",
+                "arg-vivo", "arg-jugados", "arg-tabla", "bra-resultados", "bra-tabla", "europa-resultados", "nba"]
   },
   vivoUruguayoCada: 3,            // cada cuántos bloques se repite "uru-vivo" si hay partidos uruguayos en vivo
 
@@ -129,7 +131,8 @@ window.TICKER_CONFIG = {
     { deporte: "soccer",     liga: "ita.1",                   nombre: "Serie A" },
     { deporte: "soccer",     liga: "ger.1",                   nombre: "Bundesliga" },
     { deporte: "soccer",     liga: "fra.1",                   nombre: "Ligue 1" },
-    { deporte: "basketball", liga: "nba",                     nombre: "NBA" }
+    { deporte: "lub",        liga: "lub",                     nombre: "Liga Uruguaya de Básquetbol", competitionId: 48785 },  // fubb.org.uy (cambia cada temporada)
+    { deporte: "basketball", liga: "nba",                     nombre: "NBA", diasAtras: 1 }
   ],
 
   /* ---------- Uruguayos en el exterior ----------

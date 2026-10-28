@@ -5,7 +5,7 @@
 <title>Ticker 13a0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500..900&family=Bitter:wght@700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="estilos.css">
+<link rel="stylesheet" href="estilos.css?v=20261028">
 </head>
 <body>
 <div class="barra">
@@ -14,9 +14,9 @@
   <div class="reloj" id="reloj"><span class="hh">00</span><span class="dos">:</span><span class="mm">00</span></div>
 </div>
 
-<script src="config.js"></script>
-<script src="escudos.js"></script>
-<script src="comun.js"></script>
+<script src="config.js?v=20261028"></script>
+<script src="escudos.js?v=20261028"></script>
+<script src="comun.js?v=20261028"></script>
 <script src="demo-datos.js"></script>
 <script>
 (function () {
@@ -100,12 +100,14 @@
     const vis = cs.find((c) => c.homeAway === "away") || cs[1] || {};
     const inicio = comp.date || ev.date;
     const estado = (st.type && st.type.state) || "pre";
-    [loc, vis].forEach((c) => { if (c.team && c.team.id) NOMBRE_ID[String(c.team.id)] = [c.team.displayName, c.team.shortDisplayName]; });
+    // en básquetbol los números de equipo se repiten con los de fútbol: van con "nba:" adelante
+    const idDe = (c) => c.team && c.team.id ? (deporte === "soccer" ? "" : "nba:") + c.team.id : null;
+    if (deporte === "soccer") [loc, vis].forEach((c) => { if (c.team && c.team.id) NOMBRE_ID[String(c.team.id)] = [c.team.displayName, c.team.shortDisplayName]; });
     const eq = (c) => ({
-      id: c.team && String(c.team.id),
+      id: idDe(c),
       nombre: (c.team && (c.team.shortDisplayName || c.team.displayName || c.team.name)) || "",
       completo: (c.team && c.team.displayName) || "",
-      logo: T.escudo(c.team && c.team.id, c.team && [c.team.displayName, c.team.shortDisplayName], (c.team && (c.team.logo || (c.team.logos && c.team.logos[0] && c.team.logos[0].href))) || ""),
+      logo: T.escudo(idDe(c), c.team && [c.team.displayName, c.team.shortDisplayName], (c.team && (c.team.logo || (c.team.logos && c.team.logos[0] && c.team.logos[0].href))) || ""),
       goles: c.score != null ? String(c.score) : "",
       penales: c.shootoutScore != null ? String(c.shootoutScore) : "",
       gano: !!c.winner
@@ -187,12 +189,14 @@
   let vueltaCompleta = false, principalesCargados = false;   // principales: fútbol uruguayo, planilla y tablas
 
   async function cargarLiga(deporte, liga, nombre, soloUruguayos) {
+    if (deporte === "lub") return cargarLUB(liga, nombre);
     if (ligaFallida[liga] && Date.now() - ligaFallida[liga] < 5 * 60e3) return;
+    const diasAtras = (comps.find((c) => c.liga === liga) || {}).diasAtras || 0;   // NBA: también los resultados de anoche
     const ruta = (deporte === "basketball" ? "basketball/" : "soccer/") + liga;
     const cache = (cacheDias[liga] = cacheDias[liga] || {});
     const completa = ligasFechaCompleta.has(liga);
     const prog = LIGAS_PROGRAMA.has(liga);
-    const atras = Math.max(completa ? (FC.buscarDias == null ? 4 : FC.buscarDias) : 0, prog ? VENTANA.atras : 0);
+    const atras = Math.max(completa ? (FC.buscarDias == null ? 4 : FC.buscarDias) : 0, prog ? VENTANA.atras : 0, diasAtras);
     const adelante = Math.max(completa ? (FC.buscarDiasAdelante == null ? 14 : FC.buscarDiasAdelante) : 0, prog ? VENTANA.adelante : 0);
     const fechas = [];
     for (let k = -atras; k <= adelante; k++) fechas.push({ k, f: fechaConsulta(k) });
@@ -235,12 +239,68 @@
     const todos = partidos.filter(sinTbd).sort((a, b) => new Date(a.inicio) - new Date(b.inicio));
     let proxima = false;
     if (completa) { const r = filtrarFechaCompleta(partidos); partidos = r.partidos; proxima = r.proxima; }
-    else partidos = partidos.filter((p) => p.dia === 0 || p.estado === "in");
+    else partidos = partidos.filter((p) => p.dia === 0 || p.estado === "in" || (diasAtras && p.estado === "post" && p.dia >= -diasAtras));
     if (/^uru\./.test(liga)) Object.values(cache).forEach((c) => c.eventos.forEach((ev) =>
       (((ev.competitions || [])[0] || {}).competitors || []).forEach((cp) => cp.team && marcarClubUruguayo(cp.team.id))));
     // partidos con equipos "a definir" no se muestran hasta que la fuente cargue los nombres
     partidos = partidos.filter((p) => !/^tbd\b/i.test(p.local.completo || p.local.nombre) && !/^tbd\b/i.test(p.visita.completo || p.visita.nombre));
     datos[liga] = { nombre, logo, proxima, partidos: T.corregirPartidos(partidos).sort(ordenar), todos: T.corregirPartidos(todos) };
+    actualizarEnPantalla(liga);
+  }
+
+  /* Liga Uruguaya de Básquetbol: calendario de la FUBB (fubb.org.uy, datos de Genius Sports).
+     Se muestran los partidos de hoy y los de ayer; si no hay, la próxima jornada. */
+  // la FUBB manda los nombres en mayúsculas y sin tildes: "UNION ATLETICA" → "Unión Atlética"
+  const TILDES_LUB = { "union atletica": "Unión Atlética", malvin: "Malvín", bigua: "Biguá", "hebraica y macabi": "Hebraica y Macabi",
+                       "d sporting": "Defensor Sporting", penarol: "Peñarol", larranaga: "Larrañaga" };
+  function nombreLUB(n) {
+    const s = String(n || "").trim().toLowerCase();
+    return TILDES_LUB[s.normalize("NFD").replace(/[\u0300-\u036f]/g, "")] || s.replace(/(^|\s)\S/g, (x) => x.toUpperCase());
+  }
+  async function cargarLUB(liga, nombre) {
+    const cfg = comps.find((c) => c.liga === liga) || {};
+    if (!cfg.competitionId || (ligaFallida[liga] && Date.now() - ligaFallida[liga] < 5 * 60e3)) return;
+    let j;
+    try { j = await T.fetchJSON("https://gapi.pixeles.club/ligas/fubb/api/bq/matchesnew?competitionId=" + cfg.competitionId); }
+    catch (e) { ligaFallida[liga] = Date.now(); estadoCarga.error++; estadoCarga.ultimoError = e.message; return; }
+    delete ligaFallida[liga];
+    estadoCarga.ok++;
+    const reloj = (c) => String(c || "").slice(0, 5).replace(/^0(\d)/, "$1");
+    const todos = [];
+    (j.phases || []).forEach((fase) => (fase.matches || []).forEach((m) => {
+      const cs = m.competitors || [];
+      if (cs.length < 2) return;
+      const inicio = String(m.matchTimeUTC || "").replace(" ", "T") + "Z";
+      const st = String(m.matchStatus || "").toUpperCase();
+      const lv = m.live || {};
+      const estado = st === "COMPLETE" || st === "FINISHED" ? "post" : (st === "IN_PROGRESS" ? "in" : "pre");
+      let etiqueta;
+      if (estado === "in") {
+        const per = lv.periodType === "OVERTIME" ? "Alarg." : (lv.period ? lv.period + "C" : "");
+        etiqueta = lv.status === "periodbreak" ? (per ? "Fin " + per : "En vivo") : ((per + " " + reloj(lv.clock)).trim() || "En vivo");
+      } else if (estado === "post") etiqueta = diaRelativo(inicio) < 0 ? "Final · " + fmtSemana.format(new Date(inicio)).replace(".", "") : "Final";
+      else if (/POSTPONED/.test(st)) etiqueta = "Postergado";
+      else if (/CANCEL|ABANDON/.test(st)) etiqueta = "Suspendido";
+      else { const d = T.diaCorto(inicio); etiqueta = (d ? d + " " : "") + T.hora(inicio); }
+      const pts = (i) => estado === "in" ? String(((lv.scores || {})[i + 1]) ?? "") : String(cs[i].scoreString || "");
+      const eq = (i) => ({
+        id: "lub:" + cs[i].competitorId,
+        nombre: nombreLUB(cs[i].clubName || cs[i].competitorName),
+        completo: nombreLUB(cs[i].clubName || cs[i].competitorName),
+        logo: T.escudo(null, ["basquet:" + (cs[i].clubName || cs[i].competitorName)], cs[i].logo || ""),
+        goles: pts(i), penales: "", gano: estado === "post" && cs[i].resultPlacing === 1
+      });
+      todos.push({ id: "lub" + m.matchId, deporte: "basketball", inicio, estado, dia: diaRelativo(inicio), serie: null,
+                   etiqueta, local: eq(0), visita: eq(1), goles: [], golesPorJugador: [] });
+    }));
+    todos.sort((a, b) => new Date(a.inicio) - new Date(b.inicio));
+    let partidos = todos.filter((p) => p.estado === "in" || p.dia === 0 || (p.dia === -1 && p.estado === "post"));
+    let proxima = false;
+    if (!partidos.length) {
+      const sig = todos.find((p) => p.dia > 0 && p.estado === "pre");
+      if (sig) { partidos = todos.filter((p) => p.dia === sig.dia); proxima = true; }
+    }
+    datos[liga] = { nombre, logo: T.escudoLiga(liga, "", nombre), proxima, partidos: T.corregirPartidos(partidos).sort(ordenar), todos: T.corregirPartidos(todos) };
     actualizarEnPantalla(liga);
   }
 
@@ -284,7 +344,8 @@
         vueltaCompleta = true;
       } else {
         // primero el fútbol uruguayo, la planilla y las tablas, así la cinta arranca con lo principal
-        const uruguayas = comps.filter((c) => /^uru\./.test(c.liga)), resto = comps.filter((c) => !/^uru\./.test(c.liga));
+        const local = (c) => /^uru\./.test(c.liga) || c.deporte === "lub";
+        const uruguayas = comps.filter(local), resto = comps.filter((c) => !local(c));
         for (const c of uruguayas) await cargarLiga(c.deporte || "soccer", c.liga, c.nombre, false);
         await cargarManuales();
         await cargarTablasHoja();
@@ -475,6 +536,8 @@
     if (consultando.has(p.id)) return;
     consultando.add(p.id);
     const porEquipo = {};
+    const conLista = {};   // equipos cuya lista del partido llegó (para saber quién no fue convocado)
+    const conTitulares = {};   // equipos con el once confirmado (si no, los de la lista son "convocados")
     let hay = false;
     const agregar = (idEq, aid, nombreAtleta, titular, ingreso, min) => {
       const lista = (porEquipo[idEq] = porEquipo[idEq] || []);
@@ -485,16 +548,22 @@
       const j = await T.fetchJSON(BASE + "soccer/" + liga + "/summary?event=" + p.id, 20000);
       (j.rosters || []).forEach((r) => {
         const idEq = r.team && String(r.team.id);
+        const plantelEq = uruDeEquipo(idEq) || [];
         (r.roster || []).forEach((e) => {
           const a = e.athlete || {};
           const aid = String(a.id || e.playerId || "");
-          if (!(uru.atletas[aid] || esUruguayo(a) || T.esUruAgregado(NOMBRE_ID[idEq], nombreCompleto(a)))) return;
+          // en la formación la fuente no siempre trae la nacionalidad ni el mismo id del plantel:
+          // también se reconoce por el nombre, entre los uruguayos que ya sabemos que tiene el equipo
+          if (!(uru.atletas[aid] || esUruguayo(a) || T.esUruAgregado(NOMBRE_ID[idEq], nombreCompleto(a)) ||
+                plantelEq.some((n) => T.mismoJugador(n, nombreCompleto(a))))) return;
           hay = true;
           let min = "";
           (e.plays || []).forEach((pl) => { if (pl.substitution && pl.clock && si(e.subbedIn)) min = pl.clock.displayValue || ""; });
           agregar(idEq, aid, nombreCompleto(a), !!e.starter, si(e.subbedIn), min);
         });
         if ((r.roster || []).length) hay = true;
+        if ((r.roster || []).length >= 11) conLista[idEq] = true;   // lista completa: sirve para "no convocado"
+        if ((r.roster || []).filter((e) => e.starter).length >= 11) conTitulares[idEq] = true;   // ya salió el once
       });
       // Cambios informados como eventos del partido (por si la formación no trae los ingresos)
       (j.keyEvents || []).forEach((k) => {
@@ -517,6 +586,8 @@
         if (!uruDeEquipo(e.id)) continue;
         try {
           const r = await T.fetchJSON(CORE + liga + "/events/" + p.id + "/competitions/" + p.id + "/competitors/" + e.id + "/roster", 15000);
+          if ((r.entries || []).length >= 11) conLista[e.id] = true;
+          if ((r.entries || []).filter((en) => en.starter).length >= 11) conTitulares[e.id] = true;
           (r.entries || []).forEach((en) => {
             hay = true;
             const aid = String(en.playerId || "");
@@ -525,7 +596,7 @@
         } catch (err) { /* sin formación */ }
       }
     }
-    formaciones[p.id] = { t: Date.now(), final: p.estado === "post" && hay, hay, porEquipo };
+    formaciones[p.id] = { t: Date.now(), final: p.estado === "post" && hay, hay, porEquipo, conLista, conTitulares };
     consultando.delete(p.id);
     actualizarEnPantalla(liga);
   }
@@ -539,21 +610,55 @@
     }
   }
 
-  // Texto de uruguayos para un equipo: quiénes jugaron (o el plantel si no hay formación)
+  /* Situación de cada uruguayo de un equipo, para la etiqueta que va al lado del nombre:
+     Titular · Entró 63' · Suplente (antes y durante) / No jugó (terminado) · Lesionado / Suspendido ·
+     No convocado. Lo de la formación sale de la fuente; lesiones y suspensiones, de la pestaña
+     "lesionados" (Flashscore) o de correcciones. Devuelve [{ nombre, etiqueta, clase }] en orden:
+     primero los que jugaron. */
+  const ETIQ_AUS = { lesionado: ["Lesionado", "lesion"], suspendido: ["Suspendido", "lesion"], ausente: ["Ausente", "noconv"] };
+  function conAusencia(nombre, orden) {
+    const a = T.ausencia(nombre);
+    if (!a) return null;
+    const [etiqueta, clase] = ETIQ_AUS[a.estado] || ETIQ_AUS.lesionado;
+    return { nombre, etiqueta, clase, orden };
+  }
+  function lineaDemo(t) {   // "Lucas Torreira (ingresó 63')" -> { nombre, etiqueta }
+    const m = String(t).match(/^(.*?)\s*\((.+)\)$/);
+    if (!m) return { nombre: t, etiqueta: "", clase: "" };
+    const e = m[2].toLowerCase();
+    if (e === "titular") return { nombre: m[1], etiqueta: "Titular", clase: "" };
+    if (e.startsWith("ingres") || e.startsWith("entr")) return { nombre: m[1], etiqueta: "Entró" + e.replace(/^\D+/, " ").replace(/^ $/, ""), clase: "entro" };
+    if (e.startsWith("suplente")) return { nombre: m[1], etiqueta: "Suplente", clase: "suplente" };
+    if (e.startsWith("no jug")) return { nombre: m[1], etiqueta: "No jugó", clase: "nojugo" };
+    if (e.startsWith("no convoc")) return { nombre: m[1], etiqueta: "No convocado", clase: "noconv" };
+    if (e.startsWith("lesion")) return { nombre: m[1], etiqueta: "Lesionado", clase: "lesion" };
+    if (e.startsWith("suspend")) return { nombre: m[1], etiqueta: "Suspendido", clase: "lesion" };
+    return { nombre: m[1], etiqueta: m[2], clase: "" };
+  }
   function uruguayosDe(p, e) {
     if (p.deporte !== "soccer" || /^uru\./.test(p.liga || "") || esClubUruguayo(e.id)) return null;
+    if (T.demo && p.demoUru) return (p.demoUru[e.id] || []).map(lineaDemo);
     const plantel = uruDeEquipo(e.id);
     if (!plantel || !plantel.length) return null;
     const f = formaciones[p.id];
-    if (T.demo && p.demoUru) return p.demoUru[e.id] || null;
-    if (f && f.hay) {
+    const out = [];
+    if (f && f.hay && (f.conLista || {})[e.id]) {
       const js = f.porEquipo[e.id] || [];
-      const jugaron = js.filter((x) => x.titular || x.ingreso);
-      if (jugaron.length) return jugaron.map((x) => x.nombre + (x.titular ? " (titular)" : " (ingresó" + (x.min ? " " + x.min : "") + ")"));
-      if (p.estado === "pre") return js.length ? js.map((x) => x.nombre + " (suplente)") : null;
-      return p.estado === "post" && js.length ? [js.map((x) => x.nombre).join(", ") + ": no jugó"] : null;
+      js.forEach((x) => {
+        if (x.titular) out.push({ nombre: x.nombre, etiqueta: "Titular", clase: "", orden: 0 });
+        else if (x.ingreso) out.push({ nombre: x.nombre, etiqueta: "Entró" + (x.min ? " " + x.min : ""), clase: "entro", orden: 1 });
+        else if (p.estado === "post") out.push({ nombre: x.nombre, etiqueta: "No jugó", clase: "nojugo", orden: 3 });
+        else if ((f.conTitulares || {})[e.id]) out.push({ nombre: x.nombre, etiqueta: "Suplente", clase: "suplente", orden: 3 });
+        else out.push({ nombre: x.nombre, etiqueta: "Convocado", clase: "", orden: 1 });
+      });
+      // del plantel pero no están en la lista del partido: lesionados/suspendidos o no convocados
+      plantel.filter((n) => !js.some((x) => T.mismoJugador(x.nombre, n))).forEach((n) =>
+        out.push(conAusencia(n, 2) || { nombre: n, etiqueta: "No convocado", clase: "noconv", orden: 4 }));
+    } else {
+      // sin la lista del partido todavía: el plantel, con lesionados y suspendidos marcados
+      plantel.forEach((n) => out.push(conAusencia(n, 1) || { nombre: n, etiqueta: "", clase: "", orden: 0 }));
     }
-    return plantel.slice(0, 3);   // sin formación todavía: solo el plantel
+    return out.sort((a, b) => a.orden - b.orden);
   }
 
   /* ==============================================================
@@ -662,7 +767,7 @@
   function datosUru(p, e) {
     const goles = golesUruDe(p).filter((g) => g.equipo === e.id);
     const yaNombrados = new Set(goles.map((g) => g.jugador));
-    const jugaron = (uruguayosDe(p, e) || []).filter((l) => ![...yaNombrados].some((n) => l === n || l.startsWith(n + " ")));
+    const jugaron = (uruguayosDe(p, e) || []).filter((l) => ![...yaNombrados].some((n) => T.mismoJugador(l.nombre, n)));
     return { goles, jugaron };
   }
 
@@ -674,7 +779,13 @@
     const txt = T.el("div", "uru-txt");
     if (goles.length) txt.appendChild(T.el("span", "titulo", goles.length > 1 ? "Goles uruguayos" : "Gol uruguayo"));
     goles.forEach((g) => txt.appendChild(T.el("span", "goleador", g.jugador + " " + g.mins.join(" "))));
-    jugaron.slice(0, goles.length ? 1 : 3).forEach((l) => txt.appendChild(T.el("span", null, l)));
+    jugaron.slice(0, goles.length ? 1 : 3).forEach((l) => {
+      // nombre y, al lado, la etiqueta de su situación (titular, entró, suplente, lesionado…)
+      const lin = T.el("span", "lin");
+      lin.appendChild(T.el("span", null, l.nombre));
+      if (l.etiqueta) lin.appendChild(T.el("span", "est" + (l.clase ? " " + l.clase : ""), l.etiqueta));
+      txt.appendChild(lin);
+    });
     c.appendChild(txt);
     return c;
   }
@@ -712,8 +823,8 @@
   // Bloques en el orden en que corren: fútbol uruguayo → planilla → resto → exterior
   function bloques() {
     const out = [];
-    const uruguayas = comps.filter((c) => /^uru\./.test(c.liga));
-    const resto = comps.filter((c) => !/^uru\./.test(c.liga));
+    const uruguayas = comps.filter((c) => /^uru\./.test(c.liga) || c.deporte === "lub");
+    const resto = comps.filter((c) => !/^uru\./.test(c.liga) && c.deporte !== "lub");
     const deLiga = (c) => {
       const d = datos[c.liga];
       if (!d) return;
@@ -1040,6 +1151,8 @@
         .concat(filas(sel, { uru: true, zona: (f) => (f.pos <= 6 ? "copa" : f.pos > t.length - 4 ? "desc" : "") }));
     },
     "europa-resultados": () => EUROPA.flatMap((l) => piezasPartidos(l, NOMBRES[l], logoLiga(l), partidosDe(l, "resultados")).concat(tablaEuropa(l))),
+    "lub": () => { const d = datos.lub || {}; return piezasPartidos("lub", (d.nombre || "Liga Uruguaya de Básquetbol") + (d.proxima ? " · Próxima fecha" : ""), d.logo || "", d.partidos || []); },
+    "nba": () => { const d = datos.nba || {}; return piezasPartidos("nba", d.nombre || "NBA", d.logo || "", d.partidos || []); },
     "europa-fixture": () => EUROPA.flatMap((l) => piezasPartidos(l, NOMBRES[l] + " · Próxima fecha", logoLiga(l), partidosDe(l, "fixture")).concat(tablaEuropa(l)))
   };
   function tablaEuropa(l) {
@@ -1184,13 +1297,14 @@
             nombre: e.nombre, logo: e.logo, goles: e.goles, gano: !!e.gano,
             goleadores: p.deporte === "soccer" ? goleadoresDe(p, e.id).map((g) => ({ jugador: g.jugador, mins: g.mins, ec: g.ec })) : [],
             uruGoles: u.goles.map((g) => g.jugador + " " + g.mins.join(" ")),
-            uruJugaron: u.jugaron
+            // la tanda los muestra como texto: "Federico Valverde (titular)"
+            uruJugaron: u.jugaron.map((l) => l.nombre + (l.etiqueta ? " (" + l.etiqueta.toLowerCase() + ")" : ""))
           };
         };
         const local = eq(p.local), visita = eq(p.visita);
         const conUru = local.uruGoles.length + visita.uruGoles.length > 0;
         const prioridad = (p.estado === "in" ? 100 : p.estado === "post" ? 20 : 0) +
-          (/^uru\./.test(liga) ? 50 : 0) + (conUru ? 40 : 0) +
+          (/^uru\./.test(liga) ? 50 : 0) + (liga === "lub" ? 45 : 0) + (conUru ? 40 : 0) +
           (local.uruJugaron.length + visita.uruJugaron.length ? 25 : 0);
         items.push({ k: liga + ":" + p.id, comp, logo: logo || "", estado: p.estado, etiqueta: p.etiqueta,
                      deporte: p.deporte, inicio: p.inicio, local, visita, prioridad });
@@ -1222,7 +1336,8 @@
     "planilla": "Otras competencias (planilla)", "copas": "Copas internacionales", "arg-vivo": "Argentina · en vivo",
     "arg-jugados": "Argentina · resultados", "arg-fixture": "Argentina · próxima fecha", "arg-tabla": "Argentina · tablas",
     "bra-resultados": "Brasil · resultados", "bra-fixture": "Brasil · próxima fecha", "bra-tabla": "Brasil · tabla",
-    "europa-resultados": "Europa · resultados y tablas", "europa-fixture": "Europa · próxima fecha y tablas"
+    "europa-resultados": "Europa · resultados y tablas", "europa-fixture": "Europa · próxima fecha y tablas",
+    "lub": "Básquetbol uruguayo (LUB)", "nba": "NBA"
   };
   /* Pestaña "programa" de la planilla: orden | lunes | martes | … | domingo.
      Cada celda es un bloque (por su nombre, como en NOMBRE_BLOQUE). Un día con al menos
@@ -1270,8 +1385,8 @@
     fondo.onclick = (e) => { if (e.target === fondo) fondo.remove(); };
     caja.appendChild(T.el("h3", null, esPartido ? loc + " " + (x.p.local.goles || "") + " - " + (x.p.visita.goles || "") + " " + vis : loc));
     const opciones = esPartido
-      ? [["Corregir marcador", "marcador"], ["Ocultar partido", "ocultar"], ["Cambiar nombre", "nombre"], ["Agregar uruguayos", "agregar"], ["Quitar uruguayos", "quitar"]]
-      : [["Cambiar nombre", "nombre"], ["Agregar uruguayos", "agregar"], ["Quitar uruguayos", "quitar"]];
+      ? [["Corregir marcador", "marcador"], ["Ocultar partido", "ocultar"], ["Cambiar nombre", "nombre"], ["Agregar uruguayos", "agregar"], ["Quitar uruguayos", "quitar"], ["Marcar lesionado o suspendido", "lesion"], ["Sacar la marca de lesión", "sano"]]
+      : [["Cambiar nombre", "nombre"], ["Agregar uruguayos", "agregar"], ["Quitar uruguayos", "quitar"], ["Marcar lesionado o suspendido", "lesion"], ["Sacar la marca de lesión", "sano"]];
     const sel = T.el("select"); opciones.forEach(([t, v]) => { const o = T.el("option", null, t); o.value = v; sel.appendChild(o); });
     const lab = (t, el) => { const l = T.el("label"); l.appendChild(T.el("span", null, t)); l.appendChild(el); return l; };
     caja.appendChild(lab("Qué querés cambiar", sel));
@@ -1301,6 +1416,17 @@
         inputs.jug.placeholder = v === "agregar" ? "Ej.: Maxi Araújo, Rodrigo Zalazar" : "Vacío = sacar a todos";
         if (esPartido) campos.appendChild(lab("Equipo", inputs.eq));
         campos.appendChild(lab(v === "agregar" ? "Jugadores uruguayos (separados por coma)" : "Jugadores a sacar", inputs.jug));
+      } else if (v === "lesion" || v === "sano") {
+        inputs.eq = equipoSel(); inputs.jug = T.el("input"); inputs.jug.placeholder = "Ej.: Ronald Araujo";
+        if (esPartido) campos.appendChild(lab("Equipo", inputs.eq));
+        campos.appendChild(lab("Jugador (o varios, separados por coma)", inputs.jug));
+        if (v === "lesion") {
+          inputs.tipoAus = T.el("select");
+          [["Lesionado", "Lesionado"], ["Suspendido", "Suspendido"]].forEach(([t, val]) => { const o = T.el("option", null, t); o.value = val; inputs.tipoAus.appendChild(o); });
+          inputs.motivo = T.el("input"); inputs.motivo.placeholder = "Opcional. Ej.: desgarro";
+          campos.appendChild(lab("Situación", inputs.tipoAus));
+          campos.appendChild(lab("Motivo", inputs.motivo));
+        } else campos.appendChild(T.el("p", "v-nota", "Sirve si la fuente lo da como lesionado y ya está bien."));
       } else campos.appendChild(T.el("p", "v-nota", "El partido deja de salir en la cinta."));
       Object.values(inputs).forEach((i) => (i.oninput = i.onchange = armar));
       armar();
@@ -1312,9 +1438,12 @@
       else if (v === "ocultar") fila = ["Ocultar partido", loc, vis, ""];
       else if (v === "nombre") fila = ["Cambiar nombre", eq, "", inputs.nuevo.value.trim()];
       else if (v === "agregar") fila = ["Agregar uruguayos", eq, "", inputs.jug.value.trim()];
+      else if (v === "lesion") fila = [inputs.tipoAus.value, eq, "", inputs.jug.value.trim()];
+      else if (v === "sano") fila = ["No lesionado", eq, "", inputs.jug.value.trim()];
       else fila = ["Quitar uruguayos", eq, "", inputs.jug.value.trim()];
-      salida.value = fila.concat(["desde la página de revisión " + fmtHora.format(new Date())]).join("\t");
-      const falta = (v === "nombre" && !fila[3]) || (v === "agregar" && !fila[3]);
+      const nota = v === "lesion" && inputs.motivo.value.trim() ? inputs.motivo.value.trim() + " · " : "";
+      salida.value = fila.concat([nota + "desde la página de revisión " + fmtHora.format(new Date())]).join("\t");
+      const falta = (v === "nombre" && !fila[3]) || ((v === "agregar" || v === "lesion" || v === "sano") && !fila[3]);
       copiar.disabled = falta;
       aviso.textContent = falta ? "Completá el dato de arriba." : "Copiá la fila y pegala en la primera fila vacía de la pestaña correcciones (columna A). El cambio se ve en alrededor de un minuto.";
     }
@@ -1400,6 +1529,7 @@
         await cargarProgramaHoja();
         await T.cargarEscudosHoja();
         await T.cargarCorrecciones();
+        await T.cargarLesionados();
         if (scroller && !T.params.get("velocidad") && C.velocidad) scroller.vel = C.velocidad;
       } catch (e) { console.warn("Ajustes de la planilla", e.message); }
       await T.esperar(60e3);

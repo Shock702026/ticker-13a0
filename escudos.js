@@ -660,7 +660,41 @@ window.ESCUDOS = {
     "conmebol.sudamericana": "escudos/liga-sudamericana.png",
     "uefa.champions": "escudos/liga-champions.png",
     "uefa.europa": "escudos/liga-europa-league.png",
-    "uefa.europa.conf": "escudos/liga-conference.png"
+    "uefa.europa.conf": "escudos/liga-conference.png",
+    "nba": "escudos/liga-nba.png",
+    "lub": "escudos/liga-lub.png"
+  },
+  "nba": {
+    "1": "escudos/nba-atlanta-hawks.png",
+    "2": "escudos/nba-boston-celtics.png",
+    "17": "escudos/nba-brooklyn-nets.png",
+    "30": "escudos/nba-charlotte-hornets.png",
+    "4": "escudos/nba-chicago-bulls.png",
+    "5": "escudos/nba-cleveland-cavaliers.png",
+    "6": "escudos/nba-dallas-mavericks.png",
+    "7": "escudos/nba-denver-nuggets.png",
+    "8": "escudos/nba-detroit-pistons.png",
+    "9": "escudos/nba-golden-state-warriors.png",
+    "10": "escudos/nba-houston-rockets.png",
+    "11": "escudos/nba-indiana-pacers.png",
+    "12": "escudos/nba-la-clippers.png",
+    "13": "escudos/nba-los-angeles-lakers.png",
+    "29": "escudos/nba-memphis-grizzlies.png",
+    "14": "escudos/nba-miami-heat.png",
+    "15": "escudos/nba-milwaukee-bucks.png",
+    "16": "escudos/nba-minnesota-timberwolves.png",
+    "3": "escudos/nba-new-orleans-pelicans.png",
+    "18": "escudos/nba-new-york-knicks.png",
+    "25": "escudos/nba-oklahoma-city-thunder.png",
+    "19": "escudos/nba-orlando-magic.png",
+    "20": "escudos/nba-philadelphia-76ers.png",
+    "21": "escudos/nba-phoenix-suns.png",
+    "22": "escudos/nba-portland-trail-blazers.png",
+    "23": "escudos/nba-sacramento-kings.png",
+    "24": "escudos/nba-san-antonio-spurs.png",
+    "28": "escudos/nba-toronto-raptors.png",
+    "26": "escudos/nba-utah-jazz.png",
+    "27": "escudos/nba-washington-wizards.png"
   },
   "basquet": {
     "aguada": "escudos/basquet-aguada.png",
@@ -676,7 +710,8 @@ window.ESCUDOS = {
     "union-atletica": "escudos/basquet-union-atletica.png",
     "urunday-universitario": "escudos/basquet-urunday-universitario.png",
     "hebraica-macabi": "escudos/basquet-hebraica-y-macabi.png",
-    "urunday": "escudos/basquet-urunday-universitario.png"
+    "urunday": "escudos/basquet-urunday-universitario.png",
+    "d-sporting": "escudos/basquet-defensor-sporting.png"
   },
   "competencias": {
     "liga-uruguaya-de-basquetbol": "escudos/liga-lub.png",

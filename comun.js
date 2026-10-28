@@ -162,7 +162,9 @@
   T.escudo = function (id, nombres, original) {
     const ns = [].concat(nombres || []).filter(Boolean);
     for (const n of ns) { const h = T.escudosHoja[slugEsc(n)]; if (h) return h; }
-    let p = (id && ESC.equipos[String(id)]) || null;
+    // NBA: "nba:<id>" (los números de equipo de la NBA se repiten con los de fútbol)
+    const nba = /^nba:(\d+)$/.exec(String(id || ""));
+    let p = nba ? (ESC.nba || {})[nba[1]] || null : (id && ESC.equipos[String(id)]) || null;
     // básquetbol: "basquet:Nombre" busca primero en los escudos de la LUB
     if (!p) for (const n of ns) if (/^basquet:/.test(n)) { p = (ESC.basquet || {})[slugEsc(n.slice(8))]; if (p) break; }
     if (!p && !id) for (const n of ns) { p = ESC.nombres[slugEsc(n.replace(/^basquet:/, ""))]; if (p) break; }
@@ -197,8 +199,9 @@
 
   /* ---- Pestaña "correcciones": pisar datos que vienen automáticos ----
      tipo | equipo_o_local | visitante | valor | nota
-     tipos: ocultar partido · cambiar nombre · corregir marcador · agregar uruguayos · quitar uruguayos */
-  T.correcciones = { ocultar: [], nombres: {}, marcador: [], agregar: {}, quitar: {} };
+     tipos: ocultar partido · cambiar nombre · corregir marcador · agregar uruguayos · quitar uruguayos ·
+            lesionado (valor = jugadores, nota = motivo) · no lesionado (saca la marca de lesión) */
+  T.correcciones = { ocultar: [], nombres: {}, marcador: [], agregar: {}, quitar: {}, lesion: [], sano: [] };
   // mismo equipo o jugador: igual nombre, sin tildes ni palabras de relleno ("Cerro" no es "Cerro Largo")
   const limpio = (s) => slugEsc(s).split("-").filter((w) => w && !["club", "ca", "cd", "fc", "cf", "sc", "sad", "de", "del", "la", "el", "atletico"].includes(w)).join("-");
   const mismo = (a, b) => { const x = limpio(a), y = limpio(b); return !!x && x === y; };
@@ -210,7 +213,7 @@
     let filas;
     try { filas = await T.leerHoja("correcciones"); } catch (e) { return; }
     if (!filas || !filas.length || !("tipo" in filas[0])) return;
-    const c = { ocultar: [], nombres: {}, marcador: [], agregar: {}, quitar: {} };
+    const c = { ocultar: [], nombres: {}, marcador: [], agregar: {}, quitar: {}, lesion: [], sano: [] };
     const lista = (s) => String(s || "").split(/[,;]/).map((x) => x.trim()).filter(Boolean);
     filas.forEach((f) => {
       const tipo = sinTildes(f.tipo), a = (f.equipo_o_local || "").trim(), b = (f.visitante || "").trim(), v = (f.valor || "").trim();
@@ -222,6 +225,8 @@
         if (m && b) c.marcador.push({ a, b, gl: m[1], gv: m[2] });
       } else if (tipo.startsWith("agregar uruguayo")) (c.agregar[slugEsc(a)] = c.agregar[slugEsc(a)] || []).push(...lista(v));
       else if (tipo.startsWith("quitar uruguayo")) (c.quitar[slugEsc(a)] = c.quitar[slugEsc(a)] || []).push(...(lista(v).length ? lista(v) : ["*"]));
+      else if (tipo.startsWith("no lesionado") || tipo.startsWith("quitar lesion")) lista(v).forEach((j) => c.sano.push(j));
+      else if (tipo.startsWith("lesionado") || tipo.startsWith("suspendido")) lista(v).forEach((j) => c.lesion.push({ jugador: j, estado: tipo.startsWith("susp") ? "suspendido" : "lesionado", motivo: (f.nota || "").trim() }));
     });
     T.correcciones = c;
   };
@@ -257,6 +262,33 @@
   T.esUruAgregado = function (nombresEquipo, jugador) {
     const agregar = delEquipo(T.correcciones.agregar, ...[].concat(nombresEquipo || []).filter(Boolean));
     return !!agregar && agregar.some((j) => mismoJug(j, jugador));
+  };
+
+  /* ---- Pestaña "lesionados" (la carga la tarea diaria desde Flashscore) ----
+     jugador | club | estado | motivo | fuente | actualizado   (estado: lesionado / suspendido / ausente) */
+  T.lesionados = [];
+  T.cargarLesionados = async function () {
+    if (T.demo) return;
+    let filas;
+    try { filas = await T.leerHoja("lesionados"); } catch (e) { return; }
+    if (!filas || !filas.length || !("jugador" in filas[0])) return;
+    T.lesionados = filas.filter((f) => (f.jugador || "").trim())
+      .map((f) => ({ jugador: f.jugador.trim(), estado: sinTildes(f.estado || "lesionado"), motivo: (f.motivo || "").trim() }));
+  };
+  // mismo jugador aunque el nombre venga escrito distinto ("Valverde Federico", "Federico Valverde",
+  // "Fede Valverde"): todas las palabras del nombre más corto están en el otro, o coincide como en mismoJug
+  T.mismoJugador = function (a, b) {
+    if (mismoJug(a, b)) return true;
+    const x = slugEsc(a).split("-").filter((w) => w.length > 1), y = slugEsc(b).split("-").filter((w) => w.length > 1);
+    const [c, l] = x.length <= y.length ? [x, y] : [y, x];
+    return c.length >= 2 && c.every((w) => l.includes(w));
+  };
+  // ¿está lesionado o suspendido? (lo de la pestaña correcciones manda sobre lo de "lesionados")
+  T.ausencia = function (jugador) {
+    const C2 = T.correcciones;
+    if ((C2.sano || []).some((j) => T.mismoJugador(j, jugador))) return null;
+    return (C2.lesion || []).find((x) => T.mismoJugador(x.jugador, jugador)) ||
+      T.lesionados.find((x) => T.mismoJugador(x.jugador, jugador)) || null;
   };
 
   /* Links de imágenes de Google Drive → link directo que se puede mostrar */
