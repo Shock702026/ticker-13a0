@@ -195,6 +195,11 @@
   @media (max-width:760px) { .eq-grid { grid-template-columns:1fr; } .cal .d { min-height:64px; padding:3px; } .cal .ev { font-size:9px; padding:3px; } .cal .dn { font-size:9px; letter-spacing:0; } .mes b { min-width:0; flex:1; font-size:17px; } }
   .todo-ticker { margin-top:20px; } .todo-ticker iframe { width:100%; height:80vh; min-height:520px; border:0; background:#1c1b2b; display:block; }
   @media (max-width:760px) { .todo-ticker iframe { height:70vh; min-height:420px; } }
+  .relev-lista { display:flex; flex-direction:column; }
+  .relev-it { display:flex; flex-direction:column; gap:8px; padding:12px 2px; border-top:2px solid var(--linea); }
+  .relev-tx { font-weight:700; font-size:15px; line-height:1.35; } .relev-tx small { display:block; margin-top:3px; font-size:12px; color:var(--gris); }
+  .relev-tx small a { color:var(--celeste); font-weight:700; }
+  .relev-it .chip { padding:7px 11px; }
   /* barra de abajo y cabecera: solo en el celular */
   .tabbar, .movtop { display:none; }
   .aire { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px; }
@@ -374,7 +379,7 @@ function vistaPrevia(src, cls = "") {
 }
 
 /* ---------- Navegación ---------- */
-const SECC = [["inicio", "Inicio", "var(--celeste)"], ["noticias", "Noticias", "var(--amarillo)"], ["camaras", "Cámaras y zócalos", "var(--rojo)"],
+const SECC = [["inicio", "Inicio", "var(--celeste)"], ["noticias", "Noticias", "var(--amarillo)"], ["relevamiento", "Noticias del día", "var(--amarillo)"], ["camaras", "Cámaras y zócalos", "var(--rojo)"],
   ["partido", "Partido en vivo", "var(--celeste)"], ["ticker", "Ticker", "var(--amarillo)"], ["correcciones", "Correcciones", "var(--rojo)"], ["escudos", "Escudos", "#fff"],
   ["convocatorias", "Convocatorias", "var(--amarillo)"], ["perfil", "Mi perfil", "var(--celeste)"],
   ["historial", "Historial", "var(--verde)"], ["equipo", "Equipo", "var(--verde)"], ["accesos", "Accesos", "var(--verde)"]];
@@ -382,7 +387,7 @@ const SECC = [["inicio", "Inicio", "var(--celeste)"], ["noticias", "Noticias", "
 const PERM = (s) => (D && D.permisos || {})[s] || "";
 const NIV = { ver: 1, cargar: 2, editar: 3 };
 const puede = (s, nivel = "editar") => (NIV[PERM(s)] || 0) >= NIV[nivel];
-const visible = (s) => ["inicio", "mas", "convocatorias", "perfil"].includes(s) || (["historial", "accesos", "equipo"].includes(s) ? !!D.madre : !!PERM(s));
+const visible = (s) => (s === "relevamiento" ? puede("noticias") : false) || ["inicio", "mas", "convocatorias", "perfil"].includes(s) || (["historial", "accesos", "equipo"].includes(s) ? !!D.madre : !!PERM(s));
 function nav() {
   const alAire = noticias().filter((n) => esSi(n.mostrar)).length;
   document.getElementById("nav").innerHTML = SECC.filter(([k]) => visible(k)).map(([k, t, c]) => `<button data-s="${k}" class="${k === seccion ? "on" : ""}"><i style="background:${c}"></i>${t}${k === "noticias" ? `<small>${alAire} al aire</small>` : ""}</button>`).join("");
@@ -392,7 +397,7 @@ function nav() {
 const TABS = [["inicio", "Inicio", "⌂"], ["noticias", "Noticias", "▤"], ["camaras", "Cámaras", "▣"], ["partido", "Partido", "⚽"], ["mas", "Más", "⋯"]];
 function tabbar() {
   const t = document.getElementById("tabbar");
-  const activa = ["ticker", "correcciones", "escudos", "convocatorias", "perfil", "historial", "equipo", "accesos", "mas"].includes(seccion) ? "mas" : seccion;
+  const activa = ["relevamiento", "ticker", "correcciones", "escudos", "convocatorias", "perfil", "historial", "equipo", "accesos", "mas"].includes(seccion) ? "mas" : seccion;
   t.innerHTML = TABS.filter(([k]) => visible(k)).map(([k, n, i]) => `<button data-s="${k}" class="${k === activa ? "on" : ""}"><i>${i}</i>${n}</button>`).join("");
   t.querySelectorAll("button").forEach((b) => (b.onclick = () => ir(b.dataset.s)));
   document.getElementById("movtit").textContent = ((SECC.find((x) => x[0] === seccion) || [0, "Panel"])[1]).replace(" y zócalos", "").replace(" en vivo", "");
@@ -416,7 +421,7 @@ const titulo = (t, extra = "") => `<div class="cab"><h1>${t}</h1>${extra}<span c
 const VISTAS = {};
 
 /* ---------- Inicio ---------- */
-VISTAS.mas = (m) => { m.innerHTML = titulo("Más") + `<div class="inicio">` + SECC.slice(4).filter(([k]) => visible(k)).map(([k, t, c]) => `<div class="card" data-s="${k}"><i style="background:${c === "#fff" ? "var(--azul)" : c}"></i><b>${t}</b></div>`).join("") + (API ? `<div class="card" data-salir="1"><i style="background:var(--gris)"></i><b>Salir (${esc(D.yo)})</b></div>` : "") + `</div>`; m.querySelectorAll(".card").forEach((c) => (c.onclick = () => (c.dataset.salir ? salir() : ir(c.dataset.s)))); };
+VISTAS.mas = (m) => { m.innerHTML = titulo("Más") + `<div class="inicio">` + SECC.filter(([k]) => !TABS.some((t) => t[0] === k) && visible(k)).map(([k, t, c]) => `<div class="card" data-s="${k}"><i style="background:${c === "#fff" ? "var(--azul)" : c}"></i><b>${t}</b></div>`).join("") + (API ? `<div class="card" data-salir="1"><i style="background:var(--gris)"></i><b>Salir (${esc(D.yo)})</b></div>` : "") + `</div>`; m.querySelectorAll(".card").forEach((c) => (c.onclick = () => (c.dataset.salir ? salir() : ir(c.dataset.s)))); };
 // zócalos y cuadros que entran y salen (clave ".mostrar" de la pestaña camaras)
 const PIEZAS = [["a", "A · Una cámara", "a.nombre"], ["c", "C · Tres cámaras", "c.nombre"], ["g", "G · Zócalo bloques", "g.nombre"], ["h", "H · Charla", "h.texto"],
   ["f.tema", "F · Cuadro de tema", "f.tema.texto"], ["f.dato", "F · Cuadro de dato", "f.dato.etiqueta"], ["f.zocalo", "F · Zócalo suelto", "f.zocalo.nombre"]];
@@ -425,7 +430,7 @@ VISTAS.inicio = (m) => {
   m.innerHTML = titulo("Hola 👋") +
     (PERM("camaras") ? `<div class="grupo" style="border:0;padding:0"><b>Zócalos y cuadros al aire</b><div class="aire" id="aire"></div>` +
       (puede("camaras") ? `<div class="emergencia"><button class="btn" id="emerg">🛑 Sacar todo del aire</button><span class="ayuda" id="emerg-t" style="color:var(--gris);font-size:12px;font-weight:700">Apaga de un toque todos los zócalos y cuadros</span></div>` : "") + `</div>` : "") +
-    ((puede("noticias", "cargar") || PERM("partido")) ? `<div class="grupo" style="border:0;padding:0"><b>Atajos</b><div class="atajos">${puede("noticias", "cargar") ? `<button class="btn am" data-a="nueva">📷 Noticia nueva</button>` : ""}${PERM("partido") ? `<button class="btn ce" data-a="partido">⚽ Partido</button>` : ""}</div></div>` : "") +
+    ((puede("noticias", "cargar") || PERM("partido")) ? `<div class="grupo" style="border:0;padding:0"><b>Atajos</b><div class="atajos">${puede("noticias") ? `<button class="btn" data-a="relev">📰 Elegir noticias del día</button>` : ""}${puede("noticias", "cargar") ? `<button class="btn am" data-a="nueva">📷 Noticia nueva</button>` : ""}${PERM("partido") ? `<button class="btn ce" data-a="partido">⚽ Partido</button>` : ""}</div></div>` : "") +
     (D.madre && (D.historial || []).length ? `<div class="grupo" style="border:0;padding:0"><b>Últimos cambios</b><div class="card hist" id="ult" style="padding:4px 14px"></div></div>` : "") +
     `<div class="grupo" style="border:0;padding:0"><b>Todo</b><div class="inicio" id="todo"></div></div>`;
   const A = m.querySelector("#aire") || document.createElement("div");
@@ -447,6 +452,7 @@ VISTAS.inicio = (m) => {
   const U = m.querySelector("#ult"); if (U) histLista(U, D.historial.slice(0, 5), false);
   const bN = m.querySelector('[data-a="nueva"]'); if (bN) bN.onclick = () => { elegidaN = "nueva"; ir("noticias"); };
   const bP = m.querySelector('[data-a="partido"]'); if (bP) bP.onclick = () => ir("partido");
+  const bR = m.querySelector('[data-a="relev"]'); if (bR) bR.onclick = () => ir("relevamiento");
   m.querySelector("#todo").innerHTML = SECC.slice(1).filter(([k]) => visible(k)).map(([k, t, c]) => `<div class="card" data-s="${k}"><i style="background:${c === "#fff" ? "var(--azul)" : c}"></i><b>${t}</b><span>${{
     noticias: "Cargar, ordenar y poner al aire las noticias de la tanda y TITULARES. Foto con encuadre.",
     camaras: "Nombres de los zócalos, temas de charla y cuadros de cada pantalla de cámaras.",
@@ -454,6 +460,7 @@ VISTAS.inicio = (m) => {
     ticker: "Qué bloques pasan cada día y los ajustes de la cinta (velocidad, alto, tiempos).",
     correcciones: "Corregir un resultado, un nombre o esconder un partido del ticker.",
     escudos: "Cambiar el escudo de un equipo o de una competencia.",
+    relevamiento: "La lista que arma la búsqueda de las 18:00: elegí qué va a radio y qué a OBS.",
     convocatorias: "Calendario de convocatorias: responder, ver quién va y armar nuevas.",
     perfil: "Tus datos, foto carnet, acreditación y los días que no estás.",
     equipo: "Perfiles del equipo y sus roles (Relato, Producción, etc.).",
@@ -1090,6 +1097,7 @@ const DEMO = (() => {
   return {
     miPerfil: () => ({ perfil: { email: "prueba", nombre: "Persona de prueba", roles: "Relato|Apoyo" }, ausencias: [{ id: "a1", desde: d(10), hasta: d(12), motivo: "enfermedad", nota: "" }] }),
     equipo: () => gente.map((p) => Object.assign({ celular: "099 000 000", cedula: "", foto: false, acred: false }, p)),
+    leerRelevamiento: () => { return { fechas: [d(0)], actual: { fecha: d(0), actualizado: d(0) + " 18:02", lista: { fecha: d(0), generada: "18:02", nacionales: [{ id: "N1", titulo: "Peñarol confirmó el equipo para el clásico", link: "https://example.com", medio: "Ovación" }, { id: "N2", titulo: "La AUF definió los árbitros de la fecha", link: "https://example.com", medio: "Referí" }], internacionales: [{ id: "I1", titulo: "Valverde, figura en el triunfo del Real Madrid", link: "https://example.com", medio: "Marca" }], partidos: [{ competencia: "Champions League", lineas: [{ texto: "Real Madrid 🇺🇾 (Valverde) 2-1 Juventus · Final", uy: true }] }] }, eleccion: null } }; },
     leerConvocatorias: () => ({ convocatorias: conv, puedeConvocar: true, roles: ROLES_EQ, convocables: gente })
   };
 })();
@@ -1282,6 +1290,65 @@ function convGenerar(cont, m) {
     });
   });
 }
+
+/* ---------- Noticias del día: la lista que arma la tarea de las 18:00 y la elección (radio / OBS) ---------- */
+const DESTINOS = [["no", "No"], ["radio", "Radio"], ["obs", "OBS"], ["ambos", "Ambos"]];
+let relevFecha = null;
+VISTAS.relevamiento = async (m) => {
+  m.innerHTML = titulo("Noticias del día") + `<div class="aviso">Cargando la lista…</div>`;
+  let R; try { R = await srv("leerRelevamiento", relevFecha); } catch (e) { m.querySelector(".aviso").textContent = e.message || String(e); return; }
+  if (seccion !== "relevamiento") return;
+  const X = R.actual;
+  if (!X || !X.lista) { m.innerHTML = titulo("Noticias del día") + `<div class="card form"><b>Todavía no hay ninguna lista.</b><span style="color:var(--gris);font-weight:600">La búsqueda corre sola todos los días a las 18:00 y te avisa por mail.</span></div>`; return; }
+  const L = X.lista, E = X.eleccion || {}, el = Object.assign({}, E.items || {});
+  m.innerHTML = titulo("Noticias del día") + `<div class="subtabs">${R.fechas.slice(0, 7).map((f) => `<button class="chip${f === X.fecha ? " on" : ""}" data-f="${f}">${esc(fechaTxt(f))}</button>`).join("")}</div>
+    <div class="card form relev-est"></div><div class="eq-grid"><div class="card form" id="rn"></div><div class="card form" id="ri"></div></div>
+    <div class="card form" id="rx"></div>${(L.partidos || []).length ? `<div class="card form" id="rp"></div>` : ""}`;
+  m.querySelectorAll(".subtabs .chip").forEach((b) => (b.onclick = () => { relevFecha = b.dataset.f; ir("relevamiento"); }));
+  const est = m.querySelector(".relev-est");
+  const pintarEst = () => {
+    const c = { radio: 0, obs: 0 }; Object.values(el).forEach((v) => { if (v === "radio" || v === "ambos") c.radio++; if (v === "obs" || v === "ambos") c.obs++; });
+    est.innerHTML = `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><b>Lista de ${esc(fechaTxt(X.fecha))}</b><small style="color:var(--gris);font-weight:600">armada ${esc(L.generada || X.actualizado || "")}</small>
+      <span class="estado-r ${E.enviado ? "acepta" : "pendiente"}" style="margin-left:auto">${E.enviado ? `✓ Elección enviada ${esc(E.hora || "")} por ${esc(E.por || "")}` : "Sin elegir todavía"}</span></div>
+      <div class="chips"><span class="estado-r pendiente">Radio: ${c.radio}</span><span class="estado-r pendiente">OBS: ${c.obs}</span></div>`;
+  };
+  const bloque = (cont, titulo2, items, color) => {
+    cont.innerHTML = `<h2><i style="background:${color}"></i>${titulo2}</h2><div class="relev-lista"></div>`;
+    const Lc = cont.querySelector(".relev-lista");
+    if (!items.length) Lc.innerHTML = `<span style="color:var(--gris);font-weight:600">Sin noticias.</span>`;
+    items.forEach((n) => {
+      const it = h(`<div class="relev-it"><div class="relev-tx"><b>${esc(n.id)}</b> ${esc(n.titulo)}<small>${n.link ? `<a href="${esc(n.link)}" target="_blank" rel="noopener">${esc(n.medio || "Leer")} ↗</a>` : esc(n.medio || "")}</small></div><div class="chips"></div></div>`);
+      const C = it.querySelector(".chips");
+      DESTINOS.forEach(([k, t]) => {
+        const b = h(`<button class="chip${(el[n.id] || "no") === k ? " on" : ""}${k === "no" ? "" : " c-celeste"}">${t}</button>`);
+        b.onclick = () => { el[n.id] = k; C.querySelectorAll(".chip").forEach((x) => x.classList.toggle("on", x === b)); pintarEst(); };
+        C.appendChild(b);
+      });
+      Lc.appendChild(it);
+    });
+  };
+  bloque(m.querySelector("#rn"), "Nacionales", L.nacionales || [], "var(--celeste)");
+  bloque(m.querySelector("#ri"), "Internacionales", L.internacionales || [], "var(--amarillo)");
+  const Xc = m.querySelector("#rx");
+  Xc.innerHTML = `<label>¿Falta alguna noticia?<span class="ayuda">Una por línea, con el destino. Ej.: «OBS: lesión de Valverde» o «radio: conferencia de Bielsa»</span><textarea rows="3" id="r-extra">${esc(E.extra || "")}</textarea></label>
+    <div class="pie" style="flex-wrap:wrap"><button class="btn am" id="r-env">${E.enviado ? "Volver a enviar la elección" : "Enviar elección"}</button><button class="btn sec" id="r-todo">Todo a OBS</button><button class="btn sec" id="r-nada">Todo en No</button></div>
+    <small style="color:var(--gris);font-weight:600">Después, la Mac trabaja a fondo las elegidas (redacción, fotos y carga) cuando se lo pidas.</small>`;
+  const todos = [...(L.nacionales || []), ...(L.internacionales || [])];
+  Xc.querySelector("#r-todo").onclick = () => { todos.forEach((n) => (el[n.id] = "obs")); ir2(); };
+  Xc.querySelector("#r-nada").onclick = () => { todos.forEach((n) => (el[n.id] = "no")); ir2(); };
+  const ir2 = () => { m.querySelectorAll(".relev-it").forEach((it, i) => { const v = el[todos[i].id] || "no"; it.querySelectorAll(".chip").forEach((b, j) => b.classList.toggle("on", DESTINOS[j][0] === v)); }); pintarEst(); };
+  Xc.querySelector("#r-env").onclick = async (e) => {
+    e.target.disabled = true;
+    const items = {}; todos.forEach((n) => (items[n.id] = el[n.id] || "no"));
+    try { await guardar("guardarEleccion", X.fecha, items, Xc.querySelector("#r-extra").value); relevFecha = X.fecha; ir("relevamiento"); }
+    catch (x) { e.target.disabled = false; }
+  };
+  const P = m.querySelector("#rp");
+  if (P) {
+    P.innerHTML = `<h2><i style="background:var(--verde)"></i>Partidos del día</h2>` + L.partidos.map((c) => `<div class="grupo"><b>${esc(c.competencia)}</b>${(c.lineas || []).map((x) => `<span style="font-weight:${x.uy ? 800 : 600};font-size:14px">${esc(x.texto)}</span>`).join("")}</div>`).join("");
+  }
+  pintarEst();
+};
 
 async function recargar() { await cargar(); ir(seccion); }
 /* ---------- Ingreso con código por mail (panel abierto desde GitHub) ---------- */
