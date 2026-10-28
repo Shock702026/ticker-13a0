@@ -454,6 +454,9 @@ VISTAS.inicio = (m) => {
     ticker: "Qué bloques pasan cada día y los ajustes de la cinta (velocidad, alto, tiempos).",
     correcciones: "Corregir un resultado, un nombre o esconder un partido del ticker.",
     escudos: "Cambiar el escudo de un equipo o de una competencia.",
+    convocatorias: "Calendario de convocatorias: responder, ver quién va y armar nuevas.",
+    perfil: "Tus datos, foto carnet, acreditación y los días que no estás.",
+    equipo: "Perfiles del equipo y sus roles (Relato, Producción, etc.).",
     historial: "Quién cambió qué y cuándo. Cada cambio se puede deshacer.",
     accesos: "Dar y quitar acceso a otras cuentas de Google, sección por sección." }[k]}${k === "noticias" ? ` · <b style="font-size:inherit;font-family:inherit">${nA} al aire</b>` : ""}</span></div>`).join("");
   m.querySelectorAll("#todo .card").forEach((c) => (c.onclick = () => ir(c.dataset.s)));
