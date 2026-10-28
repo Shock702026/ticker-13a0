@@ -162,6 +162,7 @@
   .carnet .foto { width:120px; aspect-ratio:3/4; background:var(--fondo) center/cover no-repeat; outline:2px dashed var(--linea); outline-offset:-2px; display:flex; align-items:center; justify-content:center; color:var(--gris); font-weight:700; font-size:12px; text-align:center; padding:6px; flex:none; }
   .carnet .foto.acred { width:180px; aspect-ratio:3/2; }
   .carnet .foto.ok { outline:0; }
+  .carnet a.btn { text-decoration:none; display:inline-block; }
   .subir { position:relative; overflow:hidden; } .subir input { position:absolute; inset:0; opacity:0; cursor:pointer; }
   .rol-chip { padding:6px 10px; font:800 12px var(--f); background:var(--fondo); outline:2px solid var(--linea); outline-offset:-2px; border:0; color:var(--azul); }
   .rol-chip.on { background:var(--amarillo); outline-color:var(--amarillo); }
@@ -940,12 +941,21 @@ function leerImagen(file, ancho, alto) {   // alto = null: solo achica; si no, r
   });
 }
 const aBase64 = (file) => new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1]); r.readAsDataURL(file); });
-async function mostrarArchivo(caja, email, tipo) {
+// muestra la foto o acreditación y, si hay dónde, pone los botones «Ver» y «Descargar»
+async function mostrarArchivo(caja, email, tipo, botones) {
   try {
     const a = await srv("verArchivoPerfil", email, tipo); if (!a) return;
-    if (a.mime === "application/pdf") { caja.textContent = "PDF cargado ✓"; caja.classList.add("ok"); }
-    else { caja.style.backgroundImage = `url(data:${a.mime};base64,${a.datos})`; caja.textContent = ""; caja.classList.add("ok"); }
+    if (a.mime === "application/pdf") { caja.textContent = "PDF cargado ✓"; caja.style.backgroundImage = ""; }
+    else { caja.style.backgroundImage = `url(data:${a.mime};base64,${a.datos})`; caja.textContent = ""; }
+    caja.classList.add("ok");
+    if (botones) archivoBotones(botones, a, (tipo === "acred" ? "acreditacion-" : "foto-carnet-") + email.split("@")[0]);
   } catch (e) {}
+}
+function archivoBotones(cont, a, nombre) {
+  const bytes = Uint8Array.from(atob(a.datos), (c) => c.charCodeAt(0));
+  const url = URL.createObjectURL(new Blob([bytes], { type: a.mime })), ext = a.mime === "application/pdf" ? ".pdf" : ".jpg";
+  cont.innerHTML = `<a class="btn sec chico" href="${url}" target="_blank" rel="noopener">Ver</a><a class="btn sec chico" href="${url}" download="${esc(nombre + ext)}">Descargar</a>`;
+  cont.hidden = false;
 }
 
 VISTAS.perfil = async (m) => {
@@ -966,13 +976,13 @@ VISTAS.perfil = async (m) => {
       <label>Contacto de emergencia<input type="text" name="emergencia" value="${esc(P.emergencia || "")}" placeholder="Nombre y celular"></label></div>
     <div class="grupo"><b>Acreditación</b>
       <div class="carnet"><div class="foto acred" id="f-acred">Sin acreditación</div><div style="display:flex;flex-direction:column;gap:8px;flex:1;min-width:180px">
-        <span class="btn sec chico subir">Subir foto o PDF<input type="file" accept="image/*,application/pdf" id="in-acred"></span></div></div>
+        <span class="btn sec chico subir">Subir foto o PDF<input type="file" accept="image/*,application/pdf" id="in-acred"></span><div class="chips" id="b-acred" hidden></div></div></div>
       <div class="dos"><label>Número<input type="text" name="acred_numero" value="${esc(P.acred_numero || "")}"></label><label>Vence<input type="date" name="acred_vence" value="${esc(P.acred_vence || "")}"></label></div></div>
     <label>Notas<span class="ayuda">Talle, alergias, lo que sirva saber</span><textarea name="notas" rows="2">${esc(P.notas || "")}</textarea></label>
     <div class="pie"><button class="btn am" id="g-datos">Guardar mis datos</button></div>
     <small style="color:var(--gris);font-weight:600">${esc(D.yo)}${P.actualizado ? " · actualizado " + esc(P.actualizado) : ""} · Solo lo ven vos y Trece A Cero.</small>`;
   if (P.foto_id) mostrarArchivo(F.querySelector("#f-foto"), D.yo, "foto");
-  if (P.acred_id) mostrarArchivo(F.querySelector("#f-acred"), D.yo, "acred");
+  if (P.acred_id) mostrarArchivo(F.querySelector("#f-acred"), D.yo, "acred", F.querySelector("#b-acred"));
   F.querySelector("#g-datos").onclick = async (e) => {
     const d = {}; F.querySelectorAll("[name]").forEach((x) => (d[x.name] = x.value.trim()));
     e.target.disabled = true; try { await srv("guardarPerfil", d); aviso("Datos guardados ✓"); } catch (x) { aviso(x.message || String(x), true); } e.target.disabled = false;
@@ -986,6 +996,7 @@ VISTAS.perfil = async (m) => {
       await srv("subirArchivoPerfil", tipo, b64, mime); aviso("Subido ✓");
       if (mime === "application/pdf") { caja.textContent = "PDF cargado ✓"; caja.style.backgroundImage = ""; } else { caja.style.backgroundImage = `url(data:image/jpeg;base64,${b64})`; caja.textContent = ""; }
       caja.classList.add("ok");
+      if (tipo === "acred") archivoBotones(F.querySelector("#b-acred"), { mime, datos: b64 }, "acreditacion-" + D.yo.split("@")[0]);
     } catch (x) { caja.textContent = "No se pudo subir"; aviso(x.message || String(x), true); }
     inp.value = "";
   });
@@ -1057,7 +1068,7 @@ VISTAS.equipo = async (m) => {
         <span style="color:var(--gris)">${p.actualizado ? "Actualizado " + esc(p.actualizado) : "Nunca cargó su perfil"}</span></div></div>`;
       const [ff, fa] = fi.querySelectorAll(".foto");
       if (p.foto) mostrarArchivo(ff, p.email, "foto");
-      if (p.acred) mostrarArchivo(fa, p.email, "acred");
+      if (p.acred) { const bt = h(`<div class="chips" hidden></div>`); fa.insertAdjacentElement("afterend", bt); mostrarArchivo(fa, p.email, "acred", bt); }
     };
     L.appendChild(it);
   });
