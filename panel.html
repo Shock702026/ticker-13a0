@@ -122,6 +122,32 @@
   .inicio .card b { font:800 20px/1.1 var(--slab); } .inicio .card span { color:var(--gris); font-weight:600; }
   .inicio .card i { width:100%; height:6px; }
   @media (max-width:1300px) { .cuerpo.n { grid-template-columns:340px 1fr; } .cuerpo.n > .vista { grid-column:1 / -1; position:static; } }
+  /* permisos: solo mirar, pendientes, emergencia, accesos, historial */
+  .solo-ver input, .solo-ver textarea, .solo-ver select, .solo-ver .btn, .solo-ver .sw, .solo-ver .barra-r button, .solo-ver .mov, .solo-ver .escena, .solo-ver .encuadre label { pointer-events:none; opacity:.5; }
+  .solo-ver .chip, .solo-ver .tira, .solo-ver .filtros .chip { pointer-events:auto; opacity:1; }
+  .banda-ver { background:var(--celeste); color:#fff; font-weight:800; padding:10px 14px; }
+  .tag-pend { background:var(--amarillo); color:var(--azul); font:800 11px var(--f); padding:3px 6px; margin-left:4px; }
+  .btn.ok { background:var(--verde); color:#fff; }
+  .emergencia { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .emergencia .btn { background:var(--rojo); color:#fff; }
+  .emergencia .btn.seguro { background:#7a0011; animation:latido 1s infinite; }
+  @keyframes latido { 50% { box-shadow:0 0 0 6px rgba(197,2,30,.25); } }
+  .acc-grid { display:grid; grid-template-columns:1fr minmax(320px,430px); gap:20px; align-items:start; }
+  table.acc { width:100%; border-collapse:collapse; } table.acc th { font:800 11px var(--f); letter-spacing:.1em; text-transform:uppercase; color:var(--gris); text-align:left; padding:6px 8px; }
+  table.acc td { padding:12px 8px; border-top:2px solid var(--linea); vertical-align:middle; }
+  .per { display:flex; align-items:center; gap:10px; } .per i { width:34px; height:34px; flex:none; display:flex; align-items:center; justify-content:center; font:900 15px var(--f); color:#fff; font-style:normal; background:var(--celeste); }
+  .per b { display:block; font-weight:800; } .per small { color:var(--gris); font-weight:600; font-size:12px; word-break:break-all; }
+  .madre { background:var(--amarillo); color:var(--azul); font:800 11px var(--f); padding:4px 7px; margin-left:4px; }
+  .vencido { background:var(--rojo); color:#fff; font:800 11px var(--f); padding:4px 7px; margin-left:4px; }
+  .niv { display:flex; flex-wrap:wrap; gap:6px; } .niv button { border:0; font:800 12px var(--f); padding:6px 9px; background:var(--fondo); color:var(--gris); outline:2px solid var(--linea); outline-offset:-2px; }
+  .niv button.ver { background:#dff1fa; color:var(--celeste); outline-color:var(--celeste); } .niv button.cargar { background:#FFF6CC; color:#7a5a00; outline-color:var(--amarillo); } .niv button.editar { background:var(--azul); color:#fff; outline-color:var(--azul); }
+  .quitar-acc { border:0; background:none; font:800 13px var(--f); color:var(--rojo); }
+  .leyenda { display:flex; gap:12px; flex-wrap:wrap; font-size:12px; font-weight:700; color:var(--gris); } .leyenda span { display:flex; align-items:center; gap:6px; } .leyenda i { width:14px; height:14px; }
+  .invitacion { background:#e9f7ef; border:2px solid #9fd8b4; padding:12px; display:flex; flex-direction:column; gap:8px; } .invitacion pre { white-space:pre-wrap; font:600 13px/1.4 var(--f); }
+  .hist { display:flex; flex-direction:column; } .hist .it { display:grid; grid-template-columns:90px 1fr auto; gap:12px; align-items:center; padding:10px 4px; border-top:2px solid var(--linea); }
+  .hist .it small { color:var(--gris); font-weight:700; } .hist .it b { font-weight:800; } .hist .it .sec { font:800 11px var(--f); color:#fff; background:var(--azul); padding:3px 6px; margin-right:6px; }
+  .hist .it.deshecho { opacity:.45; } .hist .it.deshecho .que { text-decoration:line-through; }
+  @media (max-width:760px) { .acc-grid { grid-template-columns:1fr; } table.acc td { display:block; border:0; padding:6px 4px; } table.acc tr { display:block; border-top:2px solid var(--linea); padding:8px 0; } table.acc th { display:none; } .hist .it { grid-template-columns:1fr auto; } .hist .it small { grid-column:1 / -1; } }
   /* barra de abajo y cabecera: solo en el celular */
   .tabbar, .movtop { display:none; }
   .aire { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px; }
@@ -198,7 +224,9 @@ async function cargar() {
   else {   // modo prueba: lee la planilla publicada (solo lectura)
     const ID = new URLSearchParams(location.search).get("planilla") || "1RWYJrnosHmqeEXJoR9lqTS8V6bsuwzusLhwZLm2D1Hc";
     const hoja = async (n) => { try { const r = await fetch("https://docs.google.com/spreadsheets/d/" + ID + "/gviz/tq?tqx=out:csv&headers=1&sheet=" + n); return csv(await r.text()); } catch (e) { return null; } };
-    D = { yo: "modo prueba (solo lectura)", url: "https://docs.google.com/spreadsheets/d/" + ID };
+    const qp = new URLSearchParams(location.search).get("permisos");
+    const per = qp ? Object.fromEntries(qp.split(",").map((x) => x.split(":"))) : { noticias: "editar", camaras: "editar", partido: "editar", ticker: "editar", correcciones: "editar", escudos: "editar" };
+    D = { yo: "modo prueba (solo lectura)", nombre: "Prueba", madre: !qp, permisos: per, accesos: {}, historial: [], url: "https://docs.google.com/spreadsheets/d/" + ID };
     for (const [k, n] of [["noticias", "noticias"], ["camaras", "camaras"], ["partido", "partido_vivo"], ["ajustes", "ajustes"], ["programa", "programa"], ["correcciones", "correcciones"], ["escudos", "escudos"]]) D[k] = await hoja(n);
   }
 }
@@ -286,55 +314,86 @@ function vistaPrevia(src, cls = "") {
 
 /* ---------- Navegación ---------- */
 const SECC = [["inicio", "Inicio", "var(--celeste)"], ["noticias", "Noticias", "var(--amarillo)"], ["camaras", "Cámaras y zócalos", "var(--rojo)"],
-  ["partido", "Partido en vivo", "var(--celeste)"], ["ticker", "Ticker", "var(--amarillo)"], ["correcciones", "Correcciones", "var(--rojo)"], ["escudos", "Escudos", "#fff"]];
+  ["partido", "Partido en vivo", "var(--celeste)"], ["ticker", "Ticker", "var(--amarillo)"], ["correcciones", "Correcciones", "var(--rojo)"], ["escudos", "Escudos", "#fff"],
+  ["historial", "Historial", "var(--verde)"], ["accesos", "Accesos", "var(--verde)"]];
+// qué puede cada cuenta: "ver", "cargar" (solo noticias: quedan pendientes) o "editar"
+const PERM = (s) => (D && D.permisos || {})[s] || "";
+const NIV = { ver: 1, cargar: 2, editar: 3 };
+const puede = (s, nivel = "editar") => (NIV[PERM(s)] || 0) >= NIV[nivel];
+const visible = (s) => s === "inicio" || s === "mas" || (["historial", "accesos"].includes(s) ? !!D.madre : !!PERM(s));
 function nav() {
   const alAire = noticias().filter((n) => esSi(n.mostrar)).length;
-  document.getElementById("nav").innerHTML = SECC.map(([k, t, c]) => `<button data-s="${k}" class="${k === seccion ? "on" : ""}"><i style="background:${c}"></i>${t}${k === "noticias" ? `<small>${alAire} al aire</small>` : ""}</button>`).join("");
+  document.getElementById("nav").innerHTML = SECC.filter(([k]) => visible(k)).map(([k, t, c]) => `<button data-s="${k}" class="${k === seccion ? "on" : ""}"><i style="background:${c}"></i>${t}${k === "noticias" ? `<small>${alAire} al aire</small>` : ""}</button>`).join("");
   document.querySelectorAll("#nav button").forEach((b) => (b.onclick = () => ir(b.dataset.s)));
-  document.getElementById("usuario").innerHTML = esc(D.yo) + `<a href="${esc(D.url)}" target="_blank">Abrir la planilla ↗</a>`;
+  document.getElementById("usuario").innerHTML = `<b style="color:#fff">${esc(D.nombre || "")}</b><br>` + esc(D.yo) + (D.url ? `<a href="${esc(D.url)}" target="_blank">Abrir la planilla ↗</a>` : "");
 }
 const TABS = [["inicio", "Inicio", "⌂"], ["noticias", "Noticias", "▤"], ["camaras", "Cámaras", "▣"], ["partido", "Partido", "⚽"], ["mas", "Más", "⋯"]];
 function tabbar() {
   const t = document.getElementById("tabbar");
-  const activa = ["ticker", "correcciones", "escudos", "mas"].includes(seccion) ? "mas" : seccion;
-  t.innerHTML = TABS.map(([k, n, i]) => `<button data-s="${k}" class="${k === activa ? "on" : ""}"><i>${i}</i>${n}</button>`).join("");
+  const activa = ["ticker", "correcciones", "escudos", "historial", "accesos", "mas"].includes(seccion) ? "mas" : seccion;
+  t.innerHTML = TABS.filter(([k]) => visible(k)).map(([k, n, i]) => `<button data-s="${k}" class="${k === activa ? "on" : ""}"><i>${i}</i>${n}</button>`).join("");
   t.querySelectorAll("button").forEach((b) => (b.onclick = () => ir(b.dataset.s)));
   document.getElementById("movtit").textContent = ((SECC.find((x) => x[0] === seccion) || [0, "Panel"])[1]).replace(" y zócalos", "").replace(" en vivo", "");
   document.getElementById("movest").textContent = ENAS ? "● conectado" : "modo prueba";
 }
-function ir(s) { seccion = s; nav(); tabbar(); const m = document.getElementById("main"); m.innerHTML = ""; (VISTAS[s] || VISTAS.inicio)(m); scrollTo(0, 0); }
+function ir(s) {
+  if (!visible(s)) s = "inicio";
+  seccion = s; nav(); tabbar();
+  const m = document.getElementById("main"); m.innerHTML = ""; m.classList.remove("solo-ver");
+  (VISTAS[s] || VISTAS.inicio)(m);
+  // solo mirar: se ve todo pero no se puede cambiar nada
+  if (PERM(s) === "ver") {
+    m.classList.add("solo-ver");
+    m.querySelectorAll("[contenteditable]").forEach((x) => x.setAttribute("contenteditable", "false"));
+    const cab = m.querySelector(".cab"); if (cab) cab.insertAdjacentElement("afterend", h(`<div class="banda-ver">👁 Solo podés mirar esta sección. Para cambiarla, pedíselo a Trece A Cero.</div>`));
+  }
+  scrollTo(0, 0);
+}
 const titulo = (t, extra = "") => `<div class="cab"><h1>${t}</h1>${extra}<span class="estado${ENAS ? "" : " lectura"}"><i></i>${ENAS ? "Conectado a la planilla" : "Modo prueba: solo lectura"}</span></div>`;
 
 const VISTAS = {};
 
 /* ---------- Inicio ---------- */
-VISTAS.mas = (m) => { m.innerHTML = titulo("Más") + `<div class="inicio">` + SECC.slice(4).map(([k, t, c]) => `<div class="card" data-s="${k}"><i style="background:${c === "#fff" ? "var(--azul)" : c}"></i><b>${t}</b></div>`).join("") + `</div>`; m.querySelectorAll(".card").forEach((c) => (c.onclick = () => ir(c.dataset.s))); };
+VISTAS.mas = (m) => { m.innerHTML = titulo("Más") + `<div class="inicio">` + SECC.slice(4).filter(([k]) => visible(k)).map(([k, t, c]) => `<div class="card" data-s="${k}"><i style="background:${c === "#fff" ? "var(--azul)" : c}"></i><b>${t}</b></div>`).join("") + `</div>`; m.querySelectorAll(".card").forEach((c) => (c.onclick = () => ir(c.dataset.s))); };
 // zócalos y cuadros que entran y salen (clave ".mostrar" de la pestaña camaras)
 const PIEZAS = [["a", "A · Una cámara", "a.nombre"], ["c", "C · Tres cámaras", "c.nombre"], ["g", "G · Zócalo bloques", "g.nombre"], ["h", "H · Charla", "h.texto"],
   ["f.tema", "F · Cuadro de tema", "f.tema.texto"], ["f.dato", "F · Cuadro de dato", "f.dato.etiqueta"], ["f.zocalo", "F · Zócalo suelto", "f.zocalo.nombre"]];
 VISTAS.inicio = (m) => {
   const v = valoresDe(D.camaras), nA = noticias().filter((n) => esSi(n.mostrar)).length;
   m.innerHTML = titulo("Hola 👋") +
-    `<div class="grupo" style="border:0;padding:0"><b>Zócalos y cuadros al aire</b><div class="aire" id="aire"></div></div>` +
-    `<div class="grupo" style="border:0;padding:0"><b>Atajos</b><div class="atajos"><button class="btn am" data-a="nueva">📷 Noticia nueva</button><button class="btn ce" data-a="partido">⚽ Partido</button></div></div>` +
+    (PERM("camaras") ? `<div class="grupo" style="border:0;padding:0"><b>Zócalos y cuadros al aire</b><div class="aire" id="aire"></div>` +
+      (puede("camaras") ? `<div class="emergencia"><button class="btn" id="emerg">🛑 Sacar todo del aire</button><span class="ayuda" id="emerg-t" style="color:var(--gris);font-size:12px;font-weight:700">Apaga de un toque todos los zócalos y cuadros</span></div>` : "") + `</div>` : "") +
+    ((puede("noticias", "cargar") || PERM("partido")) ? `<div class="grupo" style="border:0;padding:0"><b>Atajos</b><div class="atajos">${puede("noticias", "cargar") ? `<button class="btn am" data-a="nueva">📷 Noticia nueva</button>` : ""}${PERM("partido") ? `<button class="btn ce" data-a="partido">⚽ Partido</button>` : ""}</div></div>` : "") +
+    (D.madre && (D.historial || []).length ? `<div class="grupo" style="border:0;padding:0"><b>Últimos cambios</b><div class="card hist" id="ult" style="padding:4px 14px"></div></div>` : "") +
     `<div class="grupo" style="border:0;padding:0"><b>Todo</b><div class="inicio" id="todo"></div></div>`;
-  const A = m.querySelector("#aire");
+  const A = m.querySelector("#aire") || document.createElement("div");
   PIEZAS.forEach(([k, nom, txt]) => {
     if (!((k + ".mostrar") in v)) return;
     const on = esSi(v[k + ".mostrar"]);
-    A.appendChild(interruptor(nom, on, (v[txt] || "").replace(/\*\*/g, "") || "—", async (x) => {
+    const sw = interruptor(nom, on, (v[txt] || "").replace(/\*\*/g, "") || "—", async (x) => {
       try { await guardar("guardarClaves", "camaras", { [k + ".mostrar"]: x ? "SI" : "NO" }); await cargar(); } catch (e) { ir("inicio"); }
-    }));
+    });
+    if (!puede("camaras")) { sw.style.pointerEvents = "none"; sw.style.opacity = ".6"; }
+    A.appendChild(sw);
   });
-  m.querySelector('[data-a="nueva"]').onclick = () => { elegidaN = "nueva"; ir("noticias"); };
-  m.querySelector('[data-a="partido"]').onclick = () => ir("partido");
-  m.querySelector("#todo").innerHTML = SECC.slice(1).map(([k, t, c]) => `<div class="card" data-s="${k}"><i style="background:${c === "#fff" ? "var(--azul)" : c}"></i><b>${t}</b><span>${{
+  const bE = m.querySelector("#emerg");   // dos toques: el primero pregunta, el segundo apaga todo
+  if (bE) bE.onclick = async () => {
+    if (!bE.classList.contains("seguro")) { bE.classList.add("seguro"); bE.textContent = "¿Seguro? Tocá de nuevo para apagar todo"; setTimeout(() => { bE.classList.remove("seguro"); bE.textContent = "🛑 Sacar todo del aire"; }, 5000); return; }
+    bE.disabled = true;
+    try { const n = await srv("sacarTodoDelAire"); aviso(n ? `Listo: se apagaron ${n} zócalos y cuadros` : "No había nada al aire"); await recargar(); } catch (e) { aviso(e.message || String(e), true); bE.disabled = false; }
+  };
+  const U = m.querySelector("#ult"); if (U) histLista(U, D.historial.slice(0, 5), false);
+  const bN = m.querySelector('[data-a="nueva"]'); if (bN) bN.onclick = () => { elegidaN = "nueva"; ir("noticias"); };
+  const bP = m.querySelector('[data-a="partido"]'); if (bP) bP.onclick = () => ir("partido");
+  m.querySelector("#todo").innerHTML = SECC.slice(1).filter(([k]) => visible(k)).map(([k, t, c]) => `<div class="card" data-s="${k}"><i style="background:${c === "#fff" ? "var(--azul)" : c}"></i><b>${t}</b><span>${{
     noticias: "Cargar, ordenar y poner al aire las noticias de la tanda y TITULARES. Foto con encuadre.",
     camaras: "Nombres de los zócalos, temas de charla y cuadros de cada pantalla de cámaras.",
     partido: "Qué partido muestra la pantalla de partido, y la carga a mano para la Copa AUF.",
     ticker: "Qué bloques pasan cada día y los ajustes de la cinta (velocidad, alto, tiempos).",
     correcciones: "Corregir un resultado, un nombre o esconder un partido del ticker.",
-    escudos: "Cambiar el escudo de un equipo o de una competencia." }[k]}${k === "noticias" ? ` · <b style="font-size:inherit;font-family:inherit">${nA} al aire</b>` : ""}</span></div>`).join("");
+    escudos: "Cambiar el escudo de un equipo o de una competencia.",
+    historial: "Quién cambió qué y cuándo. Cada cambio se puede deshacer.",
+    accesos: "Dar y quitar acceso a otras cuentas de Google, sección por sección." }[k]}${k === "noticias" ? ` · <b style="font-size:inherit;font-family:inherit">${nA} al aire</b>` : ""}</span></div>`).join("");
   m.querySelectorAll("#todo .card").forEach((c) => (c.onclick = () => ir(c.dataset.s)));
 };
 
@@ -348,22 +407,29 @@ function noticias() {
 let filtroN = "aire", elegidaN = null;
 VISTAS.noticias = (m) => {
   const todas = noticias();
-  const lista = todas.filter((n) => filtroN === "todas" || (filtroN === "aire" ? esSi(n.mostrar) : !esSi(n.mostrar)));
-  if (filtroN !== "aire") lista.reverse();   // guardadas y todas: las más nuevas arriba
-  m.innerHTML = titulo("Noticias", `<button class="btn am" id="nueva">+ Nueva noticia</button>`) + `<div class="cuerpo n"><div class="card lista" id="lista"></div><div class="card form" id="ed"></div><div class="card vista" id="vn"></div></div>`;
-  m.querySelector("#nueva").onclick = () => { elegidaN = "nueva"; ir("noticias"); };
+  const pend = (n) => /^pendiente$/i.test(n.mostrar.trim());
+  const lista = todas.filter((n) => filtroN === "todas" || (filtroN === "aire" ? esSi(n.mostrar) : filtroN === "pendientes" ? pend(n) : !esSi(n.mostrar) && !pend(n)));
+  if (filtroN !== "aire") lista.reverse();   // guardadas, pendientes y todas: las más nuevas arriba
+  const nP = todas.filter(pend).length;
+  m.innerHTML = titulo("Noticias", puede("noticias", "cargar") ? `<button class="btn am" id="nueva">+ Nueva noticia</button>` : "") +
+    (PERM("noticias") === "cargar" ? `<div class="aviso">Lo que cargues queda <b>pendiente</b> hasta que alguien con permiso lo apruebe. No sale al aire solo.</div>` : "") + `<div class="cuerpo n"><div class="card lista" id="lista"></div><div class="card form" id="ed"></div><div class="card vista" id="vn"></div></div>`;
+  const bNu = m.querySelector("#nueva"); if (bNu) bNu.onclick = () => { elegidaN = "nueva"; ir("noticias"); };
   const L = m.querySelector("#lista");
   const nA = todas.filter((n) => esSi(n.mostrar)).length;
-  L.appendChild(h(`<div class="filtros">${[["aire", "Al aire (" + nA + ")"], ["guardadas", "Guardadas"], ["todas", "Todas"]].map(([k, t]) => `<button class="chip${k === filtroN ? " on" : ""}" data-f="${k}">${t}</button>`).join("")}</div>`));
+  L.appendChild(h(`<div class="filtros">${[["aire", "Al aire (" + nA + ")"], ["pendientes", "Pendientes" + (nP ? " (" + nP + ")" : "")], ["guardadas", "Guardadas"], ["todas", "Todas"]].map(([k, t]) => `<button class="chip${k === filtroN ? " on" : ""}" data-f="${k}">${t}</button>`).join("")}</div>`));
   L.querySelectorAll(".chip").forEach((b) => (b.onclick = () => { filtroN = b.dataset.f; ir("noticias"); }));
   if (!lista.length) L.appendChild(h(`<div class="vacio">No hay noticias acá.</div>`));
   lista.forEach((n, i) => {
-    const it = h(`<div class="noti${elegidaN && elegidaN.fila === n.fila ? " on" : ""}"><span class="ft" style="${n.imagen ? `background-image:url('${img(n.imagen)}')` : ""}"></span><div><b>${rojoHTML(n.titular) || "<i>(sin titular)</i>"}</b><small>${n.imagen ? "Con foto" : "Sin foto"} · ${esSi(n.mostrar) ? "al aire" : "guardada"}${n.categoria ? " · " + esc(n.categoria) : ""}</small></div><div class="acc"></div></div>`);
+    const it = h(`<div class="noti${elegidaN && elegidaN.fila === n.fila ? " on" : ""}"><span class="ft" style="${n.imagen ? `background-image:url('${img(n.imagen)}')` : ""}"></span><div><b>${rojoHTML(n.titular) || "<i>(sin titular)</i>"}</b><small>${n.imagen ? "Con foto" : "Sin foto"} · ${esSi(n.mostrar) ? "al aire" : pend(n) ? '<span class="tag-pend">PENDIENTE</span>' : "guardada"}${n.categoria ? " · " + esc(n.categoria) : ""}</small></div><div class="acc"></div></div>`);
     const acc = it.querySelector(".acc");
-    acc.appendChild(interruptor("", esSi(n.mostrar), "", async (on) => {
+    if (pend(n) && puede("noticias")) {
+      const bAp = h(`<button class="btn ok chico">✓ Aprobar</button>`);
+      bAp.onclick = async (e) => { e.stopPropagation(); bAp.disabled = true; try { await guardar("aprobarNoticia", n.fila); await recargar(); } catch (x) { bAp.disabled = false; } };
+      acc.appendChild(bAp);
+    } else if (puede("noticias")) acc.appendChild(interruptor("", esSi(n.mostrar), "", async (on) => {
       try { await guardar("guardarNoticia", n.fila, { mostrar: on ? "SI" : "NO" }); await recargar(); } catch (e) { ir("noticias"); }
     }));
-    if (filtroN === "aire") {
+    if (filtroN === "aire" && puede("noticias")) {
       const mv = h(`<div class="mov"><button title="Subir">▲</button><button title="Bajar">▼</button></div>`);
       const mover = async (d) => { const otra = lista[i + d]; if (!otra) return; try { await guardar("moverNoticia", n.fila, otra.fila); if (elegidaN && elegidaN.fila === n.fila) elegidaN = { fila: otra.fila }; await recargar(); } catch (e) {} };
       mv.children[0].onclick = (e) => { e.stopPropagation(); mover(-1); };
@@ -416,7 +482,7 @@ function editorNoticia(E, V, n, todas) {
   }
   g.appendChild(editorFoto);
   // botones
-  const pie = h(`<div class="pie"><button class="btn am">Guardar</button><button class="btn sec">${esSi(st.mostrar) ? "Sacar del aire" : "Poner al aire"}</button></div>`);
+  const pie = h(`<div class="pie"><button class="btn am">${puede("noticias") ? "Guardar" : "Mandar a aprobar"}</button>${puede("noticias") ? `<button class="btn sec">${esSi(st.mostrar) ? "Sacar del aire" : "Poner al aire"}</button>` : ""}</div>`);
   const [bG, bA] = pie.querySelectorAll("button");
   bG.onclick = async () => {
     bG.disabled = true; bG.textContent = "Guardando…";
@@ -427,7 +493,7 @@ function editorNoticia(E, V, n, todas) {
       elegidaN = { fila }; await recargar();
     } catch (e) { aviso(e.message || String(e), true); bG.disabled = false; bG.textContent = "Guardar"; }
   };
-  bA.onclick = async () => { st.mostrar = esSi(st.mostrar) ? "NO" : "SI"; if (!st.fila) { bA.textContent = esSi(st.mostrar) ? "Sacar del aire" : "Poner al aire"; return; } try { await guardar("guardarNoticia", st.fila, { mostrar: st.mostrar }); await recargar(); } catch (e) {} };
+  if (bA) bA.onclick = async () => { st.mostrar = esSi(st.mostrar) ? "NO" : "SI"; if (!st.fila) { bA.textContent = esSi(st.mostrar) ? "Sacar del aire" : "Poner al aire"; return; } try { await guardar("guardarNoticia", st.fila, { mostrar: st.mostrar }); await recargar(); } catch (e) {} };
   E.appendChild(pie);
   if (!ENAS) E.appendChild(h(`<div class="aviso">Modo prueba: se puede editar y ver la vista previa, pero no guardar.</div>`));
 }
@@ -682,6 +748,108 @@ VISTAS.escudos = (m) => {
   const F = m.querySelector("#fe"); F.innerHTML = `<h2><i style="background:var(--azul)"></i>Escudos propios</h2><div class="aviso">En «escudo» va un link de Drive, un link a una imagen o el nombre de un archivo de la carpeta escudos. Se ve al lado.</div>`;
   const t = tablaEditable(F, D.escudos, ["equipo", "liga", "escudo", "otros_nombres", "nota"], { imagen: "escudo", titulos: { otros_nombres: "Otros nombres" } });
   const p = h(`<div class="pie"><button class="btn am">Guardar escudos</button></div>`); p.firstChild.onclick = () => guardar("guardarTabla", "escudos", t.filas(), 5).then(recargar).catch(() => {}); F.appendChild(p);
+};
+
+const NOMSEC = { noticias: "Noticias", camaras: "Cámaras", partido: "Partido", ticker: "Ticker", correcciones: "Correcciones", escudos: "Escudos", accesos: "Accesos" };
+function histLista(cont, items, conBoton = true) {
+  if (!items.length) { cont.appendChild(h(`<div class="vacio">Todavía no hay cambios registrados.</div>`)); return; }
+  items.forEach((x) => {
+    const it = h(`<div class="it${x.deshecho ? " deshecho" : ""}"><small>${esc(x.fecha)}</small><div><span class="sec">${esc(NOMSEC[x.seccion] || x.seccion)}</span><b>${esc(x.nombre || x.quien)}</b> · <span class="que">${esc(x.que)}</span></div><div></div></div>`);
+    if (conBoton && x.puede) {
+      const b = h(`<button class="btn sec chico">↶ Deshacer</button>`);
+      b.onclick = async () => { b.disabled = true; try { await guardar("deshacer", x.id); await recargar(); } catch (e) { b.disabled = false; } };
+      it.lastChild.appendChild(b);
+    } else if (x.deshecho) it.lastChild.innerHTML = `<small>deshecho</small>`;
+    cont.appendChild(it);
+  });
+}
+VISTAS.historial = (m) => {
+  m.innerHTML = titulo("Historial") + `<div class="aviso">Todo lo que se cambió desde el panel: quién, qué y cuándo (los últimos 150). «Deshacer» vuelve atrás ese cambio.</div><div class="card hist" id="hl" style="padding:4px 16px"></div>`;
+  histLista(m.querySelector("#hl"), D.historial || []);
+};
+
+/* ---------- Accesos (solo la cuenta madre) ---------- */
+const SECS_ACC = [["noticias", "Noticias"], ["camaras", "Cámaras"], ["partido", "Partido"], ["ticker", "Ticker"], ["correcciones", "Correcciones"], ["escudos", "Escudos"]];
+const ROLES = {
+  produccion: ["Producción", { noticias: "editar" }],
+  dirección: ["Dirección", { camaras: "editar", partido: "editar", noticias: "ver" }],
+  redes: ["Redes", { noticias: "editar", escudos: "editar" }],
+  colaborador: ["Colaborador (noticias con aprobación)", { noticias: "cargar" }],
+  mirar: ["Solo mirar todo", { noticias: "ver", camaras: "ver", partido: "ver", ticker: "ver", correcciones: "ver", escudos: "ver" }],
+  todo: ["Todo", { noticias: "editar", camaras: "editar", partido: "editar", ticker: "editar", correcciones: "editar", escudos: "editar" }]
+};
+// cada sección rota entre: nada → ver → (cargar, solo noticias) → editar → nada
+const ciclo = (sec, n) => { const pasos = sec === "noticias" ? ["", "ver", "cargar", "editar"] : ["", "ver", "editar"]; return pasos[(pasos.indexOf(n || "") + 1) % pasos.length]; };
+const TXTN = { "": "—", ver: "Ver", cargar: "Cargar", editar: "Editar" };
+const hoyISO = () => new Date().toISOString().slice(0, 10);
+const masDias = (d) => new Date(Date.now() + d * 864e5).toISOString().slice(0, 10);
+function invitacion(nombre, secs) {
+  const link = "https://script.google.com/macros/s/AKfycbxWSi-sbIT8FX-ByKVBNrtEjcAzOAnUEX0fQKmME_xcdaxrjqSdcn59j0WDRqOK-A5O/exec";
+  const lista = SECS_ACC.filter(([k]) => secs[k]).map(([k, t]) => t + " (" + TXTN[secs[k]].toLowerCase() + ")").join(", ");
+  return `Hola ${nombre || ""}! Te di acceso al Panel 13a0${lista ? " para: " + lista : ""}.\n\n1. Abrí este link con tu cuenta de Google: ${link}\n2. La primera vez Google te pide permisos: tocá «Configuración avanzada» → «Ir a Panel 13a0» → marcá «Seleccionar todo» → «Continuar».\n3. En el celular, guardalo en la pantalla de inicio (⋮ → «Agregar a la pantalla principal»).`;
+}
+VISTAS.accesos = (m) => {
+  const A = D.accesos || {};
+  m.innerHTML = titulo("Accesos", `<span class="madre">SOLO LA CUENTA MADRE</span>`) + `<div class="acc-grid"><div class="card form" id="lis"></div><div class="card form" id="nue"></div></div>`;
+  const L = m.querySelector("#lis");
+  L.innerHTML = `<h2><i style="background:var(--verde)"></i>Quién puede entrar al panel</h2>
+    <div class="leyenda"><span><i style="background:#dff1fa;outline:2px solid var(--celeste)"></i>Ver: mira sin cambiar</span><span><i style="background:#FFF6CC;outline:2px solid var(--amarillo)"></i>Cargar: noticias que esperan aprobación</span><span><i style="background:var(--azul)"></i>Editar: cambia y sale al aire</span></div>`;
+  const tb = h(`<table class="acc"><tr><th>Cuenta</th><th>Qué puede usar (tocá para cambiar)</th><th>Hasta</th><th></th></tr><tr><td><div class="per"><i style="background:var(--azul)">T</i><div><b>Trece A Cero<span class="madre">MADRE</span></b><small>programatreceacero@gmail.com</small></div></div></td><td><div class="niv"><button class="editar">Todo</button></div></td><td>—</td><td></td></tr></table>`);
+  Object.entries(A).sort((a, b) => (a[1].nombre || a[0]).localeCompare(b[1].nombre || b[0])).forEach(([email, a]) => {
+    const venc = a.vence && a.vence < hoyISO();
+    const tr = h(`<tr><td><div class="per"><i>${esc((a.nombre || email)[0].toUpperCase())}</i><div><b>${esc(a.nombre || email)}${venc ? '<span class="vencido">VENCIDO</span>' : ""}</b><small>${esc(email)}</small></div></div></td><td><div class="niv"></div></td><td><input type="date" value="${esc(a.vence || "")}" style="padding:6px 8px;font-size:13px;width:150px"></td><td><button class="quitar-acc">Quitar acceso</button></td></tr>`);
+    const N = tr.querySelector(".niv"), secs = Object.assign({}, a.secciones || {});
+    SECS_ACC.forEach(([k, t]) => {
+      const b = h(`<button class="${secs[k] || ""}" title="Tocá para cambiar">${t}: ${TXTN[secs[k] || ""]}</button>`);
+      b.onclick = async () => { secs[k] = ciclo(k, secs[k]); if (!secs[k]) delete secs[k]; b.className = secs[k] || ""; b.textContent = t + ": " + TXTN[secs[k] || ""];
+        try { D.accesos = await guardar("cambiarAcceso", email, { secciones: secs }); } catch (e) {} };
+      N.appendChild(b);
+    });
+    const fv = tr.querySelector("input[type=date]");
+    fv.onchange = async () => { try { D.accesos = await guardar("cambiarAcceso", email, { vence: fv.value }); ir("accesos"); } catch (e) {} };
+    const bq = tr.querySelector(".quitar-acc");
+    bq.onclick = async () => {
+      if (!bq.classList.contains("seguro")) { bq.classList.add("seguro"); bq.textContent = "¿Seguro? Tocá de nuevo"; setTimeout(() => { bq.classList.remove("seguro"); bq.textContent = "Quitar acceso"; }, 5000); return; }
+      try { D.accesos = await guardar("quitarAcceso", email); ir("accesos"); } catch (e) {}
+    };
+    tb.appendChild(tr);
+  });
+  const caja = h(`<div style="overflow-x:auto"></div>`); caja.appendChild(tb); L.appendChild(caja);
+  if (!Object.keys(A).length) L.appendChild(h(`<div class="vacio">Todavía no le diste acceso a nadie más.</div>`));
+  L.appendChild(h(`<div class="aviso">Tocando una sección le cambiás el permiso al momento (— → Ver → Editar). «Quitar acceso» le saca el panel y la planilla. Con fecha en «Hasta», el acceso se vence solo.</div>`));
+
+  // dar acceso a una cuenta nueva
+  const F = m.querySelector("#nue"); const nuevo = {};
+  F.innerHTML = `<h2><i style="background:var(--amarillo)"></i>Dar acceso a una cuenta nueva</h2>
+    <label>Cuenta de Google (Gmail)<input type="text" id="na-mail" placeholder="nombre@gmail.com" autocomplete="off"></label>
+    <label>Nombre para reconocerla<input type="text" id="na-nom" placeholder="Ej.: María (producción)"></label>
+    <label>Rol listo (después se puede ajustar)<select id="na-rol"><option value="">— Elegí un rol o marcá abajo —</option>${Object.entries(ROLES).map(([k, [t]]) => `<option value="${k}">${esc(t)}</option>`).join("")}</select></label>
+    <div class="lbl"><span>Qué puede usar (tocá para cambiar)</span><div class="niv" id="na-niv"></div></div>
+    <label>¿Hasta cuándo?<select id="na-vence"><option value="">Sin vencimiento</option><option value="0">Solo hoy</option><option value="1">Hasta mañana</option><option value="7">Una semana</option><option value="30">Un mes</option><option value="fecha">Elegir fecha…</option></select></label>
+    <input type="date" id="na-fecha" style="display:none">
+    <button class="btn am" id="na-ok">Dar acceso</button><div id="na-inv"></div>`;
+  const NN = F.querySelector("#na-niv");
+  const pintar = () => { NN.innerHTML = ""; SECS_ACC.forEach(([k, t]) => { const b = h(`<button class="${nuevo[k] || ""}">${t}: ${TXTN[nuevo[k] || ""]}</button>`); b.onclick = () => { nuevo[k] = ciclo(k, nuevo[k]); if (!nuevo[k]) delete nuevo[k]; pintar(); }; NN.appendChild(b); }); };
+  pintar();
+  F.querySelector("#na-rol").onchange = (e) => { Object.keys(nuevo).forEach((k) => delete nuevo[k]); if (ROLES[e.target.value]) Object.assign(nuevo, ROLES[e.target.value][1]); pintar(); };
+  const sv = F.querySelector("#na-vence"), sf = F.querySelector("#na-fecha");
+  sv.onchange = () => (sf.style.display = sv.value === "fecha" ? "" : "none");
+  F.querySelector("#na-ok").onclick = async (e) => {
+    const mail = F.querySelector("#na-mail").value.trim(), nom = F.querySelector("#na-nom").value.trim();
+    if (!Object.keys(nuevo).length) { aviso("Marcá al menos una sección", true); return; }
+    const vence = sv.value === "" ? "" : sv.value === "fecha" ? sf.value : masDias(+sv.value);
+    e.target.disabled = true;
+    try {
+      D.accesos = await guardar("darAcceso", mail, nom, Object.assign({}, nuevo), vence);
+      const txt = invitacion(nom, nuevo);
+      ir("accesos");   // la lista ya muestra la cuenta nueva; abajo queda el mensaje para mandarle
+      const inv = document.querySelector("#na-inv");
+      inv.innerHTML = `<div class="invitacion"><b>✓ Listo. Mandale este mensaje:</b><pre></pre><div class="pie"><a class="btn ok chico" target="_blank" href="https://wa.me/?text=${encodeURIComponent(txt)}">Mandar por WhatsApp</a><button class="btn sec chico">Copiar</button></div></div>`;
+      inv.querySelector("pre").textContent = txt;
+      inv.querySelector("button").onclick = async () => { try { await navigator.clipboard.writeText(txt); aviso("Copiado"); } catch (x) { const r = document.createRange(); r.selectNodeContents(inv.querySelector("pre")); getSelection().removeAllRanges(); getSelection().addRange(r); aviso("Seleccionado: copialo con Cmd/Ctrl + C"); } };
+    } catch (x) {}
+    if (document.body.contains(e.target)) e.target.disabled = false;
+  };
 };
 
 async function recargar() { await cargar(); ir(seccion); }
