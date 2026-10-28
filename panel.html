@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="es"><head><meta charset="utf-8"><title>Panel 13a0</title>
+<link rel="icon" href="icono-panel.png"><link rel="apple-touch-icon" href="icono-panel.png"><meta name="apple-mobile-web-app-title" content="Panel 13a0"><meta name="theme-color" content="#180B5B">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400..900&family=Bitter:wght@700;800&display=swap" rel="stylesheet">
 <style>
@@ -245,6 +246,8 @@
 <nav class="tabbar" id="tabbar"></nav>
 <div id="toast"></div>
 <script>
+// el link viejo (shock702026.github.io/ticker-13a0/panel.html) lleva al nuevo; el puente de Apps Script y el modo prueba se quedan
+if (location.hostname === "shock702026.github.io" && !/[?&](puente|prueba|web|permisos)\b/.test(location.search)) location.replace("https://treceacero.github.io/panel/" + location.search + location.hash);
 // si algo falla al cargar, se muestra en pantalla (en vez de quedar en "Cargando…")
 function mostrarFalla(txt) { const c = document.getElementById("cargando"); if (c) c.innerHTML = '<div style="max-width:640px;text-align:center;padding:20px;font:700 16px/1.4 Arial">No pudo cargar el panel:<br><br><code style="color:#C5021E">' + String(txt).replace(/</g, "&lt;") + '</code><br><br>Mandale una captura de esto a Claude.</div>'; }
 window.addEventListener("error", (e) => mostrarFalla((e.message || "error") + " · línea " + (e.lineno || "?")));
@@ -257,7 +260,7 @@ const QS = new URLSearchParams(location.search);
 const PUENTE = QS.has("puente");   // abierto desde Apps Script (el puente guarda en la planilla)
 const PRUEBA = !PUENTE && (QS.has("prueba") || QS.has("permisos") || QS.has("web"));   // solo lectura, para probar
 const API_URL = "https://script.google.com/macros/s/AKfycbyYvADH1I3AtOgpOA2DopV3xPxCa-YFS2LukxOnsqSZqM_skwAnXFjQPQ4WRojcBcJh/exec";   // implementación "acceso por mail" (corre como Trece A Cero)
-const PANEL_URL = "https://shock702026.github.io/ticker-13a0/panel.html";
+const PANEL_URL = "https://treceacero.github.io/panel/";
 const API = !PUENTE && !PRUEBA;   // abierto directo desde GitHub: se entra con código por mail
 const ENAS = PUENTE || API || (typeof google !== "undefined" && google.script && google.script.run);
 const guardado = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) { return null; } };

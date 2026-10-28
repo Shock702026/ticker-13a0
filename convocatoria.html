@@ -18,6 +18,7 @@
 </style></head><body>
 <div class="card" id="c"><div class="marca"><b>13<i>a</i>0</b><span>Convocatoria</span></div><p>Cargando…</p></div>
 <script>
+if (location.hostname === "shock702026.github.io") location.replace("https://treceacero.github.io/panel/convocatoria.html" + location.search);
 const API = "https://script.google.com/macros/s/AKfycbyYvADH1I3AtOgpOA2DopV3xPxCa-YFS2LukxOnsqSZqM_skwAnXFjQPQ4WRojcBcJh/exec";
 const Q = new URLSearchParams(location.search), TOKEN = Q.get("c");
 const C = document.getElementById("c"), marca = C.firstElementChild.outerHTML;
