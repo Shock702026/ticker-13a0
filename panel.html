@@ -66,6 +66,13 @@
   #toast.on { transform:none; opacity:1; } #toast.error { background:var(--rojo); }
   #toast { opacity:0; pointer-events:none; transition:transform .25s, opacity .25s; }
   #cargando { position:fixed; inset:0; background:var(--fondo); display:flex; align-items:center; justify-content:center; font:800 22px var(--slab); z-index:10; }
+  .ingreso { width:min(400px, calc(100vw - 32px)); background:#fff; outline:1px solid var(--linea); padding:26px 24px; display:flex; flex-direction:column; gap:14px; font:600 15px var(--f); }
+  .ingreso label { display:flex; flex-direction:column; gap:6px; font-weight:700; font-size:13px; }
+  .ingreso input { font:600 18px var(--f); color:var(--azul); border:2px solid var(--linea); padding:12px; }
+  .ingreso input:focus { border-color:var(--celeste); outline:none; }
+  .ingreso [hidden] { display:none; }
+  .ingreso small { font-size:13px; color:var(--gris); min-height:1em; }
+  .marca-ing { display:flex; align-items:center; gap:10px; } .marca-ing b { background:var(--azul); color:#fff; font:900 26px/1 var(--f); padding:8px 10px; } .marca-ing b i { font-style:normal; color:var(--celeste); } .marca-ing span { font:800 16px var(--slab); letter-spacing:.08em; text-transform:uppercase; }
   /* texto con palabras en rojo */
   .rico { border:2px solid var(--linea); background:#fff; }
   .barra-r { display:flex; align-items:center; gap:8px; padding:6px; background:var(--fondo); border-bottom:2px solid var(--linea); flex-wrap:wrap; }
@@ -203,12 +210,18 @@
 function mostrarFalla(txt) { const c = document.getElementById("cargando"); if (c) c.innerHTML = '<div style="max-width:640px;text-align:center;padding:20px;font:700 16px/1.4 Arial">No pudo cargar el panel:<br><br><code style="color:#C5021E">' + String(txt).replace(/</g, "&lt;") + '</code><br><br>Mandale una captura de esto a Claude.</div>'; }
 window.addEventListener("error", (e) => mostrarFalla((e.message || "error") + " · línea " + (e.lineno || "?")));
 window.addEventListener("unhandledrejection", (e) => mostrarFalla((e.reason && (e.reason.message || e.reason)) || "error"));
-setTimeout(() => { if (document.getElementById("cargando")) mostrarFalla("La planilla no respondió en 20 segundos (google.script.run " + (typeof google !== "undefined" && google.script ? "existe" : "NO existe") + ")"); }, 20000);
+setTimeout(() => { if (document.getElementById("cargando") && !document.querySelector(".ingreso")) mostrarFalla("La planilla no respondió en 20 segundos (google.script.run " + (typeof google !== "undefined" && google.script ? "existe" : "NO existe") + ")"); }, 20000);
 </script>
 <script>
 const WEB = new URLSearchParams(location.search).get("web") || "https://shock702026.github.io/ticker-13a0/";
-const PUENTE = new URLSearchParams(location.search).has("puente");   // abierto desde Apps Script (el puente guarda en la planilla)
-const ENAS = PUENTE || (typeof google !== "undefined" && google.script && google.script.run);
+const QS = new URLSearchParams(location.search);
+const PUENTE = QS.has("puente");   // abierto desde Apps Script (el puente guarda en la planilla)
+const PRUEBA = !PUENTE && (QS.has("prueba") || QS.has("permisos") || QS.has("web"));   // solo lectura, para probar
+const API_URL = "https://script.google.com/macros/s/AKfycbyYvADH1I3AtOgpOA2DopV3xPxCa-YFS2LukxOnsqSZqM_skwAnXFjQPQ4WRojcBcJh/exec";   // implementación "acceso por mail" (corre como Trece A Cero)
+const PANEL_URL = "https://shock702026.github.io/ticker-13a0/panel.html";
+const API = !PUENTE && !PRUEBA;   // abierto directo desde GitHub: se entra con código por mail
+const ENAS = PUENTE || API || (typeof google !== "undefined" && google.script && google.script.run);
+const guardado = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) { return null; } };
 let D = null, seccion = "inicio";
 
 /* ---------- Conexión con la planilla ---------- */
@@ -216,6 +229,11 @@ let pedidoN = 0; const pedidos = {};
 addEventListener("message", (e) => { const d = e.data || {}; const p = pedidos[d.panelRespuesta]; if (!p) return; delete pedidos[d.panelRespuesta]; "error" in d ? p.mal(new Error(d.error)) : p.ok(d.ok); });
 function srv(fn, ...args) {
   if (PUENTE) return new Promise((ok, mal) => { const id = ++pedidoN; pedidos[id] = { ok, mal }; parent.postMessage({ panelPide: true, id, fn, args }, "*"); });
+  if (API) return fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ fn, args, ses: guardado("panel13a0.ses") }) })
+    .then((r) => r.json()).then((r) => {
+      if ("error" in r) { if (/^SESION:/.test(r.error)) { guardado("panel13a0.ses", null); location.reload(); } throw new Error(r.error.replace(/^SESION: /, "")); }
+      return r.ok;
+    });
   if (!ENAS) return Promise.reject(new Error("Modo prueba: abrí el panel desde su link para poder guardar."));
   return new Promise((ok, mal) => google.script.run.withSuccessHandler(ok).withFailureHandler(mal)[fn](...args));
 }
@@ -325,7 +343,7 @@ function nav() {
   const alAire = noticias().filter((n) => esSi(n.mostrar)).length;
   document.getElementById("nav").innerHTML = SECC.filter(([k]) => visible(k)).map(([k, t, c]) => `<button data-s="${k}" class="${k === seccion ? "on" : ""}"><i style="background:${c}"></i>${t}${k === "noticias" ? `<small>${alAire} al aire</small>` : ""}</button>`).join("");
   document.querySelectorAll("#nav button").forEach((b) => (b.onclick = () => ir(b.dataset.s)));
-  document.getElementById("usuario").innerHTML = `<b style="color:#fff">${esc(D.nombre || "")}</b><br>` + esc(D.yo) + (D.url ? `<a href="${esc(D.url)}" target="_blank">Abrir la planilla ↗</a>` : "");
+  document.getElementById("usuario").innerHTML = `<b style="color:#fff">${esc(D.nombre || "")}</b><br>` + esc(D.yo) + (D.url ? `<a href="${esc(D.url)}" target="_blank">Abrir la planilla ↗</a>` : "") + (API ? `<a href="#" onclick="salir();return false">Salir</a>` : "");
 }
 const TABS = [["inicio", "Inicio", "⌂"], ["noticias", "Noticias", "▤"], ["camaras", "Cámaras", "▣"], ["partido", "Partido", "⚽"], ["mas", "Más", "⋯"]];
 function tabbar() {
@@ -354,7 +372,7 @@ const titulo = (t, extra = "") => `<div class="cab"><h1>${t}</h1>${extra}<span c
 const VISTAS = {};
 
 /* ---------- Inicio ---------- */
-VISTAS.mas = (m) => { m.innerHTML = titulo("Más") + `<div class="inicio">` + SECC.slice(4).filter(([k]) => visible(k)).map(([k, t, c]) => `<div class="card" data-s="${k}"><i style="background:${c === "#fff" ? "var(--azul)" : c}"></i><b>${t}</b></div>`).join("") + `</div>`; m.querySelectorAll(".card").forEach((c) => (c.onclick = () => ir(c.dataset.s))); };
+VISTAS.mas = (m) => { m.innerHTML = titulo("Más") + `<div class="inicio">` + SECC.slice(4).filter(([k]) => visible(k)).map(([k, t, c]) => `<div class="card" data-s="${k}"><i style="background:${c === "#fff" ? "var(--azul)" : c}"></i><b>${t}</b></div>`).join("") + (API ? `<div class="card" data-salir="1"><i style="background:var(--gris)"></i><b>Salir (${esc(D.yo)})</b></div>` : "") + `</div>`; m.querySelectorAll(".card").forEach((c) => (c.onclick = () => (c.dataset.salir ? salir() : ir(c.dataset.s)))); };
 // zócalos y cuadros que entran y salen (clave ".mostrar" de la pestaña camaras)
 const PIEZAS = [["a", "A · Una cámara", "a.nombre"], ["c", "C · Tres cámaras", "c.nombre"], ["g", "G · Zócalo bloques", "g.nombre"], ["h", "H · Charla", "h.texto"],
   ["f.tema", "F · Cuadro de tema", "f.tema.texto"], ["f.dato", "F · Cuadro de dato", "f.dato.etiqueta"], ["f.zocalo", "F · Zócalo suelto", "f.zocalo.nombre"]];
@@ -783,10 +801,10 @@ const ciclo = (sec, n) => { const pasos = sec === "noticias" ? ["", "ver", "carg
 const TXTN = { "": "—", ver: "Ver", cargar: "Cargar", editar: "Editar" };
 const hoyISO = () => new Date().toISOString().slice(0, 10);
 const masDias = (d) => new Date(Date.now() + d * 864e5).toISOString().slice(0, 10);
-function invitacion(nombre, secs) {
-  const link = "https://script.google.com/macros/s/AKfycbxWSi-sbIT8FX-ByKVBNrtEjcAzOAnUEX0fQKmME_xcdaxrjqSdcn59j0WDRqOK-A5O/exec";
+function invitacion(nombre, secs, email) {
+  const link = PANEL_URL;
   const lista = SECS_ACC.filter(([k]) => secs[k]).map(([k, t]) => t + " (" + TXTN[secs[k]].toLowerCase() + ")").join(", ");
-  return `Hola ${nombre || ""}! Te di acceso al Panel 13a0${lista ? " para: " + lista : ""}.\n\n1. Abrí este link con tu cuenta de Google: ${link}\n2. La primera vez Google te pide permisos: tocá «Configuración avanzada» → «Ir a Panel 13a0» → marcá «Seleccionar todo» → «Continuar».\n3. En el celular, guardalo en la pantalla de inicio (⋮ → «Agregar a la pantalla principal»).`;
+  return `Hola ${nombre || ""}! Te di acceso al Panel 13a0${lista ? " para: " + lista : ""}.\n\n1. Abrí este link: ${link}\n2. Escribí tu Gmail (${email || ""}) y tocá «Mandame el código». Te llega un mail con 6 números: ponelos y listo. Queda guardado por 60 días.\n3. En el celular, guardalo en la pantalla de inicio (⋮ → «Agregar a la pantalla principal»).`;
 }
 VISTAS.accesos = (m) => {
   const A = D.accesos || {};
@@ -841,7 +859,7 @@ VISTAS.accesos = (m) => {
     e.target.disabled = true;
     try {
       D.accesos = await guardar("darAcceso", mail, nom, Object.assign({}, nuevo), vence);
-      const txt = invitacion(nom, nuevo);
+      const txt = invitacion(nom, nuevo, mail);
       ir("accesos");   // la lista ya muestra la cuenta nueva; abajo queda el mensaje para mandarle
       const inv = document.querySelector("#na-inv");
       inv.innerHTML = `<div class="invitacion"><b>✓ Listo. Mandale este mensaje:</b><pre></pre><div class="pie"><a class="btn ok chico" target="_blank" href="https://wa.me/?text=${encodeURIComponent(txt)}">Mandar por WhatsApp</a><button class="btn sec chico">Copiar</button></div></div>`;
@@ -853,8 +871,37 @@ VISTAS.accesos = (m) => {
 };
 
 async function recargar() { await cargar(); ir(seccion); }
+/* ---------- Ingreso con código por mail (panel abierto desde GitHub) ---------- */
+function ingresar() {
+  return new Promise((listo) => {
+    const C = document.getElementById("cargando");
+    const pedir = (fn, x) => fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(Object.assign({ fn }, x)) }).then((r) => r.json()).then((r) => { if ("error" in r) throw new Error(r.error); return r.ok; });
+    C.innerHTML = `<form class="ingreso"><div class="marca-ing"><b>13<i>a</i>0</b><span>Panel</span></div>
+      <label>Tu cuenta de Gmail<input type="email" name="email" autocomplete="email" required placeholder="nombre@gmail.com"></label>
+      <label hidden>Código que te llegó por mail<input name="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456"></label>
+      <button class="btn">Mandame el código</button><small></small></form>`;
+    const F = C.querySelector("form"), M = F.email, K = F.codigo, B = F.querySelector("button"), T = F.querySelector("small");
+    M.value = guardado("panel13a0.email") || "";
+    F.onsubmit = async (e) => {
+      e.preventDefault(); B.disabled = true; T.style.color = "";
+      try {
+        if (K.parentNode.hidden) {
+          await pedir("pedirCodigo", { email: M.value });
+          guardado("panel13a0.email", M.value.trim().toLowerCase());
+          K.parentNode.hidden = false; K.required = true; K.focus(); M.readOnly = true; B.textContent = "Entrar";
+          T.textContent = "Si la cuenta tiene acceso, te llegó un mail con el código (mirá también en Spam).";
+        } else {
+          const r = await pedir("validarCodigo", { email: M.value, codigo: K.value });
+          guardado("panel13a0.ses", r.ses); C.innerHTML = "Cargando el panel…"; listo();
+        }
+      } catch (x) { T.style.color = "var(--rojo)"; T.textContent = x.message || String(x); }
+      B.disabled = false;
+    };
+  });
+}
+function salir() { if (API) { srv("salir").catch(() => {}); guardado("panel13a0.ses", null); location.reload(); } }
 (async () => {
-  try { await cargar(); document.getElementById("cargando").remove(); ir(new URLSearchParams(location.search).get("seccion") || "inicio"); }
+  try { if (API && !guardado("panel13a0.ses")) await ingresar(); await cargar(); document.getElementById("cargando").remove(); ir(new URLSearchParams(location.search).get("seccion") || "inicio"); }
   catch (e) { document.getElementById("cargando").innerHTML = `<div style="max-width:560px;text-align:center;padding:20px">${esc(e.message || e)}</div>`; }
 })();
 </script>
