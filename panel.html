@@ -630,7 +630,8 @@ function encuadrador(onCambio) {
 /* ---------- Cámaras y zócalos (pestaña "camaras": Qué cambia | valor | Ayuda | clave) ---------- */
 const PANT = [["A", "Una cámara", "cam-A-una-camara"], ["B", "Mano a mano", "cam-B-mano-a-mano"], ["C", "Tres cámaras", "cam-C-tres-camaras"], ["D", "Mesa de cuatro", "cam-D-mesa-de-cuatro"],
   ["E", "TITULARES", "cam-E-titulares"], ["F", "Cuadros sueltos", "cam-F-cuadros-sueltos"], ["G", "Zócalo bloques", "cam-G-zocalo-bloques"], ["H", "Charla", "cam-H-charla"],
-  ["I", "Solo logo", "cam-I-logo"], ["J", "Cinco vertical", "cam-J-cinco-vertical"], ["K", "Cinco horizontal", "cam-K-cinco-horizontal"]];
+  ["I", "Solo logo", "cam-I-logo"], ["J", "Cinco vertical", "cam-J-cinco-vertical"], ["K", "Cinco horizontal", "cam-K-cinco-horizontal"],
+  ["L", "Tres vertical", "cam-L-tres-vertical"]];
 let pantalla = "A";
 function filasClave(t) {
   const c = cab(t), iq = c.indexOf("qué cambia") >= 0 ? c.indexOf("qué cambia") : 0, iv = c.indexOf("valor"), ia = c.indexOf("ayuda"), ik = c.indexOf("clave");

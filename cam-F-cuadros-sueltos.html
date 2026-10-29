@@ -135,14 +135,14 @@
   <symbol id="i-fb" viewBox="0 0 24 24"><path d="M13.6 21v-7.6h2.7l.4-3.1h-3.1V8.4c0-.9.3-1.5 1.6-1.5h1.7V4.1c-.3 0-1.3-.1-2.4-.1-2.4 0-4 1.4-4 4.1v2.2H8v3.1h2.5V21Z" fill="currentColor"/></symbol>
 </svg>
 <div class="pant" id="pant"></div>
-<script src="config.js"></script>
-<script src="comun.js"></script>
+<script src="config.js?v=20261029b"></script>
+<script src="comun.js?v=20261029b"></script>
 <script src="demo-datos.js"></script>
 <script>
 (function () {
   const T = window.Ticker, C = T.config, CC = C.camaras || {};
   // la pantalla sale de ?p=… o del nombre del archivo (cam-A-….html, cam-B-….html…), así en OBS alcanza con "Archivo local"
-  const porNombre = (decodeURIComponent(location.pathname).match(/cam-([a-k])[-.]/i) || [])[1];
+  const porNombre = (decodeURIComponent(location.pathname).match(/cam-([a-l])[-.]/i) || [])[1];
   const P = (T.params.get("p") || porNombre || "a").toLowerCase();
   const PNG = T.params.has("png");   // imagen fija: sin animaciones ni titulares que rotan
   if (PNG) document.documentElement.classList.add("png");
@@ -238,7 +238,16 @@ k: () => negro(0, 0, 1920, 1010).replace('class="negro"', 'class="negro" data-fo
      `<div class="pest ro" style="left:16px;top:948px">${k("k.nombre1")}</div>` +
      `<div class="pest ce" style="left:492px;top:948px">${k("k.nombre2")}</div>` +
      `<div class="pest am" style="left:968px;top:948px">${k("k.nombre3")}</div>` +
-     `<div class="pest az" style="left:1444px;top:948px">${k("k.nombre4")}</div>`
+     `<div class="pest az" style="left:1444px;top:948px">${k("k.nombre4")}</div>`,
+// L · tres cámaras verticales (9:16), una al lado de la otra
+l: () => negro(0, 0, 1920, 1010).replace('class="negro"', 'class="negro" data-fondo') +
+     b("am", 16, 16, 180, 86) + redes("left:212px;top:16px;width:920px;height:86px", false) + b("bl", 1148, 16, 312, 86) +
+     logo("left:1476px;top:16px;width:428px;height:86px") +
+     b("az", 16, 118, 180, 282) + b("ro", 16, 416, 180, 184) + b("bl", 16, 616, 180, 378) +
+     b("bl", 1724, 118, 180, 200) + b("am", 1724, 334, 180, 360) + b("ce", 1724, 710, 180, 284) +
+     `<div class="pest ro" style="left:212px;top:948px">${k("l.nombre1")}</div>` +
+     `<div class="pest am" style="left:716px;top:948px">${k("l.nombre2")}</div>` +
+     `<div class="pest ce" style="left:1220px;top:948px">${k("l.nombre3")}</div>`
   };
   // textos de ejemplo hasta que se cargue la pestaña "camaras" (o si no existe)
   const BASE = {
@@ -252,16 +261,18 @@ k: () => negro(0, 0, 1920, 1010).replace('class="negro"', 'class="negro" data-fo
     "g.nombre": "Nombre Apellido", "g.rol": "Rol o cargo",
     "h.etiqueta": "Charla", "h.texto": "Tema de la charla", "h.color": "rojo",
     "j.nombre1": "", "j.nombre2": "", "j.nombre3": "", "j.nombre4": "", "j.llamada": "",
-    "k.nombre1": "", "k.nombre2": "", "k.nombre3": "", "k.nombre4": "", "k.llamada": ""
+    "k.nombre1": "", "k.nombre2": "", "k.nombre3": "", "k.nombre4": "", "k.llamada": "",
+    "l.nombre1": "", "l.nombre2": "", "l.nombre3": ""
   };
-  if (!PANTALLAS[P]) { pant.innerHTML = '<div class="tit-vacio" style="width:1920px;height:300px">Pantalla "' + esc(P) + '" no existe: usá ?p=a … ?p=k</div>'; return; }
+  if (!PANTALLAS[P]) { pant.innerHTML = '<div class="tit-vacio" style="width:1920px;height:300px">Pantalla "' + esc(P) + '" no existe: usá ?p=a … ?p=l</div>'; return; }
   pant.innerHTML = PANTALLAS[P]();
   // en la D el fondo negro va solo donde hay marco: se recortan los huecos de las cámaras
   const fondoD = pant.querySelector("[data-fondo]");
   const HUECOS = {
     d: [[188, 118, 764, 430], [968, 118, 764, 430], [188, 564, 764, 430], [968, 564, 764, 430]],
     j: [[16, 118, 684, 430], [16, 564, 684, 430], [716, 118, 488, 876], [1220, 118, 684, 430], [1220, 564, 684, 430]],
-    k: [[514, 16, 892, 502], [16, 534, 460, 460], [492, 534, 460, 460], [968, 534, 460, 460], [1444, 534, 460, 460]]
+    k: [[514, 16, 892, 502], [16, 534, 460, 460], [492, 534, 460, 460], [968, 534, 460, 460], [1444, 534, 460, 460]],
+    l: [[212, 118, 488, 876], [716, 118, 488, 876], [1220, 118, 488, 876]]
   };
   if (fondoD) fondoD.style.clipPath = 'path(evenodd, "M0 0H1920V1010H0Z ' + HUECOS[P].map(([x, y, w, h]) => `M${x} ${y}H${x + w}V${y + h}H${x}Z`).join(" ") + '")';
 
