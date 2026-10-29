@@ -196,9 +196,10 @@
     const r = document.documentElement.style;
     if (modoResultados) {
       // tarjetas de 480 de ancho (como en la tanda), tantas columnas como entren
-      const cols = Math.max(1, Math.min(4, Math.floor(innerWidth / 380)));
+      const ancho = innerWidth || document.documentElement.clientWidth || 960;
+      const cols = Math.max(1, Math.min(4, Math.floor(ancho / 280)));
       r.setProperty("--cols", cols);
-      r.setProperty("--t", innerWidth / (cols * 480 + (cols + 1) * 16) + "px");
+      r.setProperty("--t", ancho / (cols * 480 + (cols + 1) * 16) + "px");
     } else r.setProperty("--t", Math.min(innerWidth / 1920, innerHeight / 1080) + "px");
   }
   if (modoResultados) document.documentElement.classList.add("modo-resultados");
@@ -357,6 +358,7 @@
   // ?resultados: los mismos destacados que rotan en la tanda, todos a la vez y en el mismo orden
   let grilla = null;
   function dibujarGrilla() {
+    medir();   // adentro del panel el cuadro puede arrancar con ancho 0
     if (!grilla) { grilla = T.el("div", "grilla"); document.body.appendChild(grilla); }
     grilla.innerHTML = "";
     if (!resultados.length) { grilla.appendChild(T.el("div", "aviso", recibido ? "Sin partidos en este momento" : "Cargando resultados…")); return; }
