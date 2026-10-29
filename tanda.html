@@ -146,6 +146,13 @@
   @keyframes latido { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
   @keyframes destello { 0% { background: var(--amarillo); } 100% { background: var(--blanco); } }
 
+  /* ---------- ?resultados: todos los destacados juntos, en grilla (lo usa el panel) ---------- */
+  html.modo-resultados, html.modo-resultados body { height: auto; overflow-x: hidden; overflow-y: auto; }
+  html.modo-resultados .marco, html.modo-resultados .pantalla { display: none; }
+  .grilla { display: grid; grid-template-columns: repeat(var(--cols, 2), 1fr); gap: var(--g); padding: var(--g); }
+  .grilla .destacado { position: relative; inset: auto; height: calc(470 * var(--t)); transition: none; }
+  .grilla .aviso { grid-column: 1 / -1; background: var(--blanco); padding: calc(40 * var(--t)); text-align: center; font-weight: 800; font-size: calc(30 * var(--t)); }
+
   /* ---------- Ticker: no se ve, pero corre por detrás porque le pasa los resultados al destacado ---------- */
   .ticker { position: absolute; left: 0; top: 0; width: 1px; height: 1px; border: 0; opacity: 0; pointer-events: none; }
   /* (si en config.js se pone tanda.mostrarTicker: true, vuelve a verse abajo) */
@@ -184,7 +191,17 @@
   if (T.respaldo) T.respaldo[BANDERA_URU] = "https://a.espncdn.com/i/teamlogos/countries/500/uru.png";
 
   // Escala: todo está pensado para 1920 x 1080
-  function medir() { document.documentElement.style.setProperty("--t", Math.min(innerWidth / 1920, innerHeight / 1080) + "px"); }
+  const modoResultados = T.params.has("resultados");
+  function medir() {
+    const r = document.documentElement.style;
+    if (modoResultados) {
+      // tarjetas de 480 de ancho (como en la tanda), tantas columnas como entren
+      const cols = Math.max(1, Math.min(4, Math.floor(innerWidth / 380)));
+      r.setProperty("--cols", cols);
+      r.setProperty("--t", innerWidth / (cols * 480 + (cols + 1) * 16) + "px");
+    } else r.setProperty("--t", Math.min(innerWidth / 1920, innerHeight / 1080) + "px");
+  }
+  if (modoResultados) document.documentElement.classList.add("modo-resultados");
   medir(); addEventListener("resize", medir);
 
   // El ticker de siempre, sin logo (el logo grande está arriba a la derecha)
@@ -333,8 +350,18 @@
       const it = resultados.find((x) => x.k === actualR.k) || (d.items || []).find((x) => x.k === actualR.k);
       if (it) { llenarDestacado(tarjetaR, it, actualR); actualR = it; }
     }
+    if (modoResultados) { dibujarGrilla(); return; }
     if (!actualR || actualR.k === "vacio") siguienteResultado();
   });
+
+  // ?resultados: los mismos destacados que rotan en la tanda, todos a la vez y en el mismo orden
+  let grilla = null;
+  function dibujarGrilla() {
+    if (!grilla) { grilla = T.el("div", "grilla"); document.body.appendChild(grilla); }
+    grilla.innerHTML = "";
+    if (!resultados.length) { grilla.appendChild(T.el("div", "aviso", recibido ? "Sin partidos en este momento" : "Cargando resultados…")); return; }
+    resultados.forEach((it) => { const t = T.el("div", "destacado"); llenarDestacado(t, it); grilla.appendChild(t); });
+  }
 
   function bloqueEquipo(it, e, otro) {
     const perdio = it.estado === "post" && !e.gano && otro.gano;
@@ -426,11 +453,13 @@
       encajar(tit); encajar(nueva.querySelector(".texto"));
       actualN = nueva;
     });
+  } else if (modoResultados) {
+    dibujarGrilla();
   } else {
     cargarNoticias();
     setTimeout(rotarNoticias, 800);
   }
-  setTimeout(rotarResultados, 2500);
+  if (!modoResultados) setTimeout(rotarResultados, 2500);
 })();
 </script>
 </body>
