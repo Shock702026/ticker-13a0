@@ -5,7 +5,7 @@
 <title>Ticker 13a0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500..900&family=Bitter:wght@700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="estilos.css?v=20261029">
+<link rel="stylesheet" href="estilos.css?v=20261029b">
 </head>
 <body>
 <div class="barra">
@@ -14,9 +14,9 @@
   <div class="reloj" id="reloj"><span class="hh">00</span><span class="dos">:</span><span class="mm">00</span></div>
 </div>
 
-<script src="config.js?v=20261029"></script>
-<script src="escudos.js?v=20261029"></script>
-<script src="comun.js?v=20261029"></script>
+<script src="config.js?v=20261029b"></script>
+<script src="escudos.js?v=20261029b"></script>
+<script src="comun.js?v=20261029b"></script>
 <script src="demo-datos.js"></script>
 <script>
 (function () {
@@ -1312,7 +1312,7 @@
         const eq = (e) => {
           const u = datosUru(p, e);
           return {
-            nombre: e.nombre, logo: e.logo, goles: e.goles, gano: !!e.gano,
+            nombre: T.nombreVisible(e.nombre, e.completo), logo: e.logo, goles: e.goles, gano: !!e.gano,   // con las correcciones de la planilla, igual que la cinta
             goleadores: p.deporte === "soccer" ? goleadoresDe(p, e.id).map((g) => ({ jugador: g.jugador, mins: g.mins, ec: g.ec })) : [],
             uruGoles: u.goles.map((g) => g.jugador + " " + g.mins.join(" ")),
             // la tanda los muestra como texto: "Federico Valverde (titular)"
