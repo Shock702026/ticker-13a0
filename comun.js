@@ -232,8 +232,14 @@
   };
   const delEquipo = (mapa, ...nombres) => { for (const k of Object.keys(mapa)) if (nombres.some((n) => mismo(k, n))) return mapa[k]; return null; };
   // nombre a mostrar (cambiar nombre)
-  T.nombreVisible = function (nombre, completo) {
-    return delEquipo(T.correcciones.nombres, nombre, completo) || nombre;
+  // nombre en pantalla: corrección de la planilla > nombre en español (nombres.js, por número de equipo o selección) > el de la fuente
+  T.nombreVisible = function (nombre, completo, id) {
+    const c = delEquipo(T.correcciones.nombres, nombre, completo);
+    if (c) return c;
+    const N = window.NOMBRES_ES || {}, ids = N.ids || {}, pa = N.paises || {};
+    if (id != null && ids[String(id)]) return ids[String(id)];
+    const k = (x) => String(x || "").trim().toLowerCase();
+    return pa[k(completo)] || pa[k(nombre)] || String(nombre || "").trim();
   };
   // partidos: oculta y corrige marcadores
   T.corregirPartidos = function (lista) {

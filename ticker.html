@@ -5,7 +5,7 @@
 <title>Ticker 13a0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500..900&family=Bitter:wght@700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="estilos.css?v=20261030">
+<link rel="stylesheet" href="estilos.css?v=20261030b">
 </head>
 <body>
 <div class="barra">
@@ -14,9 +14,10 @@
   <div class="reloj" id="reloj"><span class="hh">00</span><span class="dos">:</span><span class="mm">00</span></div>
 </div>
 
-<script src="config.js?v=20261030"></script>
-<script src="escudos.js?v=20261030"></script>
-<script src="comun.js?v=20261030"></script>
+<script src="config.js?v=20261030b"></script>
+<script src="escudos.js?v=20261030b"></script>
+<script src="nombres.js?v=20261030b"></script>
+<script src="comun.js?v=20261030b"></script>
 <script src="demo-datos.js"></script>
 <script>
 (function () {
@@ -688,7 +689,7 @@
     const d = T.el("div", "equipo " + lado + (perdio ? " perdio" : ""));
     const f1 = T.el("div", "fila1");
     if (e.logo) f1.appendChild(T.img(e.logo));
-    f1.appendChild(T.el("span", "nom", T.nombreVisible(e.nombre, e.completo)));
+    f1.appendChild(T.el("span", "nom", T.nombreVisible(e.nombre, e.completo, e.id)));
     d.appendChild(f1);
     const gs = p.deporte === "soccer" ? goleadoresDe(p, e.id) : [];
     if (gs.length) {
@@ -1182,7 +1183,7 @@
     const eq = T.el("div", "t-eq");
     if (f.logo) eq.appendChild(T.img(f.logo));
     const txt = T.el("div");
-    txt.appendChild(T.el("div", "t-nom", T.nombreVisible(f.nombre, f.completo)));
+    txt.appendChild(T.el("div", "t-nom", T.nombreVisible(f.nombre, f.completo, f.id)));
     const jug = opc.uru && f.id && !esClubUruguayo(f.id) ? uruDeEquipo(f.id) : null;
     if (jug && jug.length) {
       const u = T.el("span", "t-uy");
@@ -1312,7 +1313,7 @@
         const eq = (e) => {
           const u = datosUru(p, e);
           return {
-            nombre: T.nombreVisible(e.nombre, e.completo), logo: e.logo, goles: e.goles, gano: !!e.gano,   // con las correcciones de la planilla, igual que la cinta
+            nombre: T.nombreVisible(e.nombre, e.completo, e.id), logo: e.logo, goles: e.goles, gano: !!e.gano,   // con las correcciones de la planilla, igual que la cinta
             goleadores: p.deporte === "soccer" ? goleadoresDe(p, e.id).map((g) => ({ jugador: g.jugador, mins: g.mins, ec: g.ec })) : [],
             uruGoles: u.goles.map((g) => g.jugador + " " + g.mins.join(" ")),
             // la tanda los muestra como texto: "Federico Valverde (titular)"

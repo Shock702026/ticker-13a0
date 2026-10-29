@@ -174,6 +174,11 @@
   .persona .ficha { grid-column:1 / -1; }
   .tag { font:800 11px var(--f); padding:3px 6px; background:var(--fondo); color:var(--gris); } .tag.ok { background:#e2f4e9; color:var(--verde); } .tag.mal { background:#fbe3e6; color:var(--rojo); }
   .subtabs { display:flex; gap:8px; flex-wrap:wrap; }
+  /* nombres en español (Correcciones) */
+  .nb-lista { max-height:60vh; overflow:auto; columns:3 260px; column-gap:24px; }
+  .nb-lista h3 { font:800 13px var(--f); text-transform:uppercase; letter-spacing:.06em; color:var(--rojo); margin:10px 0 4px; break-after:avoid; column-span:none; }
+  .nb { display:flex; justify-content:space-between; gap:10px; padding:4px 0; border-bottom:1px solid var(--linea); font-size:13px; break-inside:avoid; }
+  .nb span { color:var(--gris); } .nb b { text-align:right; }
   /* archivo de fotos */
   .grilla-fotos { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
   .foto-a { background:#fff; outline:1px solid var(--linea); outline-offset:-1px; display:flex; flex-direction:column; }
@@ -401,7 +406,7 @@ function interruptor(texto, on, sub, onChange) {
   return el;
 }
 // versión de las pantallas: va en cada link, así el navegador no muestra copias viejas guardadas
-const VER = "20261030";
+const VER = "20261030b";
 const conVer = (src) => src + (src.includes("?") ? "&" : "?") + "v=" + VER;
 function vistaPrevia(src, cls = "") {
   const pv = h(`<div class="pv ${cls}"><iframe src="${conVer(src)}"></iframe></div>`);
@@ -917,9 +922,9 @@ function tablaEditable(cont, t, cols, opc = {}) {
 VISTAS.ticker = (m) => {
   m.innerHTML = titulo("Ticker") + `<div class="cuerpo" style="grid-template-columns:minmax(420px,1fr) minmax(420px,1fr)"><div style="display:flex;flex-direction:column;gap:20px"><div class="card form" id="fa"></div><div class="card form" id="fpr"></div></div><div class="card vista" id="vt"></div></div>
     <div class="card form todo-ticker"><h2><i style="background:var(--amarillo)"></i>Todo el material del día</h2><span class="ayuda" style="font-size:12px;color:var(--gris);font-weight:600">Todos los bloques que pasan por la cinta, uno abajo del otro. Arriba podés elegir otro día de la semana.</span>
-      <iframe src="${WEB}ticker.html?vista&v=20261030" title="Todo el material del ticker" loading="lazy"></iframe><a href="${WEB}ticker.html?vista" target="_blank" style="font-weight:700">Abrir en pantalla completa ↗</a></div>
+      <iframe src="${WEB}ticker.html?vista&v=20261030b" title="Todo el material del ticker" loading="lazy"></iframe><a href="${WEB}ticker.html?vista" target="_blank" style="font-weight:700">Abrir en pantalla completa ↗</a></div>
     <div class="card form todo-ticker"><h2><i style="background:var(--rojo)"></i>Resultados de la tanda</h2><span class="ayuda" style="font-size:12px;color:var(--gris);font-weight:600">Los partidos que van rotando en la tanda del OBS, todos juntos y en el mismo orden. Se actualiza solo.</span>
-      <iframe src="${WEB}tanda.html?resultados&v=20261030" title="Resultados de la tanda"></iframe><a href="${WEB}tanda.html?resultados" target="_blank" style="font-weight:700">Abrir en pantalla completa ↗</a></div>`;
+      <iframe src="${WEB}tanda.html?resultados&v=20261030b" title="Resultados de la tanda"></iframe><a href="${WEB}tanda.html?resultados" target="_blank" style="font-weight:700">Abrir en pantalla completa ↗</a></div>`;
   const V = m.querySelector("#vt");
   V.innerHTML = `<div class="tit"><span class="et">EN VIVO</span><span>El ticker como está ahora</span></div>`;
   V.appendChild(vistaPrevia(WEB + "ticker.html", "negro"));
@@ -940,7 +945,26 @@ VISTAS.correcciones = (m) => {
   const tipos = it >= 0 ? D.correcciones.slice(1).map((f) => f[it]).filter(Boolean) : [];
   const t = tablaEditable(F, D.correcciones, ["tipo", "equipo_o_local", "visitante", "valor", "nota"], { opciones: { tipo: tipos }, titulos: { equipo_o_local: "Equipo o local" } });
   const p = h(`<div class="pie"><button class="btn am">Guardar correcciones</button></div>`); p.firstChild.onclick = () => guardar("guardarTabla", "correcciones", t.filas(), 5).then(recargar).catch(() => {}); F.appendChild(p);
+  nombresEspanol(m);
 };
+// los nombres que el ticker pasa al español solo (archivo nombres.js en GitHub); una corrección de arriba manda sobre esto
+async function nombresEspanol(m) {
+  const C = h(`<div class="card form" style="margin-top:18px"><h2><i style="background:var(--celeste)"></i>Nombres en español (automáticos)</h2>
+    <div class="aviso">El ticker, la tanda y el partido muestran estos nombres en lugar de los de la fuente (ESPN). Si querés otro, cargá arriba una corrección de tipo «nombre»: la de arriba manda.</div>
+    <input type="text" id="nb-f" placeholder="Buscar equipo o liga…"><div id="nb-l" class="nb-lista">Cargando…</div></div>`);
+  m.appendChild(C);
+  let L = [];
+  try { const t = await (await fetch(conVer(WEB + "nombres.js"))).text(); L = JSON.parse(t.slice(t.indexOf("=") + 1).trim().replace(/;\s*$/, "")).lista || []; }
+  catch (e) { C.querySelector("#nb-l").textContent = "No se pudo leer la lista de nombres."; return; }
+  const pintar = () => {
+    const norm = (t) => String(t).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ø/gi, "o").replace(/ß/g, "ss").replace(/ı/g, "i").toLowerCase();
+    const q = norm(C.querySelector("#nb-f").value.trim());
+    const fil = L.filter((x) => !q || norm(x.join(" ")).includes(q));
+    const grupos = {}; fil.forEach((x) => (grupos[x[0]] = grupos[x[0]] || []).push(x));
+    C.querySelector("#nb-l").innerHTML = Object.keys(grupos).map((g) => `<h3>${esc(g)}</h3>` + grupos[g].map((x) => `<div class="nb"><span>${esc(x[1])}</span><b>${esc(x[2])}</b></div>`).join("")).join("") || `<div class="vacio">Nada con esa búsqueda.</div>`;
+  };
+  C.querySelector("#nb-f").oninput = pintar; pintar();
+}
 VISTAS.escudos = (m) => {
   m.innerHTML = titulo("Escudos") + `<div class="card form" id="fe"></div>`;
   const F = m.querySelector("#fe"); F.innerHTML = `<h2><i style="background:var(--azul)"></i>Escudos propios</h2><div class="aviso">En «escudo» va un link de Drive, un link a una imagen o el nombre de un archivo de la carpeta escudos. Se ve al lado.</div>`;
