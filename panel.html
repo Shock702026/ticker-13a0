@@ -174,6 +174,32 @@
   .persona .ficha { grid-column:1 / -1; }
   .tag { font:800 11px var(--f); padding:3px 6px; background:var(--fondo); color:var(--gris); } .tag.ok { background:#e2f4e9; color:var(--verde); } .tag.mal { background:#fbe3e6; color:var(--rojo); }
   .subtabs { display:flex; gap:8px; flex-wrap:wrap; }
+  /* archivo de fotos */
+  .grilla-fotos { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
+  .foto-a { background:#fff; outline:1px solid var(--linea); outline-offset:-1px; display:flex; flex-direction:column; }
+  .foto-a.dejar { outline:3px solid var(--verde); outline-offset:-3px; }
+  .foto-a .ft { display:block; aspect-ratio:11/20; max-height:300px; background:#ddd center/cover no-repeat; }
+  .foto-a .tx { padding:8px 10px; display:flex; flex-direction:column; gap:3px; min-width:0; } .foto-a .tx b { font-size:14px; line-height:1.25; }
+  .foto-a .tx small { font-size:11px; color:var(--gris); } .foto-a .tx em { font-style:normal; color:var(--rojo); font-weight:700; }
+  .foto-a .acc { display:flex; gap:6px; padding:0 10px 10px; } .foto-a .acc .btn { flex:1; }
+  .rojo-b { background:#fff; color:var(--rojo); outline:2px solid var(--rojo); outline-offset:-2px; }
+  @media (max-width:760px) { .grilla-fotos { grid-template-columns:1fr 1fr; gap:8px; } .foto-a .acc { flex-direction:column; } }
+  /* titulares de radio: vista e impresión */
+  .cuerpo.tit-radio { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+  .hoja-tit { background:#fff; color:#111; padding:28px 32px; font:16px/1.5 Georgia, "Times New Roman", serif; max-height:70vh; overflow:auto; outline:1px solid var(--linea); }
+  .hoja-tit .hoja-cab { display:flex; align-items:center; gap:12px; border-bottom:3px solid #180B5B; padding-bottom:10px; margin-bottom:14px; font:800 15px var(--f); color:#180B5B; text-transform:uppercase; letter-spacing:.06em; }
+  .hoja-tit .hoja-cab b { background:#180B5B; color:#fff; font:900 20px/1 var(--f); padding:5px 8px; letter-spacing:0; } .hoja-tit .hoja-cab b i { font-style:normal; color:#0086C3; }
+  .hoja-tit h3 { font:800 18px var(--f); color:#C5021E; margin:18px 0 6px; text-transform:uppercase; letter-spacing:.04em; }
+  .hoja-tit h4 { font:900 17px var(--f); margin:14px 0 4px; text-transform:uppercase; }
+  .hoja-tit p { margin:0 0 8px; } .hoja-tit .dudas { color:#555; font-size:14px; }
+  #impresion { display:none; }
+  @media print {
+    body > *:not(#impresion) { display:none !important; }
+    body { display:block !important; background:#fff !important; padding:0 !important; }
+    #impresion { display:block !important; }
+    #impresion .hoja-tit { max-height:none; overflow:visible; outline:0; padding:0; font-size:15pt; }
+    #impresion h3, #impresion h4 { break-after:avoid; }
+  }
   .cal { display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:4px; }
   .cal .dn { font:800 11px var(--f); letter-spacing:.1em; color:var(--gris); text-transform:uppercase; padding:4px; }
   .cal .d { background:#fff; outline:1px solid var(--linea); min-height:96px; padding:6px; display:flex; flex-direction:column; gap:4px; min-width:0; }
@@ -223,7 +249,8 @@
     .tabbar button.on { color:var(--azul); } .tabbar button.on i { background:var(--amarillo); }
     .main { padding:14px 12px 24px; gap:14px; }
     .cab h1 { font-size:24px; } .cab .estado { display:none; }
-    .cuerpo, .cuerpo.n { grid-template-columns:1fr; gap:14px; }
+    .cuerpo, .cuerpo.n, .cuerpo.tit-radio { grid-template-columns:1fr; gap:14px; }
+    .cuerpo.tit-radio > .vista { position:static; order:0; } .hoja-tit { padding:18px; max-height:none; }
     .cuerpo > .vista, .cuerpo.n > .vista { order:-1; position:sticky; top:52px; z-index:4; padding:10px; }
     .cuerpo.n > .vista { position:static; }
     .vista .aviso { display:none; }
@@ -415,6 +442,7 @@ function tabbar() {
   document.getElementById("movest").textContent = ENAS ? "● conectado" : "modo prueba";
 }
 function ir(s) {
+  if (s === "fotos" || s === "titulares") { subNot = s; s = "noticias"; }   // links directos (?seccion=fotos, el mail de los lunes)
   if (!visible(s)) s = "inicio";
   seccion = s; nav(); tabbar();
   const m = document.getElementById("main"); m.innerHTML = ""; m.classList.remove("solo-ver");
@@ -487,15 +515,21 @@ function noticias() {
   const c = cab(t);
   return t.slice(1).map((f, i) => { const o = { fila: i + 2 }; c.forEach((k, j) => (o[k] = f[j] || "")); return o; }).filter((n) => n.titular.trim() || n.parrafo_1.trim());
 }
-let filtroN = "aire", elegidaN = null;
+let filtroN = "aire", elegidaN = null, subNot = "obs";
+// pestañas internas de Noticias: las del OBS y los titulares de radio
+const subNoticias = () => `<div class="subtabs" style="margin-top:-6px">${[["obs", "Noticias del OBS"], ["titulares", "Titulares de radio"], ["fotos", "Archivo de fotos"]].map(([k, t]) => `<button class="chip${k === subNot ? " on" : ""}" data-sn="${k}">${t}</button>`).join("")}</div>`;
+const enlazarSubNoticias = (m) => m.querySelectorAll("[data-sn]").forEach((b) => (b.onclick = () => { subNot = b.dataset.sn; ir("noticias"); }));
 VISTAS.noticias = (m) => {
+  if (subNot === "titulares") return vistaTitulares(m);
+  if (subNot === "fotos") return vistaFotos(m);
   const todas = noticias();
   const pend = (n) => /^pendiente$/i.test(n.mostrar.trim());
   const lista = todas.filter((n) => filtroN === "todas" || (filtroN === "aire" ? esSi(n.mostrar) : filtroN === "pendientes" ? pend(n) : !esSi(n.mostrar) && !pend(n)));
   if (filtroN !== "aire") lista.reverse();   // guardadas, pendientes y todas: las más nuevas arriba
   const nP = todas.filter(pend).length;
   m.innerHTML = titulo("Noticias", puede("noticias", "cargar") ? `<button class="btn am" id="nueva">+ Nueva noticia</button>` : "") +
-    (PERM("noticias") === "cargar" ? `<div class="aviso">Lo que cargues queda <b>pendiente</b> hasta que alguien con permiso lo apruebe. No sale al aire solo.</div>` : "") + `<div class="cuerpo n"><div class="card lista" id="lista"></div><div class="card form" id="ed"></div><div class="card vista" id="vn"></div></div>`;
+    subNoticias() + (PERM("noticias") === "cargar" ? `<div class="aviso">Lo que cargues queda <b>pendiente</b> hasta que alguien con permiso lo apruebe. No sale al aire solo.</div>` : "") + `<div class="cuerpo n"><div class="card lista" id="lista"></div><div class="card form" id="ed"></div><div class="card vista" id="vn"></div></div>`;
+  enlazarSubNoticias(m);
   const bNu = m.querySelector("#nueva"); if (bNu) bNu.onclick = () => { elegidaN = "nueva"; ir("noticias"); };
   const L = m.querySelector("#lista");
   const nA = todas.filter((n) => esSi(n.mostrar)).length;
@@ -527,6 +561,83 @@ VISTAS.noticias = (m) => {
   if (!n) { m.querySelector("#ed").innerHTML = `<div class="vacio">Elegí una noticia de la lista o creá una nueva.</div>`; return; }
   editorNoticia(m.querySelector("#ed"), m.querySelector("#vn"), n, todas);
 };
+/* ---------- Archivo de fotos: las ya usadas, para reciclar. Cada semana se decide cuál dejar y cuál borrar ---------- */
+let FOT = null, filtroF = "revisar";
+async function vistaFotos(m) {
+  m.innerHTML = titulo("Noticias") + subNoticias() + `<div class="aviso">Cargando el archivo de fotos…</div>`;
+  enlazarSubNoticias(m);
+  try { FOT = await srv("leerFotos"); } catch (e) { m.querySelector(".aviso").textContent = e.message || String(e); return; }
+  if (seccion !== "noticias" || subNot !== "fotos") return;
+  pintarFotos(m);
+}
+function pintarFotos(m) {
+  const sin = FOT.filter((f) => !f.decision), edita = puede("noticias");
+  const lista = filtroF === "revisar" ? sin : filtroF === "dejar" ? FOT.filter((f) => f.decision === "dejar") : FOT;
+  m.innerHTML = titulo("Noticias") + subNoticias() +
+    `<div class="aviso">Estas fotos ya salieron en alguna noticia. Las que <b>dejes</b> se reciclan solas cuando una noticia nueva habla del mismo jugador o club. Las que <b>borres</b> van a la papelera de Drive (se pueden recuperar 30 días). Los lunes te llega un mail si hay fotos sin revisar.</div>
+    <div class="subtabs">${[["revisar", "Sin revisar (" + sin.length + ")"], ["dejar", "Para reutilizar (" + FOT.filter((f) => f.decision === "dejar").length + ")"], ["todas", "Todas (" + FOT.length + ")"]].map(([k, t]) => `<button class="chip${k === filtroF ? " on" : ""}" data-ff="${k}">${t}</button>`).join("")}</div>
+    <div class="grilla-fotos" id="gf"></div>`;
+  enlazarSubNoticias(m);
+  m.querySelectorAll("[data-ff]").forEach((b) => (b.onclick = () => { filtroF = b.dataset.ff; pintarFotos(m); }));
+  const G = m.querySelector("#gf");
+  if (!lista.length) G.appendChild(h(`<div class="vacio">${filtroF === "revisar" ? "No hay fotos para revisar. ✓" : "No hay fotos acá."}</div>`));
+  lista.forEach((f) => {
+    const c = h(`<div class="foto-a${f.decision === "dejar" ? " dejar" : ""}"><span class="ft" style="background-image:url('${img(f.imagen)}')"></span>
+      <div class="tx"><b>${esc(f.titular || "(sin titular)")}</b><small>${esc(f.credito || "sin crédito")} · ${esc(fechaTxt(f.fecha))} · ${f.usos} ${f.usos === 1 ? "uso" : "usos"}${f.enUso ? " · <em>en una noticia ahora</em>" : ""}</small></div>
+      ${edita ? `<div class="acc"><button class="btn ok chico" data-d="dejar">${f.decision === "dejar" ? "✓ Queda" : "Dejar"}</button><button class="btn chico rojo-b" data-d="borrar">Borrar</button></div>` : ""}</div>`);
+    c.querySelectorAll("[data-d]").forEach((b) => (b.onclick = async () => {
+      const d = b.dataset.d;
+      if (d === "borrar" && f.enUso && !b.dataset.ok) { b.dataset.ok = 1; b.textContent = "¿Seguro? Está en uso"; return; }
+      c.querySelectorAll("button").forEach((x) => (x.disabled = true));
+      try { await guardar("decidirFoto", f.imagen, d); if (d === "borrar") FOT = FOT.filter((x) => x !== f); else f.decision = "dejar"; pintarFotos(m); }
+      catch (e) { c.querySelectorAll("button").forEach((x) => (x.disabled = false)); }
+    }));
+    G.appendChild(c);
+  });
+}
+/* ---------- Titulares de radio: los escribe la tarea de las 18:00; se pueden corregir e imprimir ---------- */
+let TIT = null, titFecha = null;
+// el texto viene en Markdown sencillo: "## Día · Nacionales", "**TÍTULO**", párrafos, "*Dudas: …*"
+function titularesHTML(t) {
+  const linea = (x) => esc(x).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|[^*\\])\*(?!\s)(.+?)\*/g, "$1<i>$2</i>").replace(/\\\*/g, "*");
+  return String(t || "").split(/\n\s*\n|\n(?=#|\*\*)/).map((b) => b.trim()).filter(Boolean).map((b) => {
+    if (/^#{1,3}\s/.test(b)) return `<h3>${linea(b.replace(/^#+\s*/, ""))}</h3>`;
+    if (/^\*\*[^*]+\*\*$/.test(b)) return `<h4>${linea(b.slice(2, -2))}</h4>`;
+    if (/^\*Dudas/i.test(b)) return `<p class="dudas">${linea(b)}</p>`;
+    return `<p>${linea(b).replace(/\n/g, "<br>")}</p>`;
+  }).join("");
+}
+async function vistaTitulares(m) {
+  m.innerHTML = titulo("Noticias") + subNoticias() + `<div class="aviso">Cargando titulares…</div>`;
+  enlazarSubNoticias(m);
+  try { TIT = await srv("leerTitulares"); } catch (e) { m.querySelector(".aviso").textContent = e.message || String(e); return; }
+  if (seccion !== "noticias" || subNot !== "titulares") return;
+  const hoy = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Montevideo" }).format(new Date());   // fecha de Uruguay
+  if (!TIT.find((x) => x.fecha === hoy)) TIT.unshift({ fecha: hoy, texto: "", origen: "nuevo" });
+  if (!TIT.find((x) => x.fecha === titFecha)) titFecha = (TIT.find((x) => x.texto) || TIT[0]).fecha;
+  const X = TIT.find((x) => x.fecha === titFecha), edita = puede("noticias");
+  m.innerHTML = titulo("Noticias") + subNoticias() +
+    `<div class="subtabs">${TIT.slice(0, 10).map((x) => `<button class="chip${x.fecha === titFecha ? " on" : ""}" data-tf="${x.fecha}">${esc(fechaTxt(x.fecha))}${x.texto ? "" : " · vacío"}</button>`).join("")}</div>
+    <div class="cuerpo tit-radio"><div class="card form"><h2><i style="background:var(--amarillo)"></i>Titulares · ${esc(fechaTxt(X.fecha))}</h2>
+      <span class="ayuda" style="font-size:12px;color:var(--gris);font-weight:600">${X.origen === "editado" ? "Editado por " + esc(X.editado_por || "") + " · " + esc(X.actualizado || "") : X.origen === "tarea" ? "Lo escribió la tarea de las 18:00 · " + esc(X.actualizado || "") : "Todavía no hay titulares para este día."}</span>
+      <textarea id="tit-tx" rows="22" ${edita ? "" : "readonly"} style="font:15px/1.45 var(--f)" placeholder="## Jueves 29 de octubre · Nacionales&#10;&#10;**TÍTULO**&#10;&#10;Primer párrafo…&#10;&#10;Segundo párrafo…&#10;&#10;*Dudas: …*">${esc(X.texto)}</textarea>
+      <span class="ayuda" style="font-size:12px;color:var(--gris)">## arriba = sección (Nacionales, Internacionales) · **entre asteriscos dobles** = título en negrita · *entre asteriscos* = cursiva</span>
+      <div class="pie">${edita ? `<button class="btn am" id="tit-g">Guardar</button>` : ""}<button class="btn" id="tit-p">🖨 Imprimir</button></div></div>
+      <div class="card vista"><h2><i style="background:var(--celeste)"></i>Así se imprime</h2><div class="hoja-tit" id="tit-v"></div></div></div>`;
+  enlazarSubNoticias(m);
+  m.querySelectorAll("[data-tf]").forEach((b) => (b.onclick = () => { titFecha = b.dataset.tf; vistaTitulares(m); }));
+  const tx = m.querySelector("#tit-tx"), V = m.querySelector("#tit-v");
+  const cab = () => `<div class="hoja-cab"><b>13<i>a</i>0</b><span>Titulares · ${esc(fechaTxt(X.fecha))}</span></div>`;
+  const pintar = () => (V.innerHTML = cab() + (titularesHTML(tx.value) || `<p class="vacio">Sin titulares.</p>`));
+  pintar(); tx.oninput = pintar;
+  const bG = m.querySelector("#tit-g");
+  if (bG) bG.onclick = async () => { bG.disabled = true; try { await guardar("guardarTitulares", X.fecha, tx.value); X.texto = tx.value; aviso("Titulares guardados"); vistaTitulares(m); } catch (e) { bG.disabled = false; } };
+  m.querySelector("#tit-p").onclick = () => {
+    let P = document.getElementById("impresion"); if (!P) { P = document.createElement("div"); P.id = "impresion"; document.body.appendChild(P); }
+    P.innerHTML = `<div class="hoja-tit">${V.innerHTML}</div>`;
+    window.print();
+  };
+}
 function editorNoticia(E, V, n, todas) {
   E.innerHTML = `<h2><i style="background:var(--amarillo)"></i>${n.fila ? "Editando noticia" : "Noticia nueva"}</h2>`;
   const st = Object.assign({}, n); let fotoNueva = null;   // fotoNueva = dataURL encuadrado, se sube al guardar
@@ -1102,6 +1213,8 @@ VISTAS.equipo = async (m) => {
 };
 
 // modo prueba (?prueba): datos de ejemplo para ver las pantallas sin tocar nada real
+const DEMO_TIT = [{ fecha: new Intl.DateTimeFormat("en-CA", { timeZone: "America/Montevideo" }).format(new Date()), origen: "tarea", editado_por: "Tarea en la nube", actualizado: "18:40",
+  texto: "## Jueves 29 de octubre · Nacionales\n\n**PEÑAROL**\n\nPeñarol recibirá a Wanderers el sábado a las 16:30 en el Campeón del Siglo, por la fecha 13 del Clausura.\n\nDiego Aguirre tiene la duda de Lucas Ferreira, que sigue con molestias en la rodilla.\n\n*Dudas: falta confirmar el juez.*\n\n## Jueves 29 de octubre · Internacionales\n\n**VALVERDE**\n\nReal Madrid juega este jueves ante el Valencia a las 17:00 y Federico Valverde sería titular.\n\nEl uruguayo viene de jugar los 90 minutos en el clásico.\n\n*Dudas: ninguna.*" }];
 const DEMO = (() => {
   const d = (n) => masDias(n);
   const gente = [{ email: "ana@ejemplo.com", nombre: "Ana Pérez", roles: ["Relato"], ausencias: [] }, { email: "beto@ejemplo.com", nombre: "Beto Gómez", roles: ["Comentario", "Estudios"], ausencias: [{ desde: d(3), hasta: d(6), motivo: "vacaciones" }] },
@@ -1112,7 +1225,9 @@ const DEMO = (() => {
     miPerfil: () => ({ perfil: { email: "prueba", nombre: "Persona de prueba", roles: "Relato|Apoyo" }, ausencias: [{ id: "a1", desde: d(10), hasta: d(12), motivo: "enfermedad", nota: "" }] }),
     equipo: () => gente.map((p) => Object.assign({ celular: "099 000 000", cedula: "", foto: false, acred: false }, p)),
     leerRelevamiento: () => { return { fechas: [d(0)], actual: { fecha: d(0), actualizado: d(0) + " 18:02", lista: { fecha: d(0), generada: "18:02", nacionales: [{ id: "N1", titulo: "Peñarol confirmó el equipo para el clásico", link: "https://example.com", medio: "Ovación" }, { id: "N2", titulo: "La AUF definió los árbitros de la fecha", link: "https://example.com", medio: "Referí" }], internacionales: [{ id: "I1", titulo: "Valverde, figura en el triunfo del Real Madrid", link: "https://example.com", medio: "Marca" }], partidos: [{ competencia: "Champions League", lineas: [{ texto: "Real Madrid 🇺🇾 (Valverde) 2-1 Juventus · Final", uy: true }] }] }, eleccion: null } }; },
-    leerConvocatorias: () => ({ convocatorias: conv, puedeConvocar: true, roles: ROLES_EQ, convocables: gente })
+    leerConvocatorias: () => ({ convocatorias: conv, puedeConvocar: true, roles: ROLES_EQ, convocables: gente }),
+    leerTitulares: () => DEMO_TIT.map((x) => Object.assign({}, x)),
+    leerFotos: () => noticias().filter((n) => n.imagen).slice(0, 8).map((n, i) => ({ imagen: n.imagen, credito: n.credito_foto, titular: n.titular.replace(/\*\*/g, ""), fecha: masDias(-i), usos: 1 + (i % 3), decision: i % 4 === 0 ? "dejar" : "", enUso: i < 2 }))
   };
 })();
 
