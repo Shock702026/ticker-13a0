@@ -180,9 +180,9 @@
 </div>
 <iframe class="ticker" id="ticker" scrolling="no"></iframe>
 
-<script src="config.js?v=20261029b"></script>
-<script src="escudos.js?v=20261029b"></script>
-<script src="comun.js?v=20261029b"></script>
+<script src="config.js?v=20261030"></script>
+<script src="escudos.js?v=20261030"></script>
+<script src="comun.js?v=20261030"></script>
 <script src="demo-datos.js"></script>
 <script>
 (function () {
@@ -204,10 +204,13 @@
   }
   if (modoResultados) document.documentElement.classList.add("modo-resultados");
   medir(); addEventListener("resize", medir);
+  // adentro de un cuadro (panel) la página puede arrancar con ancho 0: se vuelve a medir cuando toma su tamaño
+  if (window.ResizeObserver) new ResizeObserver(() => medir()).observe(document.documentElement);
+  [300, 1000, 3000].forEach((ms) => setTimeout(medir, ms));
 
   // El ticker de siempre, sin logo (el logo grande está arriba a la derecha)
   if (TC.mostrarTicker) document.body.classList.add("con-ticker");
-  document.getElementById("ticker").src = "ticker.html?sinlogo&v=20261029b" + (T.demo ? "&demo" : "");
+  document.getElementById("ticker").src = "ticker.html?sinlogo&v=20261030" + (T.demo ? "&demo" : "");
 
   const escapar = (s) => String(s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const formatear = (s) => escapar(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\*(.+?)\*/g, "<b>$1</b>");

@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es"><head><meta charset="utf-8"><title>Panel 13a0</title>
 <link rel="icon" href="icono-panel.png"><link rel="apple-touch-icon" href="icono-panel.png"><meta name="apple-mobile-web-app-title" content="Panel 13a0"><meta name="theme-color" content="#180B5B">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400..900&family=Bitter:wght@700;800&display=swap" rel="stylesheet">
 <style>
   /* Panel de control 13a0. Se abre desde Google Apps Script (que guarda en la planilla);
@@ -9,7 +9,7 @@
   :root { --azul:#180B5B; --celeste:#0086C3; --amarillo:#F9BE02; --rojo:#C5021E; --gris:#6E6A86; --fondo:#F3F2F7; --linea:#E3E1EC; --verde:#1a8a46;
           --f:"Archivo","Helvetica Neue",Arial,sans-serif; --slab:"Bitter",Georgia,serif; }
   * { box-sizing:border-box; margin:0; padding:0; }
-  html, body { height:100%; }
+  html { height:100%; }   /* el body crece con el contenido: así el espacio para la barra de abajo cuenta */
   body { font:15px/1.4 var(--f); color:var(--azul); background:var(--fondo); display:grid; grid-template-columns:240px 1fr; min-height:100vh; }
   button { font:inherit; cursor:pointer; }
   /* barra lateral */
@@ -209,11 +209,12 @@
   .quien { display:flex; gap:8px; align-items:center; background:#FFF6CC; padding:10px; flex-wrap:wrap; }
   .quien input { flex:1; min-width:160px; }
   @media (max-width:760px) {
-    body { grid-template-columns:1fr; align-content:start; padding-bottom:calc(76px + env(safe-area-inset-bottom, 0px)); }
+    /* el alto real de la barra de abajo lo mide el script (--barra); así nunca tapa el final de la pestaña */
+    body { grid-template-columns:1fr; align-content:start; padding-bottom:calc(max(var(--barra, 64px), 64px) + env(safe-area-inset-bottom, 0px) + 28px); }
     .vista .tit span:last-child, .vista .tit span:nth-child(2) { display:none; } .vista .tit { gap:6px; }
     .cuerpo.n > .vista:empty { display:none; }
     .lado { display:none; }
-    .movtop { display:flex; align-items:center; gap:10px; background:var(--azul); color:#fff; padding:10px 14px; position:sticky; top:0; z-index:5; }
+    .movtop { display:flex; align-items:center; gap:10px; background:var(--azul); color:#fff; padding:calc(10px + env(safe-area-inset-top, 0px)) max(14px, env(safe-area-inset-right, 0px)) 10px max(14px, env(safe-area-inset-left, 0px)); position:sticky; top:0; z-index:5; }
     .movtop b { background:#fff; color:var(--azul); font:900 19px/1 var(--f); padding:6px 8px; } .movtop b i { font-style:normal; color:var(--celeste); }
     .movtop span { font:800 17px/1.1 var(--slab); } .movtop small { margin-left:auto; font:700 11px var(--f); color:#9fe0b4; }
     .tabbar { display:grid; grid-template-columns:repeat(5,1fr); position:fixed; left:0; right:0; bottom:0; z-index:6; background:#fff; border-top:1px solid var(--linea); padding:6px 4px calc(8px + env(safe-area-inset-bottom, 0px)); }
@@ -372,8 +373,11 @@ function interruptor(texto, on, sub, onChange) {
   el.valor = () => el.classList.contains("on");
   return el;
 }
+// versión de las pantallas: va en cada link, así el navegador no muestra copias viejas guardadas
+const VER = "20261030";
+const conVer = (src) => src + (src.includes("?") ? "&" : "?") + "v=" + VER;
 function vistaPrevia(src, cls = "") {
-  const pv = h(`<div class="pv ${cls}"><iframe src="${src}"></iframe></div>`);
+  const pv = h(`<div class="pv ${cls}"><iframe src="${conVer(src)}"></iframe></div>`);
   requestAnimationFrame(() => escalar(pv)); setTimeout(() => escalar(pv), 300);
   return pv;
 }
@@ -395,6 +399,13 @@ function nav() {
   document.getElementById("usuario").innerHTML = `<b style="color:#fff">${esc(D.nombre || "")}</b><br>` + esc(D.yo) + (D.url ? `<a href="${esc(D.url)}" target="_blank">Abrir la planilla ↗</a>` : "") + (API ? `<a href="#" onclick="salir();return false">Salir</a>` : "");
 }
 const TABS = [["inicio", "Inicio", "⌂"], ["noticias", "Noticias", "▤"], ["camaras", "Cámaras", "▣"], ["partido", "Partido", "⚽"], ["mas", "Más", "⋯"]];
+// la barra de abajo (celular): el contenido deja libre su alto real, más un margen
+(function () {
+  const t = document.getElementById("tabbar");
+  const medir = () => document.documentElement.style.setProperty("--barra", (t.offsetHeight || 76) + "px");
+  if (window.ResizeObserver) new ResizeObserver(medir).observe(t);
+  addEventListener("resize", medir); setTimeout(medir, 500);
+})();
 function tabbar() {
   const t = document.getElementById("tabbar");
   const activa = ["relevamiento", "ticker", "correcciones", "escudos", "convocatorias", "perfil", "historial", "equipo", "accesos", "mas"].includes(seccion) ? "mas" : seccion;
@@ -643,7 +654,7 @@ VISTAS.camaras = (m) => {
   m.innerHTML = titulo("Cámaras y zócalos") + `<div class="tiras" id="tiras"></div><div class="cuerpo"><div class="card form" id="fc"></div><div class="card vista" id="vc"></div></div>`;
   const T = m.querySelector("#tiras");
   PANT.forEach(([l, n, f]) => {
-    const b = h(`<button class="tira${l === pantalla ? " on" : ""}"><div class="mini"><iframe src="${WEB + f}.html?png"></iframe></div><span>${l} · <em>${n}</em></span></button>`);
+    const b = h(`<button class="tira${l === pantalla ? " on" : ""}"><div class="mini"><iframe src="${conVer(WEB + f + ".html?png")}"></iframe></div><span>${l} · <em>${n}</em></span></button>`);
     b.onclick = () => { pantalla = l; ir("camaras"); };
     T.appendChild(b);
   });
@@ -706,7 +717,7 @@ VISTAS.partido = (m) => {
   V.appendChild(h(`<div class="aviso">La vista previa usa lo que tenés en pantalla (aunque no lo hayas guardado). Los datos del partido salen de ESPN y se actualizan cada 30 segundos.</div>`));
   const refrescar = debounce(() => {
     const q = new URLSearchParams(); Object.entries(st).forEach(([k, x]) => q.set(k, x || "")); q.set("_", Date.now());
-    pv.querySelector("iframe").src = WEB + "partido.html?" + q.toString();
+    pv.querySelector("iframe").src = conVer(WEB + "partido.html?" + q.toString());
   }, 700);
   F.innerHTML = `<h2><i style="background:var(--celeste)"></i>¿Qué partido mostramos?</h2>`;
   const manual = /auf|manual/i.test(st.competencia || "");
@@ -795,9 +806,9 @@ function tablaEditable(cont, t, cols, opc = {}) {
 VISTAS.ticker = (m) => {
   m.innerHTML = titulo("Ticker") + `<div class="cuerpo" style="grid-template-columns:minmax(420px,1fr) minmax(420px,1fr)"><div style="display:flex;flex-direction:column;gap:20px"><div class="card form" id="fa"></div><div class="card form" id="fpr"></div></div><div class="card vista" id="vt"></div></div>
     <div class="card form todo-ticker"><h2><i style="background:var(--amarillo)"></i>Todo el material del día</h2><span class="ayuda" style="font-size:12px;color:var(--gris);font-weight:600">Todos los bloques que pasan por la cinta, uno abajo del otro. Arriba podés elegir otro día de la semana.</span>
-      <iframe src="${WEB}ticker.html?vista" title="Todo el material del ticker" loading="lazy"></iframe><a href="${WEB}ticker.html?vista" target="_blank" style="font-weight:700">Abrir en pantalla completa ↗</a></div>
+      <iframe src="${WEB}ticker.html?vista&v=20261030" title="Todo el material del ticker" loading="lazy"></iframe><a href="${WEB}ticker.html?vista" target="_blank" style="font-weight:700">Abrir en pantalla completa ↗</a></div>
     <div class="card form todo-ticker"><h2><i style="background:var(--rojo)"></i>Resultados de la tanda</h2><span class="ayuda" style="font-size:12px;color:var(--gris);font-weight:600">Los partidos que van rotando en la tanda del OBS, todos juntos y en el mismo orden. Se actualiza solo.</span>
-      <iframe src="${WEB}tanda.html?resultados&v=20261029b" title="Resultados de la tanda"></iframe><a href="${WEB}tanda.html?resultados" target="_blank" style="font-weight:700">Abrir en pantalla completa ↗</a></div>`;
+      <iframe src="${WEB}tanda.html?resultados&v=20261030" title="Resultados de la tanda"></iframe><a href="${WEB}tanda.html?resultados" target="_blank" style="font-weight:700">Abrir en pantalla completa ↗</a></div>`;
   const V = m.querySelector("#vt");
   V.innerHTML = `<div class="tit"><span class="et">EN VIVO</span><span>El ticker como está ahora</span></div>`;
   V.appendChild(vistaPrevia(WEB + "ticker.html", "negro"));
