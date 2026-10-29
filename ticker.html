@@ -5,7 +5,7 @@
 <title>Ticker 13a0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500..900&family=Bitter:wght@700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="estilos.css?v=20261028">
+<link rel="stylesheet" href="estilos.css?v=20261029">
 </head>
 <body>
 <div class="barra">
@@ -14,9 +14,9 @@
   <div class="reloj" id="reloj"><span class="hh">00</span><span class="dos">:</span><span class="mm">00</span></div>
 </div>
 
-<script src="config.js?v=20261028"></script>
-<script src="escudos.js?v=20261028"></script>
-<script src="comun.js?v=20261028"></script>
+<script src="config.js?v=20261029"></script>
+<script src="escudos.js?v=20261029"></script>
+<script src="comun.js?v=20261029"></script>
 <script src="demo-datos.js"></script>
 <script>
 (function () {
@@ -1286,9 +1286,27 @@
   function publicar() {
     if (window.parent === window) return;
     const items = [];
-    bloques().forEach((b) => {
-      const lista = b.ext ? b.items.map((it) => ({ liga: it.liga, comp: it.mini, logo: (datos[it.liga] || {}).logo, p: it.p }))
-                          : b.partidos.map((p) => ({ liga: b.liga, comp: b.nombre, logo: b.logo, p }));
+    // los mismos partidos que pasan por la cinta: los bloques del programa de hoy (pestaña "programa")
+    const lista = [], vistos = new Set();
+    if (C.programa) {
+      diaPrograma().forEach((k) => {
+        let piezas = [];
+        try { piezas = (BLOQUES[k] || (() => []))(); } catch (e) { piezas = []; }
+        let cab = null;
+        piezas.forEach((x) => {
+          if (x.tipo === "cab") { cab = x; return; }
+          if (x.tipo !== "partido" || vistos.has(x.liga + ":" + x.p.id)) return;
+          vistos.add(x.liga + ":" + x.p.id);
+          const ext = cab && cab.clase === "uru-cab";
+          lista.push({ liga: x.liga, comp: (ext && x.mini) || (cab && cab.nombre) || x.mini || "",
+                       logo: ext ? (datos[x.liga] || {}).logo : (cab && cab.logo) || (datos[x.liga] || {}).logo, p: x.p });
+        });
+      });
+    } else bloques().forEach((b) => {
+      (b.ext ? b.items.map((it) => ({ liga: it.liga, comp: it.mini, logo: (datos[it.liga] || {}).logo, p: it.p }))
+             : b.partidos.map((p) => ({ liga: b.liga, comp: b.nombre, logo: b.logo, p }))).forEach((x) => lista.push(x));
+    });
+    {
       lista.forEach(({ liga, comp, logo, p }) => {
         p.liga = liga;
         const eq = (e) => {
@@ -1309,7 +1327,7 @@
         items.push({ k: liga + ":" + p.id, comp, logo: logo || "", estado: p.estado, etiqueta: p.etiqueta,
                      deporte: p.deporte, inicio: p.inicio, local, visita, prioridad });
       });
-    });
+    }
     try { window.parent.postMessage({ tipo: "ticker-resultados", items }, "*"); } catch (e) {}
   }
   if (window.parent !== window) { setTimeout(publicar, 1500); setInterval(publicar, 4000); }
