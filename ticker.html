@@ -5,7 +5,7 @@
 <title>Ticker 13a0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500..900&family=Bitter:wght@700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="estilos.css?v=20261030d">
+<link rel="stylesheet" href="estilos.css?v=20261030e">
 </head>
 <body>
 <div class="barra">
@@ -15,10 +15,10 @@
 </div>
 <div class="clima" id="clima" aria-hidden="true"><div class="cl-ciudad"></div><div class="cl-dato"><span class="cl-ico"></span><span class="cl-temp"></span></div><div class="cl-estado"></div></div>
 
-<script src="config.js?v=20261030b"></script>
-<script src="escudos.js?v=20261030b"></script>
-<script src="nombres.js?v=20261030b"></script>
-<script src="comun.js?v=20261030b"></script>
+<script src="config.js?v=20261030e"></script>
+<script src="escudos.js?v=20261030e"></script>
+<script src="nombres.js?v=20261030e"></script>
+<script src="comun.js?v=20261030e"></script>
 <script src="demo-datos.js"></script>
 <script>
 (function () {
@@ -1347,10 +1347,13 @@
   }
   if (C.reloj !== false) { tic(); setInterval(tic, 1000); } else document.getElementById("reloj").remove();
 
-  /* Clima, arriba de la hora: cada 3 minutos entra un cartel que queda 1 minuto y va pasando
-     por las ciudades (Montevideo primero). Datos de Open-Meteo (gratis, sin clave), cada 15 minutos.
-     config.js → clima: { activo, cadaMinutos, segundos, ciudades }                                  */
-  const CL = Object.assign({ activo: true, cadaMinutos: 3, segundos: 60 }, C.clima || {});
+  /* Clima, arriba de la hora: entra el cartel y pasa por todas las ciudades (Montevideo primero),
+     cada una unos segundos; después se va y queda un rato sin clima ("bache"); y vuelve a empezar.
+     Datos de Open-Meteo (gratis, sin clave), cada 15 minutos.
+     Tiempos: pestaña "ajustes" de la planilla (o panel → Ticker): "clima: segundos por ciudad" y
+     "clima: minutos sin clima". config.js → clima: { activo, segundosPorCiudad, pausaMinutos, ciudades } */
+  C.clima = Object.assign({ activo: true, segundosPorCiudad: 10, pausaMinutos: 3 }, C.clima || {});
+  const CL = C.clima;
   const CIUDADES = CL.ciudades || [
     ["Montevideo", -34.9011, -56.1645], ["Buenos Aires", -34.6037, -58.3816], ["Punta del Este", -34.9667, -54.95],
     ["Colonia", -34.4626, -57.8398], ["Salto", -31.3833, -57.9667], ["Paysandú", -32.3214, -58.0756],
@@ -1398,23 +1401,26 @@
     caja.querySelector(".cl-temp").textContent = c.temp + "°";
     caja.querySelector(".cl-estado").textContent = c.est[0];
   }
-  async function mostrarClima() {
-    if (!climas.length) return;
-    const porCiudad = Math.max(2500, (CL.segundos * 1000) / climas.length);
+  // una vuelta: todas las ciudades, cada una CL.segundosPorCiudad; al terminar, el bache y otra vuelta
+  function vueltaClima() {
+    const seg = () => Math.max(3, +C.clima.segundosPorCiudad || 10) * 1000;
+    const pausa = () => Math.max(0, +C.clima.pausaMinutos || 0) * 60e3;
+    if (!climas.length) { setTimeout(vueltaClima, 30e3); return; }
+    const lista = climas.slice();
     let i = 0;
-    pintarClima(climas[0]);
+    pintarClima(lista[0]);
     caja.classList.add("on");
-    const t = setInterval(() => {
+    const siguiente = () => {
       i++;
-      if (i >= climas.length || i * porCiudad >= CL.segundos * 1000) { clearInterval(t); caja.classList.remove("on"); return; }
+      if (i >= lista.length) { caja.classList.remove("on"); setTimeout(vueltaClima, pausa() + 700); return; }
       caja.classList.add("cambia");
-      setTimeout(() => { pintarClima(climas[i]); caja.classList.remove("cambia"); }, 250);
-    }, porCiudad);
+      setTimeout(() => { pintarClima(lista[i]); caja.classList.remove("cambia"); setTimeout(siguiente, seg()); }, 250);
+    };
+    setTimeout(siguiente, seg());
   }
   if (CL.activo && C.reloj !== false && !T.params.has("sinclima") && !T.params.has("vista")) {
-    cargarClima().then(() => setTimeout(mostrarClima, 8000));   // la primera vez, a los pocos segundos
+    cargarClima().then(() => setTimeout(vueltaClima, 8000));   // la primera vez, a los pocos segundos
     setInterval(cargarClima, 15 * 60e3);
-    setInterval(mostrarClima, CL.cadaMinutos * 60e3);
   } else caja.remove();
 
   /* Modo vista (ticker.html?vista): todos los bloques del programa, uno abajo del otro,

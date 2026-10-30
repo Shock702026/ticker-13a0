@@ -195,6 +195,7 @@
   .foto-a .ft { display:block; aspect-ratio:11/20; max-height:300px; background:#ddd center/cover no-repeat; }
   .foto-a .tx { padding:8px 10px; display:flex; flex-direction:column; gap:3px; min-width:0; } .foto-a .tx b { font-size:14px; line-height:1.25; }
   .foto-a .tx small { font-size:11px; color:var(--gris); }
+  .foto-a .autor.comodin input { background:#FFF6CC; }
   .foto-a .autor { display:flex; flex-direction:column; gap:2px; font-size:11px; font-weight:700; color:var(--gris); } .foto-a .autor input { font-size:12px; padding:6px 8px; } .foto-a .tx em { font-style:normal; color:var(--rojo); font-weight:700; }
   .foto-a .acc { display:flex; gap:6px; padding:0 10px 10px; } .foto-a .acc .btn { flex:1; }
   .rojo-b { background:#fff; color:var(--rojo); outline:2px solid var(--rojo); outline-offset:-2px; }
@@ -587,10 +588,10 @@ async function vistaFotos(m) {
 }
 function pintarFotos(m) {
   const sin = FOT.filter((f) => !f.decision), edita = puede("noticias");
-  const lista = filtroF === "revisar" ? sin : filtroF === "dejar" ? FOT.filter((f) => f.decision === "dejar") : FOT;
+  const lista = filtroF === "revisar" ? sin : filtroF === "dejar" ? FOT.filter((f) => f.decision === "dejar") : filtroF === "comodines" ? FOT.filter((f) => f.comodin) : FOT;
   m.innerHTML = titulo("Noticias") + subNoticias() +
-    `<div class="aviso">Estas fotos ya salieron en alguna noticia. Las que <b>dejes</b> se reciclan solas cuando una noticia nueva habla del mismo jugador o club. Las que <b>borres</b> van a la papelera de Drive (se pueden recuperar 30 días). Los lunes te llega un mail si hay fotos sin revisar.</div>
-    <div class="subtabs">${[["revisar", "Sin revisar (" + sin.length + ")"], ["dejar", "Para reutilizar (" + FOT.filter((f) => f.decision === "dejar").length + ")"], ["todas", "Todas (" + FOT.length + ")"]].map(([k, t]) => `<button class="chip${k === filtroF ? " on" : ""}" data-ff="${k}">${t}</button>`).join("")}</div>
+    `<div class="aviso">Estas fotos ya salieron en alguna noticia. Cuando llega una noticia sin foto, se pone sola: primero una del <b>mismo jugador o técnico</b>; si no hay, un <b>comodín</b> del tema (escribí en «Comodín para» los temas de esa foto, separados por coma: «Peñarol, Clausura», «Selección», «Básquetbol»). Si no hay nada, queda sin foto para que la pongas vos. Las que <b>borres</b> van a la papelera de Drive (30 días para recuperarlas). Los lunes te llega un mail si hay fotos sin revisar.</div>
+    <div class="subtabs">${[["revisar", "Sin revisar (" + sin.length + ")"], ["dejar", "Para reutilizar (" + FOT.filter((f) => f.decision === "dejar").length + ")"], ["comodines", "Comodines (" + FOT.filter((f) => f.comodin).length + ")"], ["todas", "Todas (" + FOT.length + ")"]].map(([k, t]) => `<button class="chip${k === filtroF ? " on" : ""}" data-ff="${k}">${t}</button>`).join("")}</div>
     <div class="grilla-fotos" id="gf"></div>`;
   enlazarSubNoticias(m);
   m.querySelectorAll("[data-ff]").forEach((b) => (b.onclick = () => { filtroF = b.dataset.ff; pintarFotos(m); }));
@@ -598,10 +599,11 @@ function pintarFotos(m) {
   if (!lista.length) G.appendChild(h(`<div class="vacio">${filtroF === "revisar" ? "No hay fotos para revisar. ✓" : "No hay fotos acá."}</div>`));
   lista.forEach((f) => {
     const c = h(`<div class="foto-a${f.decision === "dejar" ? " dejar" : ""}"><span class="ft" style="background-image:url('${img(f.imagen)}')"></span>
-      <div class="tx"><b>${esc(f.titular || "(sin titular)")}</b>${edita ? `<label class="autor">Autor<input type="text" value="${esc(f.credito || "")}" placeholder="Ej.: Mauricio Zina / adhocFOTOS"></label>` : `<small>${esc(f.credito || "sin autor")}</small>`}<small>${esc(fechaTxt(f.fecha))} · ${f.usos} ${f.usos === 1 ? "uso" : "usos"}${f.enUso ? " · <em>en una noticia ahora</em>" : ""}</small></div>
+      <div class="tx"><b>${esc(f.titular || "(sin titular)")}</b>${edita ? `<label class="autor">Autor<input type="text" value="${esc(f.credito || "")}" placeholder="Ej.: Mauricio Zina / adhocFOTOS"></label><label class="autor comodin">Comodín para<input type="text" value="${esc(f.comodin || "")}" placeholder="Ej.: Peñarol, Clausura"></label>` : `<small>${esc(f.credito || "sin autor")}${f.comodin ? " · comodín: " + esc(f.comodin) : ""}</small>`}<small>${esc(fechaTxt(f.fecha))} · ${f.usos} ${f.usos === 1 ? "uso" : "usos"}${f.enUso ? " · <em>en una noticia ahora</em>" : ""}</small></div>
       ${edita ? `<div class="acc"><button class="btn ok chico" data-d="dejar">${f.decision === "dejar" ? "✓ Queda" : "Dejar"}</button><button class="btn chico rojo-b" data-d="borrar">Borrar</button></div>` : ""}</div>`);
-    const au = c.querySelector(".autor input");
+    const au = c.querySelector(".autor:not(.comodin) input"), co = c.querySelector(".comodin input");
     if (au) au.onchange = async () => { const v = au.value.trim(); try { await guardar("editarFoto", f.imagen, v); f.credito = v; aviso("Autor guardado"); } catch (e) { au.value = f.credito || ""; } };
+    if (co) co.onchange = async () => { const v = co.value.trim(); try { await guardar("editarFoto", f.imagen, null, v); f.comodin = v; if (v) f.decision = "dejar"; aviso(v ? "Comodín guardado: se usa en noticias de " + v : "Ya no es comodín"); pintarFotos(m); } catch (e) { co.value = f.comodin || ""; } };
     c.querySelectorAll("[data-d]").forEach((b) => (b.onclick = async () => {
       const d = b.dataset.d;
       if (d === "borrar" && f.enUso && !b.dataset.ok) { b.dataset.ok = 1; b.textContent = "¿Seguro? Está en uso"; return; }

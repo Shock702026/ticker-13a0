@@ -127,7 +127,9 @@
     ["brasil: primeros", ["tablas", "brasilArriba"], 0, 20],
     ["brasil: ultimos", ["tablas", "brasilAbajo"], 0, 20],
     ["europa: primeros", ["tablas", "europaMostrar"], 1, 20],
-    ["copas fase de liga: primeros", ["tablas", "copasMostrar"], 1, 36]
+    ["copas fase de liga: primeros", ["tablas", "copasMostrar"], 1, 36],
+    ["clima: segundos por ciudad", ["clima", "segundosPorCiudad"], 3, 60],
+    ["clima: minutos sin clima", ["clima", "pausaMinutos"], 0, 120]
   ];
   const sinTildes = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim();
   T.ajustesHoja = {};
