@@ -99,6 +99,7 @@
   .noti .sw { background:none; padding:0; }
   /* foto */
   .encuadre { display:flex; flex-direction:column; gap:10px; }
+  .desde-drive { display:flex; gap:8px; } .desde-drive input { flex:1; min-width:0; }
   .escena { position:relative; height:330px; background:#222; overflow:hidden; touch-action:none; cursor:grab; }
   .escena img { position:absolute; left:0; top:0; transform-origin:0 0; user-select:none; -webkit-user-drag:none; pointer-events:none; }
   .escena .marco-v { position:absolute; top:0; height:100%; outline:3px solid var(--amarillo); outline-offset:-3px; box-shadow:0 0 0 2000px rgba(10,6,40,.62); pointer-events:none; }
@@ -675,7 +676,7 @@ function editorNoticia(E, V, n, todas) {
   const g = h(`<div class="grupo"><b>Foto</b></div>`); E.appendChild(g);
   const editorFoto = encuadrador((url) => { fotoNueva = url; mandar(); });
   if (st.imagen) {
-    const act = h(`<div class="foto-actual"><span class="ft" style="background-image:url('${img(st.imagen)}')"></span><div><b>Foto actual</b><div class="ayuda" style="color:var(--gris);font-size:12px;font-weight:600;margin:4px 0 10px">Para cambiarla, subí otra abajo y encuadrala.</div><button class="btn sec chico">Quitar la foto</button></div></div>`);
+    const act = h(`<div class="foto-actual"><span class="ft" style="background-image:url('${img(st.imagen)}')"></span><div><b>Foto actual</b><div class="ayuda" style="color:var(--gris);font-size:12px;font-weight:600;margin:4px 0 10px">Para cambiarla, subí otra abajo (o pegá un link de Drive) y encuadrala.</div><button class="btn sec chico">Quitar la foto</button></div></div>`);
     act.querySelector("button").onclick = () => { st.imagen = ""; fotoNueva = null; act.remove(); mandar(); };
     g.appendChild(act);
   }
@@ -700,7 +701,8 @@ function editorNoticia(E, V, n, todas) {
 /* Encuadre de la foto: el recuadro amarillo es lo que sale en la tanda (vertical, 504 × 920) */
 function encuadrador(onCambio) {
   const RAZON = 504 / 920, SAL_W = 1008, SAL_H = 1840;
-  const el = h(`<div class="encuadre"><div class="escena sin">Arrastrá una foto acá o tocá «Subir foto»</div><div class="zoom" style="display:none"><span>−</span><input type="range" min="1" max="4" step="0.01" value="1"><span>+</span></div><div class="pie"><label class="btn az chico" style="flex-direction:row">📷 Sacar foto<input type="file" accept="image/*" capture="environment" hidden></label><label class="btn sec chico" style="flex-direction:row">🖼 Elegir foto<input type="file" accept="image/*" hidden></label><span class="ayuda" style="color:var(--gris);font-size:12px;font-weight:600">Se guarda sola en Drive al tocar Guardar</span></div></div>`);
+  const el = h(`<div class="encuadre"><div class="escena sin">Arrastrá una foto acá o tocá «Subir foto»</div><div class="zoom" style="display:none"><span>−</span><input type="range" min="1" max="4" step="0.01" value="1"><span>+</span></div><div class="pie"><label class="btn az chico" style="flex-direction:row">📷 Sacar foto<input type="file" accept="image/*" capture="environment" hidden></label><label class="btn sec chico" style="flex-direction:row">🖼 Elegir foto<input type="file" accept="image/*" hidden></label><span class="ayuda" style="color:var(--gris);font-size:12px;font-weight:600">Se guarda sola en Drive al tocar Guardar</span></div>
+    <div class="desde-drive"><input type="text" placeholder="…o pegá el link de una foto de Drive"><button type="button" class="btn sec chico">Traer de Drive</button></div></div>`);
   const esc_ = el.querySelector(".escena"), zoom = el.querySelector(".zoom"), rango = zoom.querySelector("input"), files = el.querySelectorAll("input[type=file]");
   let im = null, base = 1, x = 0, y = 0, mw = 0, mx = 0;
   const marco = () => { const H = esc_.clientHeight; mw = H * RAZON; mx = (esc_.clientWidth - mw) / 2; return { H }; };
@@ -717,7 +719,21 @@ function encuadrador(onCambio) {
   function abrir(f) {
     if (!f || !/^image\//.test(f.type)) return;
     const r = new FileReader();
-    r.onload = () => {
+    r.onload = () => cargar(r.result);
+    r.readAsDataURL(f);
+  }
+  // link de Drive: el servidor trae la foto (con los permisos de Trece A Cero) y se encuadra igual que una subida
+  const dd = el.querySelector(".desde-drive"), ddIn = dd.querySelector("input"), ddB = dd.querySelector("button");
+  ddB.onclick = async () => {
+    const link = ddIn.value.trim(); if (!link) { ddIn.focus(); return; }
+    ddB.disabled = true; ddB.textContent = "Trayendo…";
+    try { const f = await srv("fotoDeDrive", link); cargar("data:" + f.tipo + ";base64," + f.base64); ddIn.value = ""; }
+    catch (e) { aviso(e.message || String(e), true); }
+    ddB.disabled = false; ddB.textContent = "Traer de Drive";
+  };
+  ddIn.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); ddB.onclick(); } };
+  function cargar(datos) {
+    {
       esc_.className = "escena"; esc_.innerHTML = `<img><div class="marco-v"></div><span class="mano">✥ Arrastrá para encuadrar · pellizcá para zoom</span>`;
       im = esc_.querySelector("img"); im.onload = () => {
         const { H } = marco(); esc_.querySelector(".marco-v").style.cssText = `left:${mx}px;width:${mw}px`;
@@ -725,9 +741,8 @@ function encuadrador(onCambio) {
         x = mx + (mw - im.naturalWidth * base) / 2; y = (H - im.naturalHeight * base) * 0.3;
         zoom.style.display = ""; limitar(); exportar();
       };
-      im.src = r.result;
-    };
-    r.readAsDataURL(f);
+      im.src = datos;
+    }
   }
   files.forEach((fi) => (fi.onchange = () => abrir(fi.files[0])));
   esc_.addEventListener("dragover", (e) => { e.preventDefault(); esc_.classList.add("arrastrando"); });
@@ -1251,6 +1266,7 @@ const DEMO = (() => {
     leerRelevamiento: () => { return { fechas: [d(0)], actual: { fecha: d(0), actualizado: d(0) + " 18:02", lista: { fecha: d(0), generada: "18:02", nacionales: [{ id: "N1", titulo: "Peñarol confirmó el equipo para el clásico", link: "https://example.com", medio: "Ovación" }, { id: "N2", titulo: "La AUF definió los árbitros de la fecha", link: "https://example.com", medio: "Referí" }], internacionales: [{ id: "I1", titulo: "Valverde, figura en el triunfo del Real Madrid", link: "https://example.com", medio: "Marca" }], partidos: [{ competencia: "Champions League", lineas: [{ texto: "Real Madrid 🇺🇾 (Valverde) 2-1 Juventus · Final", uy: true }] }] }, eleccion: null } }; },
     leerConvocatorias: () => ({ convocatorias: conv, puedeConvocar: true, roles: ROLES_EQ, convocables: gente }),
     leerTitulares: () => DEMO_TIT.map((x) => Object.assign({}, x)),
+    fotoDeDrive: async () => { const b = await (await fetch(WEB + "escudos/nba-miami-heat.png")).blob(); const d = await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(b); }); return { tipo: "image/png", base64: d.split(",")[1], nombre: "prueba.png" }; },
     leerFotos: () => noticias().filter((n) => n.imagen).slice(0, 8).map((n, i) => ({ imagen: n.imagen, credito: n.credito_foto, titular: n.titular.replace(/\*\*/g, ""), fecha: masDias(-i), usos: 1 + (i % 3), decision: i % 4 === 0 ? "dejar" : "", enUso: i < 2 }))
   };
 })();
