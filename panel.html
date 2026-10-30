@@ -728,18 +728,25 @@ function encuadrador(onCambio) {
     const link = ddIn.value.trim(); if (!link) { ddIn.focus(); return; }
     ddB.disabled = true; ddB.textContent = "Trayendo…";
     try {
-      // rápido: si la foto está compartida con "cualquiera con el vínculo", se baja directo de Google (menos de un segundo)
-      const m = link.match(/\/d\/([\w-]{20,})|[?&]id=([\w-]{20,})|^([\w-]{25,})$/);
-      let datos = null;
-      if (m) {
+      // la foto se baja directo de Google (rápido), con 8 segundos como máximo por intento
+      const bajar = async (id) => {
+        const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 8000);
         try {
-          const r = await fetch("https://lh3.googleusercontent.com/d/" + (m[1] || m[2] || m[3]) + "=w2000");
+          const r = await fetch("https://lh3.googleusercontent.com/d/" + id + "=w2000", { signal: ctl.signal });
           const b = r.ok ? await r.blob() : null;
-          if (b && /^image\//.test(b.type)) datos = await new Promise((ok) => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.readAsDataURL(b); });
-        } catch (e) { /* no es pública: va por el servidor */ }
+          if (!b || !/^image\//.test(b.type)) return null;
+          return await new Promise((ok) => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.readAsDataURL(b); });
+        } catch (e) { return null; } finally { clearTimeout(t); }
+      };
+      const m = link.match(/\/d\/([\w-]{20,})|[?&]id=([\w-]{20,})|^([\w-]{25,})$/);
+      let datos = m ? await bajar(m[1] || m[2] || m[3]) : null;
+      // no es pública: el servidor le da permiso de lectura (o hace una copia) y se vuelve a bajar directo
+      if (!datos) {
+        ddB.textContent = "Preparando la foto…";
+        const r = await srv("fotoDeDrive", link);
+        for (let i = 0; i < 4 && !datos; i++) { if (i) await new Promise((ok) => setTimeout(ok, 1500)); datos = await bajar(r.id); }
+        if (!datos) throw new Error("No pude bajar la foto. Probá de nuevo en unos segundos, o subila con «Elegir foto».");
       }
-      // lento: la trae el servidor con los permisos de Trece A Cero (fotos privadas o compartidas solo con la cuenta)
-      if (!datos) { ddB.textContent = "Trayendo (privada)…"; const f = await srv("fotoDeDrive", link); datos = "data:" + f.tipo + ";base64," + f.base64; }
       cargar(datos); ddIn.value = "";
     } catch (e) { aviso(e.message || String(e), true); }
     ddB.disabled = false; ddB.textContent = "Traer de Drive";
@@ -1279,7 +1286,7 @@ const DEMO = (() => {
     leerRelevamiento: () => { return { fechas: [d(0)], actual: { fecha: d(0), actualizado: d(0) + " 18:02", lista: { fecha: d(0), generada: "18:02", nacionales: [{ id: "N1", titulo: "Peñarol confirmó el equipo para el clásico", link: "https://example.com", medio: "Ovación" }, { id: "N2", titulo: "La AUF definió los árbitros de la fecha", link: "https://example.com", medio: "Referí" }], internacionales: [{ id: "I1", titulo: "Valverde, figura en el triunfo del Real Madrid", link: "https://example.com", medio: "Marca" }], partidos: [{ competencia: "Champions League", lineas: [{ texto: "Real Madrid 🇺🇾 (Valverde) 2-1 Juventus · Final", uy: true }] }] }, eleccion: null } }; },
     leerConvocatorias: () => ({ convocatorias: conv, puedeConvocar: true, roles: ROLES_EQ, convocables: gente }),
     leerTitulares: () => DEMO_TIT.map((x) => Object.assign({}, x)),
-    fotoDeDrive: async () => { const b = await (await fetch(WEB + "escudos/nba-miami-heat.png")).blob(); const d = await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(b); }); return { tipo: "image/png", base64: d.split(",")[1], nombre: "prueba.png" }; },
+    fotoDeDrive: () => ({ id: "1lsS6EhAvZ1u3Kwmf4kiERpKJ0S9n7xF5", copia: false }),
     leerFotos: () => noticias().filter((n) => n.imagen).slice(0, 8).map((n, i) => ({ imagen: n.imagen, credito: n.credito_foto, titular: n.titular.replace(/\*\*/g, ""), fecha: masDias(-i), usos: 1 + (i % 3), decision: i % 4 === 0 ? "dejar" : "", enUso: i < 2 }))
   };
 })();
