@@ -727,8 +727,21 @@ function encuadrador(onCambio) {
   ddB.onclick = async () => {
     const link = ddIn.value.trim(); if (!link) { ddIn.focus(); return; }
     ddB.disabled = true; ddB.textContent = "Trayendo…";
-    try { const f = await srv("fotoDeDrive", link); cargar("data:" + f.tipo + ";base64," + f.base64); ddIn.value = ""; }
-    catch (e) { aviso(e.message || String(e), true); }
+    try {
+      // rápido: si la foto está compartida con "cualquiera con el vínculo", se baja directo de Google (menos de un segundo)
+      const m = link.match(/\/d\/([\w-]{20,})|[?&]id=([\w-]{20,})|^([\w-]{25,})$/);
+      let datos = null;
+      if (m) {
+        try {
+          const r = await fetch("https://lh3.googleusercontent.com/d/" + (m[1] || m[2] || m[3]) + "=w2000");
+          const b = r.ok ? await r.blob() : null;
+          if (b && /^image\//.test(b.type)) datos = await new Promise((ok) => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.readAsDataURL(b); });
+        } catch (e) { /* no es pública: va por el servidor */ }
+      }
+      // lento: la trae el servidor con los permisos de Trece A Cero (fotos privadas o compartidas solo con la cuenta)
+      if (!datos) { ddB.textContent = "Trayendo (privada)…"; const f = await srv("fotoDeDrive", link); datos = "data:" + f.tipo + ";base64," + f.base64; }
+      cargar(datos); ddIn.value = "";
+    } catch (e) { aviso(e.message || String(e), true); }
     ddB.disabled = false; ddB.textContent = "Traer de Drive";
   };
   ddIn.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); ddB.onclick(); } };
