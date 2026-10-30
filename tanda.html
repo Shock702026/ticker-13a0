@@ -180,10 +180,10 @@
 </div>
 <iframe class="ticker" id="ticker" scrolling="no"></iframe>
 
-<script src="config.js?v=20261030b"></script>
-<script src="escudos.js?v=20261030b"></script>
-<script src="nombres.js?v=20261030b"></script>
-<script src="comun.js?v=20261030b"></script>
+<script src="config.js?v=20261030c"></script>
+<script src="escudos.js?v=20261030c"></script>
+<script src="nombres.js?v=20261030c"></script>
+<script src="comun.js?v=20261030c"></script>
 <script src="demo-datos.js"></script>
 <script>
 (function () {
@@ -211,7 +211,7 @@
 
   // El ticker de siempre, sin logo (el logo grande está arriba a la derecha)
   if (TC.mostrarTicker) document.body.classList.add("con-ticker");
-  document.getElementById("ticker").src = "ticker.html?sinlogo&v=20261030b" + (T.demo ? "&demo" : "");
+  document.getElementById("ticker").src = "ticker.html?sinlogo&v=20261030c" + (T.demo ? "&demo" : "");
 
   const escapar = (s) => String(s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const formatear = (s) => escapar(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\*(.+?)\*/g, "<b>$1</b>");
@@ -321,9 +321,16 @@
   }
 
   let tocaPlaca = false;
+  const ARRANQUE = Date.now();
   function rotarNoticias() {
-    // mientras no haya noticias, se reintenta enseguida (sin placas)
-    if (!noticias.length) { siguienteNoticia(); setTimeout(rotarNoticias, 1000); return; }
+    // sin noticias al aire: rotan solas las placas (logo, WhatsApp, logo, redes) hasta que aparezca alguna.
+    // Los primeros segundos se espera, por si la planilla todavía está cargando.
+    if (!noticias.length) {
+      if (Date.now() - ARRANQUE < 5000) { setTimeout(rotarNoticias, 1000); return; }
+      mostrarPlaca(); tocaPlaca = false;
+      setTimeout(rotarNoticias, (TC.segundosPorPlaca || 7) * 1000);
+      return;
+    }
     if (tocaPlaca && TC.placas !== false) {
       mostrarPlaca();
       tocaPlaca = false;
