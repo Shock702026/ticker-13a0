@@ -211,7 +211,7 @@
 
   // El ticker de siempre, sin logo (el logo grande está arriba a la derecha)
   if (TC.mostrarTicker) document.body.classList.add("con-ticker");
-  document.getElementById("ticker").src = "ticker.html?sinlogo&v=20261030c" + (T.demo ? "&demo" : "");
+  document.getElementById("ticker").src = "ticker.html?sinlogo&v=20261030d" + (T.demo ? "&demo" : "");
 
   const escapar = (s) => String(s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const formatear = (s) => escapar(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\*(.+?)\*/g, "<b>$1</b>");

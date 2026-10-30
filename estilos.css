@@ -188,6 +188,24 @@ html, body {
   font-family: var(--grotesca); font-weight: 900; font-size: calc(46 * var(--u)); letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
+/* Clima: cartel arriba de la hora (entra cada 3 minutos y queda 1 minuto) */
+.clima {
+  position: absolute; right: var(--linea); bottom: calc(100 * var(--u));
+  display: grid; grid-template-columns: auto auto; grid-template-rows: auto auto;
+  background: var(--negro); padding: var(--linea) var(--linea) 0; gap: var(--linea);
+  transform: translateY(110%); opacity: 0; transition: transform .6s cubic-bezier(.75,0,.2,1), opacity .2s;
+  font-family: var(--grotesca); color: var(--azul); z-index: 3;
+}
+.clima.on { transform: none; opacity: 1; }
+.clima .cl-ciudad { grid-column: 1 / -1; background: var(--rojo); color: #fff; font-weight: 800; font-size: calc(22 * var(--u));
+  text-transform: uppercase; letter-spacing: .06em; padding: calc(6 * var(--u)) calc(14 * var(--u)); white-space: nowrap; }
+.clima .cl-dato { display: flex; align-items: center; gap: calc(10 * var(--u)); background: var(--blanco); padding: calc(6 * var(--u)) calc(14 * var(--u)); }
+.clima .cl-ico svg { width: calc(46 * var(--u)); height: calc(46 * var(--u)); display: block; }
+.clima .cl-temp { font-weight: 900; font-size: calc(48 * var(--u)); line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.clima .cl-estado { display: flex; align-items: center; background: var(--celeste); color: #fff; font-weight: 800; font-size: calc(19 * var(--u));
+  padding: 0 calc(14 * var(--u)); white-space: nowrap; }
+.clima .cl-ciudad, .clima .cl-dato, .clima .cl-estado { transition: opacity .25s; }
+.clima.cambia .cl-ciudad, .clima.cambia .cl-dato, .clima.cambia .cl-estado { opacity: 0; }
 .reloj .dos { animation: latido 2s steps(2, jump-none) infinite; margin: 0 calc(1 * var(--u)); position: relative; top: calc(-3 * var(--u)); }
 
 .vacio {
@@ -305,3 +323,17 @@ html.vista .barra { display: none; }
 .v-copiar:disabled { opacity: .4; cursor: default; }
 .v-ir { background: var(--celeste); color: var(--blanco); }
 .v-cerrar { background: #e3e3ea; color: var(--azul); }
+
+/* Situación de cada uruguayo: etiqueta al lado del nombre (titular, entró, suplente, no jugó, lesionado, no convocado) */
+.uru-txt .lin { display: flex; align-items: center; gap: calc(8 * var(--u)); }
+.uru.lado-visita .uru-txt .lin { flex-direction: row-reverse; }
+.uru-txt .est {
+  font-family: var(--grotesca); font-weight: 900; font-size: calc(15 * var(--u)); line-height: 1;
+  text-transform: uppercase; letter-spacing: 0.08em; padding: calc(4 * var(--u)) calc(7 * var(--u));
+  background: var(--blanco); color: var(--celeste);
+}
+.uru-txt .est.entro { color: var(--azul); }
+.uru-txt .est.suplente, .uru-txt .est.nojugo { background: var(--azul); color: var(--blanco); }
+.uru-txt .est.lesion { background: var(--rojo); color: var(--blanco); }
+.uru-txt .est.noconv { background: var(--gris); color: var(--blanco); }
+.uru.con-gol .uru-txt .est { background: var(--azul); color: var(--amarillo); }
