@@ -100,6 +100,14 @@
   /* foto */
   .encuadre { display:flex; flex-direction:column; gap:10px; }
   .desde-drive { display:flex; gap:8px; } .desde-drive input { flex:1; min-width:0; }
+  .elegir-arch { display:flex; flex-direction:column; gap:8px; margin-bottom:10px; } .elegir-arch > .btn { align-self:flex-start; }
+  .arch-caja { display:flex; flex-direction:column; gap:8px; background:var(--fondo); padding:10px; }
+  .arch-caja[hidden] { display:none; }
+  .arch-grilla { display:grid; grid-template-columns:repeat(auto-fill,minmax(92px,1fr)); gap:8px; max-height:420px; overflow:auto; }
+  .arch-it { border:0; background:#fff; padding:0; cursor:pointer; display:flex; flex-direction:column; text-align:left; outline:1px solid var(--linea); }
+  .arch-it:hover { outline:3px solid var(--amarillo); }
+  .arch-it .ft { display:block; aspect-ratio:11/20; background:#ddd center/cover no-repeat; }
+  .arch-it small { font-size:10px; color:var(--gris); padding:4px 5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .escena { position:relative; height:330px; background:#222; overflow:hidden; touch-action:none; cursor:grab; }
   .escena img { position:absolute; left:0; top:0; transform-origin:0 0; user-select:none; -webkit-user-drag:none; pointer-events:none; }
   .escena .marco-v { position:absolute; top:0; height:100%; outline:3px solid var(--amarillo); outline-offset:-3px; box-shadow:0 0 0 2000px rgba(10,6,40,.62); pointer-events:none; }
@@ -186,7 +194,8 @@
   .foto-a.dejar { outline:3px solid var(--verde); outline-offset:-3px; }
   .foto-a .ft { display:block; aspect-ratio:11/20; max-height:300px; background:#ddd center/cover no-repeat; }
   .foto-a .tx { padding:8px 10px; display:flex; flex-direction:column; gap:3px; min-width:0; } .foto-a .tx b { font-size:14px; line-height:1.25; }
-  .foto-a .tx small { font-size:11px; color:var(--gris); } .foto-a .tx em { font-style:normal; color:var(--rojo); font-weight:700; }
+  .foto-a .tx small { font-size:11px; color:var(--gris); }
+  .foto-a .autor { display:flex; flex-direction:column; gap:2px; font-size:11px; font-weight:700; color:var(--gris); } .foto-a .autor input { font-size:12px; padding:6px 8px; } .foto-a .tx em { font-style:normal; color:var(--rojo); font-weight:700; }
   .foto-a .acc { display:flex; gap:6px; padding:0 10px 10px; } .foto-a .acc .btn { flex:1; }
   .rojo-b { background:#fff; color:var(--rojo); outline:2px solid var(--rojo); outline-offset:-2px; }
   @media (max-width:760px) { .grilla-fotos { grid-template-columns:1fr 1fr; gap:8px; } .foto-a .acc { flex-direction:column; } }
@@ -589,8 +598,10 @@ function pintarFotos(m) {
   if (!lista.length) G.appendChild(h(`<div class="vacio">${filtroF === "revisar" ? "No hay fotos para revisar. ✓" : "No hay fotos acá."}</div>`));
   lista.forEach((f) => {
     const c = h(`<div class="foto-a${f.decision === "dejar" ? " dejar" : ""}"><span class="ft" style="background-image:url('${img(f.imagen)}')"></span>
-      <div class="tx"><b>${esc(f.titular || "(sin titular)")}</b><small>${esc(f.credito || "sin crédito")} · ${esc(fechaTxt(f.fecha))} · ${f.usos} ${f.usos === 1 ? "uso" : "usos"}${f.enUso ? " · <em>en una noticia ahora</em>" : ""}</small></div>
+      <div class="tx"><b>${esc(f.titular || "(sin titular)")}</b>${edita ? `<label class="autor">Autor<input type="text" value="${esc(f.credito || "")}" placeholder="Ej.: Mauricio Zina / adhocFOTOS"></label>` : `<small>${esc(f.credito || "sin autor")}</small>`}<small>${esc(fechaTxt(f.fecha))} · ${f.usos} ${f.usos === 1 ? "uso" : "usos"}${f.enUso ? " · <em>en una noticia ahora</em>" : ""}</small></div>
       ${edita ? `<div class="acc"><button class="btn ok chico" data-d="dejar">${f.decision === "dejar" ? "✓ Queda" : "Dejar"}</button><button class="btn chico rojo-b" data-d="borrar">Borrar</button></div>` : ""}</div>`);
+    const au = c.querySelector(".autor input");
+    if (au) au.onchange = async () => { const v = au.value.trim(); try { await guardar("editarFoto", f.imagen, v); f.credito = v; aviso("Autor guardado"); } catch (e) { au.value = f.credito || ""; } };
     c.querySelectorAll("[data-d]").forEach((b) => (b.onclick = async () => {
       const d = b.dataset.d;
       if (d === "borrar" && f.enUso && !b.dataset.ok) { b.dataset.ok = 1; b.textContent = "¿Seguro? Está en uso"; return; }
@@ -675,11 +686,43 @@ function editorNoticia(E, V, n, todas) {
   // foto: subir y encuadrar
   const g = h(`<div class="grupo"><b>Foto</b></div>`); E.appendChild(g);
   const editorFoto = encuadrador((url) => { fotoNueva = url; mandar(); });
-  if (st.imagen) {
-    const act = h(`<div class="foto-actual"><span class="ft" style="background-image:url('${img(st.imagen)}')"></span><div><b>Foto actual</b><div class="ayuda" style="color:var(--gris);font-size:12px;font-weight:600;margin:4px 0 10px">Para cambiarla, subí otra abajo (o pegá un link de Drive) y encuadrala.</div><button class="btn sec chico">Quitar la foto</button></div></div>`);
-    act.querySelector("button").onclick = () => { st.imagen = ""; fotoNueva = null; act.remove(); mandar(); };
-    g.appendChild(act);
-  }
+  // foto actual (si hay): se cambia subiendo otra, pegando un link de Drive o eligiendo del archivo
+  let act = null;
+  const pintarActual = () => {
+    if (act) { act.remove(); act = null; }
+    if (!st.imagen) return;
+    act = h(`<div class="foto-actual"><span class="ft" style="background-image:url('${img(st.imagen)}')"></span><div><b>Foto actual</b><div class="ayuda" style="color:var(--gris);font-size:12px;font-weight:600;margin:4px 0 4px">${st.credito_foto ? "Foto: " + esc(st.credito_foto) : "Sin autor cargado"}</div><div class="ayuda" style="color:var(--gris);font-size:12px;font-weight:600;margin:0 0 10px">Para cambiarla, elegí otra del archivo, subí una nueva o pegá un link de Drive.</div><button class="btn sec chico">Quitar la foto</button></div></div>`);
+    act.querySelector("button").onclick = () => { st.imagen = ""; fotoNueva = null; pintarActual(); mandar(); };
+    g.insertBefore(act, g.children[1] || null);
+  };
+  pintarActual();
+  // elegir una foto ya usada (archivo de fotos), con su autor
+  const arch = h(`<div class="elegir-arch"><button type="button" class="btn sec chico">🗂 Elegir del archivo de fotos</button><div class="arch-caja" hidden><input type="text" placeholder="Buscar por jugador, club o autor…"><div class="arch-grilla"></div></div></div>`);
+  const archB = arch.querySelector("button"), archC = arch.querySelector(".arch-caja"), archQ = archC.querySelector("input"), archG = archC.querySelector(".arch-grilla");
+  let ARCH = null;
+  const pintarArch = () => {
+    const norm = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const q = norm(archQ.value.trim());
+    const lista = (ARCH || []).filter((f) => !q || norm(f.titular + " " + f.credito).includes(q)).slice(0, 60);
+    archG.innerHTML = lista.length ? "" : `<div class="vacio">${ARCH ? "No hay fotos con esa búsqueda." : "Cargando…"}</div>`;
+    lista.forEach((f) => {
+      const c = h(`<button type="button" class="arch-it" title="${esc(f.titular)}"><span class="ft" style="background-image:url('${img(f.imagen)}')"></span><small>${esc(f.credito || "sin autor")}</small></button>`);
+      c.onclick = () => {
+        st.imagen = f.imagen; fotoNueva = null;
+        if (f.credito) { st.credito_foto = f.credito; inCred.value = f.credito; }
+        archC.hidden = true; archB.textContent = "🗂 Elegir del archivo de fotos";
+        pintarActual(); mandar();
+      };
+      archG.appendChild(c);
+    });
+  };
+  archB.onclick = async () => {
+    archC.hidden = !archC.hidden; archB.textContent = archC.hidden ? "🗂 Elegir del archivo de fotos" : "Cerrar el archivo";
+    if (!archC.hidden && !ARCH) { pintarArch(); try { ARCH = await srv("leerFotos"); } catch (e) { ARCH = []; aviso(e.message || String(e), true); } pintarArch(); }
+    if (!archC.hidden) archQ.focus();
+  };
+  archQ.oninput = pintarArch;
+  g.appendChild(arch);
   g.appendChild(editorFoto);
   // botones
   const pie = h(`<div class="pie"><button class="btn am">${puede("noticias") ? "Guardar" : "Mandar a aprobar"}</button>${puede("noticias") ? `<button class="btn sec">${esSi(st.mostrar) ? "Sacar del aire" : "Poner al aire"}</button>` : ""}</div>`);
