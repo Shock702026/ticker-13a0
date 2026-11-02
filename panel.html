@@ -229,6 +229,15 @@
   .cal .ev.cancelada { background:#cfccdc; text-decoration:line-through; } .cal .ev.mia { background:var(--amarillo); color:var(--azul); } .cal .ev.sel { outline:3px solid var(--celeste); }
   .cal .aus { font:700 10px var(--f); color:var(--rojo); }
   .mes { display:flex; align-items:center; gap:10px; } .mes b { font:800 20px var(--slab); min-width:180px; text-align:center; }
+  .pr-part { display:flex; flex-direction:column; gap:10px; } .pr-part h2 small { font:700 13px var(--f); color:var(--gris); margin-left:8px; }
+  .pr-it { display:flex; align-items:center; gap:10px; padding:9px 10px; background:var(--fondo); border:0; width:100%; text-align:left; font:700 14px var(--f); color:var(--azul); }
+  .pr-it b { font-weight:900; } .pr-it > small { margin-left:auto; color:var(--gris); font-weight:700; white-space:nowrap; } button.pr-it:hover { background:#dff1fa; }
+  .sem { flex:none; width:14px; height:14px; border-radius:50%; display:inline-block; } .sem.rojo { background:var(--rojo); } .sem.amarillo { background:var(--amarillo); } .sem.verde { background:var(--verde); }
+  .pr-cuenta { display:flex; gap:12px; flex-wrap:wrap; font:800 12px var(--f); color:var(--gris); } .pr-cuenta span { display:flex; align-items:center; gap:5px; }
+  .pr-ed { background:#fff; outline:2px solid var(--celeste); padding:14px; display:flex; flex-direction:column; gap:10px; }
+  .pr-ed .pre { display:flex; align-items:center; gap:8px; } .pr-ed .pre b { font:900 14px var(--f); white-space:nowrap; }
+  .chip.e-rojo.on { background:var(--rojo); color:#fff; outline-color:var(--rojo); } .chip.e-amarillo.on { background:var(--amarillo); outline-color:var(--amarillo); } .chip.e-verde.on { background:var(--verde); color:#fff; outline-color:var(--verde); }
+  @media (max-width:700px) { .pr-it { flex-wrap:wrap; } .pr-it > small { margin-left:24px; } .pr-ed .pre { flex-direction:column; align-items:stretch; } }
   .estado-r { font:800 12px var(--f); padding:4px 8px; white-space:nowrap; } .estado-r.acepta { background:#e2f4e9; color:var(--verde); } .estado-r.rechaza { background:#fbe3e6; color:var(--rojo); } .estado-r.pendiente { background:var(--fondo); color:var(--gris); }
   .gente { display:flex; flex-direction:column; } .gente .g { display:flex; align-items:center; gap:10px; padding:8px 2px; border-top:1px solid var(--linea); font-weight:700; font-size:14px; flex-wrap:wrap; } .gente .g .r { color:var(--gris); font-size:12px; min-width:130px; }
   .sug { display:flex; flex-direction:column; gap:6px; max-height:300px; overflow:auto; }
@@ -339,7 +348,7 @@ async function cargar() {
     const ID = new URLSearchParams(location.search).get("planilla") || "1RWYJrnosHmqeEXJoR9lqTS8V6bsuwzusLhwZLm2D1Hc";
     const hoja = async (n) => { try { const r = await fetch("https://docs.google.com/spreadsheets/d/" + ID + "/gviz/tq?tqx=out:csv&headers=1&sheet=" + n); return csv(await r.text()); } catch (e) { return null; } };
     const qp = new URLSearchParams(location.search).get("permisos");
-    const per = qp ? Object.fromEntries(qp.split(",").map((x) => x.split(":"))) : { noticias: "editar", camaras: "editar", partido: "editar", ticker: "editar", correcciones: "editar", escudos: "editar" };
+    const per = qp ? Object.fromEntries(qp.split(",").map((x) => x.split(":"))) : { noticias: "editar", camaras: "editar", partido: "editar", ticker: "editar", correcciones: "editar", escudos: "editar", producciones: "editar" };
     D = { yo: "modo prueba (solo lectura)", nombre: "Prueba", madre: !qp, permisos: per, accesos: {}, historial: [], url: "https://docs.google.com/spreadsheets/d/" + ID };
     for (const [k, n] of [["noticias", "noticias"], ["camaras", "camaras"], ["partido", "partido_vivo"], ["ajustes", "ajustes"], ["programa", "programa"], ["correcciones", "correcciones"], ["escudos", "escudos"]]) D[k] = await hoja(n);
   }
@@ -432,7 +441,7 @@ function vistaPrevia(src, cls = "") {
 /* ---------- Navegación ---------- */
 const SECC = [["inicio", "Inicio", "var(--celeste)"], ["noticias", "Noticias", "var(--amarillo)"], ["relevamiento", "Noticias del día", "var(--amarillo)"], ["camaras", "Cámaras y zócalos", "var(--rojo)"],
   ["partido", "Partido en vivo", "var(--celeste)"], ["ticker", "Ticker", "var(--amarillo)"], ["correcciones", "Correcciones", "var(--rojo)"], ["escudos", "Escudos", "#fff"],
-  ["convocatorias", "Convocatorias", "var(--amarillo)"], ["perfil", "Mi perfil", "var(--celeste)"],
+  ["convocatorias", "Convocatorias", "var(--amarillo)"], ["producciones", "Producciones", "var(--rojo)"], ["perfil", "Mi perfil", "var(--celeste)"],
   ["historial", "Historial", "var(--verde)"], ["equipo", "Equipo", "var(--verde)"], ["accesos", "Accesos", "var(--verde)"]];
 // qué puede cada cuenta: "ver", "cargar" (solo noticias: quedan pendientes) o "editar"
 const PERM = (s) => (D && D.permisos || {})[s] || "";
@@ -455,7 +464,7 @@ const TABS = [["inicio", "Inicio", "⌂"], ["noticias", "Noticias", "▤"], ["ca
 })();
 function tabbar() {
   const t = document.getElementById("tabbar");
-  const activa = ["relevamiento", "ticker", "correcciones", "escudos", "convocatorias", "perfil", "historial", "equipo", "accesos", "mas"].includes(seccion) ? "mas" : seccion;
+  const activa = ["relevamiento", "ticker", "correcciones", "escudos", "convocatorias", "producciones", "perfil", "historial", "equipo", "accesos", "mas"].includes(seccion) ? "mas" : seccion;
   t.innerHTML = TABS.filter(([k]) => visible(k)).map(([k, n, i]) => `<button data-s="${k}" class="${k === activa ? "on" : ""}"><i>${i}</i>${n}</button>`).join("");
   t.querySelectorAll("button").forEach((b) => (b.onclick = () => ir(b.dataset.s)));
   document.getElementById("movtit").textContent = ((SECC.find((x) => x[0] === seccion) || [0, "Panel"])[1]).replace(" y zócalos", "").replace(" en vivo", "");
@@ -521,6 +530,7 @@ VISTAS.inicio = (m) => {
     escudos: "Cambiar el escudo de un equipo o de una competencia.",
     relevamiento: "La lista que arma la búsqueda de las 18:00: elegí qué va a radio y qué a OBS.",
     convocatorias: "Calendario de convocatorias: responder, ver quién va y armar nuevas.",
+    producciones: "Las producciones de cada partido (audios, cápsulas, informes, Agentes…) y en qué estado están.",
     perfil: "Tus datos, foto carnet, acreditación y los días que no estás.",
     equipo: "Perfiles del equipo y sus roles (Relato, Producción, etc.).",
     historial: "Quién cambió qué y cuándo. Cada cambio se puede deshacer.",
@@ -1117,15 +1127,16 @@ VISTAS.historial = (m) => {
 };
 
 /* ---------- Accesos (solo la cuenta madre) ---------- */
-const SECS_ACC = [["noticias", "Noticias"], ["camaras", "Cámaras"], ["partido", "Partido"], ["ticker", "Ticker"], ["correcciones", "Correcciones"], ["escudos", "Escudos"], ["convocatorias", "Convocatorias"]];
+const SECS_ACC = [["noticias", "Noticias"], ["camaras", "Cámaras"], ["partido", "Partido"], ["ticker", "Ticker"], ["correcciones", "Correcciones"], ["escudos", "Escudos"], ["convocatorias", "Convocatorias"], ["producciones", "Producciones"]];
 const ROLES = {
-  produccion: ["Producción", { noticias: "editar" }],
+  produccion: ["Producción", { noticias: "editar", producciones: "editar" }],
+  conductor: ["Conductor de las previas (mira producciones)", { producciones: "ver" }],
   dirección: ["Dirección", { camaras: "editar", partido: "editar", noticias: "ver" }],
   redes: ["Redes", { noticias: "editar", escudos: "editar" }],
   colaborador: ["Colaborador (noticias con aprobación)", { noticias: "cargar" }],
   mirar: ["Solo mirar todo", { noticias: "ver", camaras: "ver", partido: "ver", ticker: "ver", correcciones: "ver", escudos: "ver" }],
   coordinacion: ["Coordinación (arma convocatorias)", { convocatorias: "editar" }],
-  todo: ["Todo", { noticias: "editar", camaras: "editar", partido: "editar", ticker: "editar", correcciones: "editar", escudos: "editar", convocatorias: "editar" }]
+  todo: ["Todo", { noticias: "editar", camaras: "editar", partido: "editar", ticker: "editar", correcciones: "editar", escudos: "editar", convocatorias: "editar", producciones: "editar" }]
 };
 // cada sección rota entre: nada → ver → (cargar, solo noticias) → editar → nada
 const ciclo = (sec, n) => { const pasos = sec === "noticias" ? ["", "ver", "cargar", "editar"] : ["", "ver", "editar"]; return pasos[(pasos.indexOf(n || "") + 1) % pasos.length]; };
@@ -1365,6 +1376,10 @@ VISTAS.equipo = async (m) => {
 // modo prueba (?prueba): datos de ejemplo para ver las pantallas sin tocar nada real
 const DEMO_TIT = [{ fecha: new Intl.DateTimeFormat("en-CA", { timeZone: "America/Montevideo" }).format(new Date()), origen: "tarea", editado_por: "Tarea en la nube", actualizado: "18:40",
   texto: "## Jueves 29 de octubre · Nacionales\n\n**PEÑAROL**\n\nPeñarol recibirá a Wanderers el sábado a las 16:30 en el Campeón del Siglo, por la fecha 13 del Clausura.\n\nDiego Aguirre tiene la duda de Lucas Ferreira, que sigue con molestias en la rodilla.\n\n*Dudas: falta confirmar el juez.*\n\n## Jueves 29 de octubre · Internacionales\n\n**VALVERDE**\n\nReal Madrid juega este jueves ante el Valencia a las 17:00 y Federico Valverde sería titular.\n\nEl uruguayo viene de jugar los 90 minutos en el clásico.\n\n*Dudas: ninguna.*" }];
+const DEMO_PR = () => JSON.parse(JSON.stringify(Object.assign({ puede: !new URLSearchParams(location.search).has("conductor") }, DEMO_PR.d)));
+DEMO_PR.d = { partidos: [{ id: "p1", fecha: masDias(1), hora: "20:00", local: "Albion FC", visitante: "Deportivo Maldonado", competencia: "Campeonato Uruguayo", espn: "" }],
+  producciones: [{ id: "x1", partido: "p1", tipo: "informes", titulo: "El Franzini, la casa de Albion", tematica: "La racha de Albion de local", guion: "", copete: "", estado: "amarillo" },
+    { id: "x2", partido: "p1", tipo: "agentes", titulo: "Gonzalo Vega", estado: "rojo" }, { id: "x3", partido: "p1", tipo: "audios", nombre: "Ignacio Ithurralde", estado: "verde" }] };
 const DEMO = (() => {
   const d = (n) => masDias(n);
   const gente = [{ email: "ana@ejemplo.com", nombre: "Ana Pérez", roles: ["Relato"], ausencias: [] }, { email: "beto@ejemplo.com", nombre: "Beto Gómez", roles: ["Comentario", "Estudios"], ausencias: [{ desde: d(3), hasta: d(6), motivo: "vacaciones" }] },
@@ -1377,6 +1392,12 @@ const DEMO = (() => {
     leerRelevamiento: () => { return { fechas: [d(0)], actual: { fecha: d(0), actualizado: d(0) + " 18:02", lista: { fecha: d(0), generada: "18:02", nacionales: [{ id: "N1", titulo: "Peñarol confirmó el equipo para el clásico", link: "https://example.com", medio: "Ovación" }, { id: "N2", titulo: "La AUF definió los árbitros de la fecha", link: "https://example.com", medio: "Referí" }], internacionales: [{ id: "I1", titulo: "Valverde, figura en el triunfo del Real Madrid", link: "https://example.com", medio: "Marca" }], partidos: [{ competencia: "Champions League", lineas: [{ texto: "Real Madrid 🇺🇾 (Valverde) 2-1 Juventus · Final", uy: true }] }] }, eleccion: null } }; },
     leerConvocatorias: () => ({ convocatorias: conv, puedeConvocar: true, roles: ROLES_EQ, convocables: gente }),
     leerTitulares: () => DEMO_TIT.map((x) => Object.assign({}, x)),
+    leerProducciones: () => DEMO_PR(),
+    guardarPartidoProd: (x) => { const o = Object.assign({ id: "p" + Date.now() }, x); DEMO_PR.d.partidos.push(o); return { id: o.id, todo: DEMO_PR() }; },
+    borrarPartidoProd: (id) => { DEMO_PR.d.partidos = DEMO_PR.d.partidos.filter((x) => x.id !== id); return DEMO_PR(); },
+    guardarProduccion: (x) => { const L = DEMO_PR.d.producciones, i = L.findIndex((y) => y.id === x.id), o = Object.assign(i >= 0 ? L[i] : { id: "x" + Date.now() }, x, { actualizado_por: "prueba", actualizado: d(0) + " 18:00" }); if (i < 0) L.push(o); return { id: o.id, todo: DEMO_PR() }; },
+    borrarProduccion: (id) => { DEMO_PR.d.producciones = DEMO_PR.d.producciones.filter((x) => x.id !== id); return DEMO_PR(); },
+    pedirCopete: (id) => { DEMO_PR.d.producciones.find((x) => x.id === id).copete_pedido = d(0) + " 18:01"; return DEMO_PR(); },
     fotoDeDrive: () => ({ id: "1lsS6EhAvZ1u3Kwmf4kiERpKJ0S9n7xF5", copia: false }),
     leerFotos: () => noticias().filter((n) => n.imagen).slice(0, 8).map((n, i) => ({ imagen: n.imagen, credito: n.credito_foto, titular: n.titular.replace(/\*\*/g, ""), fecha: masDias(-i), usos: 1 + (i % 3), decision: i % 4 === 0 ? "dejar" : "", enUso: i < 2 }))
   };
@@ -1401,6 +1422,186 @@ async function partidosProximos() {   // próximos partidos (ESPN) para sugerir 
   sugPartidos = (await Promise.all(pedidos)).flat().filter((p) => p.local && !p.hecho && !vistos.has(p.fecha + p.local) && vistos.add(p.fecha + p.local)).sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora));
   return sugPartidos;
 }
+/* ---- Producciones ----
+   Cada partido (próximos 20 días o cargado a mano) tiene su lista de producciones con un semáforo:
+   rojo = sin idea aún, amarillo = con idea pero sin realización, verde = pronto. El productor edita; el conductor de las previas mira. */
+const TIPOS_PR = {
+  audios: { n: "Audios", ayuda: "Audios testimoniales sueltos. El nombre suele ser el de quien habla.", nom: "¿Quién habla?" },
+  capsulas: { n: "Cápsulas", ayuda: "Testimonios de entrenadores o jugadores.", nom: "Entrenador o jugador" },
+  informes: { n: "Informes", ayuda: "Informe de coyuntura vinculado al partido. Con el guion y la temática se arma el copete." },
+  agentes: { n: "Agentes", pre: "AGENTES: ", ayuda: "Radioteatro: los agentes 0 y 13 investigan a un jugador o entrenador vinculado al partido." },
+  playrec: { n: "Play and Rec", pre: "PLAY AND REC: ", ayuda: "Remix de lo mejor de una nota de un entrenador o jugador." },
+  hablemos: { n: "Hablemos de fútbol", pre: "HABLEMOS DE FÚTBOL: ", ayuda: "Ping pong de preguntas y respuestas sobre el fútbol y la vida con un protagonista." }
+};
+const ESTADOS_PR = [["rojo", "Sin idea aún"], ["amarillo", "Con idea, sin realizar"], ["verde", "Pronto"]];
+const tituloPr = (x) => { const t = TIPOS_PR[x.tipo] || {}; return t.pre ? t.pre + (x.titulo || "…").toUpperCase() : x.tipo === "informes" ? x.titulo || "(sin título)" : x.nombre || "(sin nombre)"; };
+const hoyUY = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Montevideo" });
+let PR = null, subPr = "partidos", prEdit = null, soloProntas = null, prLiga = null, prFiltro = "";
+const cachePr = {};
+// partidos de ESPN de los próximos 20 días; filtro: qué partidos sirven
+async function partidosESPN(ligas, filtro) {
+  const ymd = (d) => d.toLocaleDateString("en-CA", { timeZone: "America/Montevideo" }), pedidos = [];
+  for (const [l, nom] of ligas) for (let i = 0; i < 20; i++) {
+    const d = ymd(new Date(Date.now() + i * 864e5)).replace(/-/g, ""), k = l + d;
+    pedidos.push(cachePr[k] || (cachePr[k] = fetch("https://site.api.espn.com/apis/site/v2/sports/soccer/" + l + "/scoreboard?dates=" + d).then((r) => r.json()).then((j) => (j.events || []).map((ev) => {
+      const co = ev.competitions[0], eq = co.competitors || [], loc = eq.find((x) => x.homeAway === "home") || eq[0], vis = eq.find((x) => x.homeAway === "away") || eq[1], f = new Date(ev.date);
+      return { espn: ev.id, liga: l, fecha: ymd(f), hora: f.toLocaleTimeString("es-UY", { timeZone: "America/Montevideo", hour: "2-digit", minute: "2-digit", hour12: false }),
+        local: loc && loc.team.displayName, visitante: vis && vis.team.displayName, ids: [loc && loc.team.id, vis && vis.team.id], competencia: nom, hecho: ev.status && ev.status.type && ev.status.type.completed };
+    })).catch(() => [])));
+  }
+  const vistos = new Set();
+  return (await Promise.all(pedidos)).flat().filter((p) => p.local && !p.hecho && (!filtro || filtro(p)) && !vistos.has(p.espn) && vistos.add(p.espn)).sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora));
+}
+let idsUru = null;
+async function partidosUruguayos() {   // el Uruguayo, las copas con equipos uruguayos y la Selección
+  if (!idsUru) { try { const j = await (await fetch("https://site.api.espn.com/apis/site/v2/sports/soccer/uru.1/teams")).json(); idsUru = new Set(j.sports[0].leagues[0].teams.map((t) => t.team.id)); } catch (e) { idsUru = new Set(); } }
+  return partidosESPN([["uru.1", "Campeonato Uruguayo"], ["conmebol.libertadores", "Copa Libertadores"], ["conmebol.sudamericana", "Copa Sudamericana"], ["fifa.worldq.conmebol", "Eliminatorias"], ["fifa.friendly", "Amistoso internacional"]],
+    (p) => p.liga === "uru.1" || (/conmebol\./.test(p.liga) && p.ids.some((i) => idsUru.has(i))) || (/^fifa\./.test(p.liga) && (p.ids.includes("212") || /^uruguay$/i.test(p.local) || /^uruguay$/i.test(p.visitante))));
+}
+const OTRAS_LIGAS = [["arg.1", "Liga Argentina"], ["bra.1", "Brasileirão"], ["eng.1", "Premier League"], ["esp.1", "LaLiga"], ["ita.1", "Serie A"], ["uefa.champions", "Champions League"],
+  ["conmebol.libertadores", "Libertadores (todos)"], ["conmebol.sudamericana", "Sudamericana (todos)"], ["usa.1", "MLS"], ["mex.1", "Liga MX"]];
+
+VISTAS.producciones = async (m) => {
+  m.innerHTML = titulo("Producciones") + `<div class="aviso">Cargando producciones…</div>`;
+  try { PR = await srv("leerProducciones"); } catch (e) { m.querySelector(".aviso").textContent = e.message || String(e); return; }
+  if (seccion !== "producciones") return;
+  if (soloProntas === null) soloProntas = !PR.puede;   // el conductor arranca viendo solo lo que está pronto
+  pintarPr(m);
+};
+function pintarPr(m) {
+  const tabs = [["partidos", "Partidos y producciones"]].concat(PR.puede ? [["agregar", "Agregar partido"]] : []);
+  if (!tabs.find((t) => t[0] === subPr)) subPr = "partidos";
+  m.innerHTML = titulo("Producciones") + `<div class="subtabs">${tabs.map(([k, t]) => `<button class="chip${k === subPr ? " on" : ""}" data-t="${k}">${t}</button>`).join("")}</div><div id="pr"></div>`;
+  m.querySelectorAll(".subtabs .chip").forEach((b) => (b.onclick = () => { subPr = b.dataset.t; pintarPr(m); }));
+  (subPr === "agregar" ? prAgregar : prPartidos)(m.querySelector("#pr"), m);
+}
+function prPartidos(cont, m) {
+  const parts = PR.partidos.slice().sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora));
+  cont.innerHTML = `<div class="chips" style="align-items:center"><button class="chip${soloProntas ? "" : " on"}" data-f="0">Todas</button><button class="chip${soloProntas ? " on" : ""}" data-f="1">Solo prontas</button>
+    <span class="pr-cuenta" style="margin-left:6px">${ESTADOS_PR.map(([e, t]) => `<span><i class="sem ${e}"></i>${t}</span>`).join("")}</span></div><div id="pr-lista" style="display:flex;flex-direction:column;gap:16px;margin-top:14px"></div>`;
+  cont.querySelectorAll("[data-f]").forEach((b) => (b.onclick = () => { soloProntas = b.dataset.f === "1"; prPartidos(cont, m); }));
+  const L = cont.querySelector("#pr-lista");
+  if (!parts.length) { L.innerHTML = `<div class="card vacio">Todavía no hay partidos en Producciones.${PR.puede ? " Agregá uno en «Agregar partido»." : ""}</div>`; return; }
+  parts.forEach((pa) => L.appendChild(tarjetaPartido(pa, cont, m)));
+}
+function tarjetaPartido(pa, cont, m) {
+  const todas = PR.producciones.filter((x) => x.partido === pa.id), lst = todas.filter((x) => !soloProntas || x.estado === "verde");
+  const n = (e) => todas.filter((x) => x.estado === e).length;
+  const c = h(`<div class="card form pr-part"><h2><i style="background:${todas.length && n("verde") === todas.length ? "var(--verde)" : n("rojo") ? "var(--rojo)" : todas.length ? "var(--amarillo)" : "var(--linea)"}"></i>${esc(partidoTxt(pa))}<small>${esc(fechaTxt(pa.fecha))}${pa.hora ? " · " + esc(pa.hora) : ""}${pa.competencia ? " · " + esc(pa.competencia) : ""}</small></h2>
+    <div class="pr-cuenta">${todas.length ? ESTADOS_PR.map(([e]) => `<span><i class="sem ${e}"></i>${n(e)}</span>`).join("") + `<span>· ${todas.length} ${todas.length > 1 ? "producciones" : "producción"}</span>` : "<span>Sin producciones todavía</span>"}</div>
+    <div class="lst" style="display:flex;flex-direction:column;gap:6px"></div><div class="pie" style="flex-wrap:wrap;gap:8px"></div></div>`);
+  const box = c.querySelector(".lst");
+  Object.keys(TIPOS_PR).forEach((t) => lst.filter((x) => x.tipo === t).forEach((x) => {
+    if (prEdit && prEdit.id === x.id) { box.appendChild(editorPr(pa, x, cont, m)); return; }
+    const it = h(`<button class="pr-it"><i class="sem ${esc(x.estado || "rojo")}"></i><span><small style="margin:0;display:block;text-align:left">${esc(TIPOS_PR[t].n)}</small><b>${esc(tituloPr(x))}</b></span><small>${esc((ESTADOS_PR.find((e) => e[0] === x.estado) || ESTADOS_PR[0])[1])}${x.copete_pedido ? " · copete pedido" : ""}</small></button>`);
+    it.onclick = () => { prEdit = Object.assign({}, x); prPartidos(cont, m); };
+    box.appendChild(it);
+  }));
+  if (prEdit && !prEdit.id && prEdit.partido === pa.id) box.appendChild(editorPr(pa, prEdit, cont, m));
+  if (soloProntas && todas.length && !lst.length) box.appendChild(h(`<span style="color:var(--gris);font-weight:600">Todavía no hay producciones prontas.</span>`));
+  const pie = c.querySelector(".pie");
+  if (PR.puede) {
+    const mas = h(`<button class="btn am chico">+ Producción</button>`); mas.onclick = () => { prEdit = { partido: pa.id, tipo: "", estado: "rojo" }; prPartidos(cont, m); }; pie.appendChild(mas);
+    const sac = h(`<button class="btn sec chico" style="color:var(--rojo);margin-left:auto">Sacar partido</button>`);
+    sac.onclick = async () => {
+      if (!sac.classList.contains("seguro")) { sac.classList.add("seguro"); sac.textContent = todas.length ? `¿Seguro? Se van sus ${todas.length} producciones. Tocá de nuevo` : "¿Seguro? Tocá de nuevo"; setTimeout(() => { sac.classList.remove("seguro"); sac.textContent = "Sacar partido"; }, 5000); return; }
+      sac.disabled = true; try { PR = await guardar("borrarPartidoProd", pa.id); prPartidos(cont, m); } catch (e) { sac.disabled = false; }
+    };
+    pie.appendChild(sac);
+  }
+  return c;
+}
+function editorPr(pa, x, cont, m) {
+  const solo = !PR.puede, t = TIPOS_PR[x.tipo];
+  const e = h(`<div class="pr-ed"></div>`);
+  if (!x.tipo) {   // primero se elige el tipo
+    e.innerHTML = `<b style="font:800 12px var(--f);letter-spacing:.12em;text-transform:uppercase;color:var(--gris)">¿Qué producción?</b><div class="chips">${Object.entries(TIPOS_PR).map(([k, v]) => `<button class="chip" data-k="${k}">${v.n}</button>`).join("")}</div><div class="pie"><button class="btn sec chico" id="pe-no">Cancelar</button></div>`;
+    e.querySelectorAll("[data-k]").forEach((b) => (b.onclick = () => { x.tipo = b.dataset.k; prPartidos(cont, m); }));
+    e.querySelector("#pe-no").onclick = () => { prEdit = null; prPartidos(cont, m); };
+    return e;
+  }
+  const ro = solo ? "readonly" : "";
+  let campos = "";
+  if (t.pre) campos = `<label>Título<div class="pre"><b>${esc(t.pre)}</b><input type="text" id="pe-tit" ${ro} value="${esc(x.titulo || "")}" placeholder="Nombre del investigado / protagonista"></div></label>`;
+  else if (x.tipo === "informes") campos = `<label>Título<input type="text" id="pe-tit" ${ro} value="${esc(x.titulo || "")}" placeholder="Título del informe"></label>
+    <label>Temática<input type="text" id="pe-tem" ${ro} value="${esc(x.tematica || "")}" placeholder="De qué trata (ej.: la racha de Albion en el Franzini)"></label>
+    <label>Guion<textarea id="pe-gui" rows="6" ${ro} placeholder="Pegá el guion acá (o el link de Google Docs)">${esc(x.guion || "")}</textarea></label>
+    ${solo ? "" : `<label class="btn sec chico" style="align-self:flex-start;cursor:pointer">📎 Adjuntar guion (.txt)<input type="file" id="pe-arch" accept=".txt,.md,text/plain" hidden></label>`}
+    <label>Copete<textarea id="pe-cop" rows="3" ${ro} placeholder="Texto corto que presenta el informe">${esc(x.copete || "")}</textarea></label>
+    ${x.copete_pedido ? `<div class="aviso">Copete pedido el ${esc(x.copete_pedido)}: lo escribe la tarea en la nube con el guion y la temática.</div>` : ""}`;
+  else campos = `<label>${esc(t.nom)}<input type="text" id="pe-nom" ${ro} value="${esc(x.nombre || "")}" placeholder="Nombre y apellido"></label>`;
+  e.innerHTML = `<b style="font:800 12px var(--f);letter-spacing:.12em;text-transform:uppercase;color:var(--gris)">${esc(t.n)}</b><span class="ayuda" style="font-size:12px;color:var(--gris);font-weight:600">${esc(t.ayuda)}</span>${campos}
+    <label>Notas<textarea id="pe-not" rows="2" ${ro} placeholder="Opcional: quién lo hace, dónde está el archivo, etc.">${esc(x.notas || "")}</textarea></label>
+    <div class="chips">${ESTADOS_PR.map(([k, v]) => `<button class="chip e-${k}${(x.estado || "rojo") === k ? " on" : ""}" data-e="${k}" ${solo ? "disabled" : ""}>${v}</button>`).join("")}</div>
+    ${x.actualizado ? `<small style="color:var(--gris);font-weight:600">Último cambio: ${esc(nombreCorto(x.actualizado_por))} · ${esc(x.actualizado)}</small>` : ""}
+    <div class="pie" style="flex-wrap:wrap;gap:8px">${solo ? `<button class="btn sec chico" id="pe-no">Cerrar</button>` : `<button class="btn am chico" id="pe-ok">Guardar</button>${x.tipo === "informes" ? `<button class="btn ce chico" id="pe-cp">✍ Pedir copete</button>` : ""}<button class="btn sec chico" id="pe-no">Cancelar</button>${x.id ? `<button class="btn sec chico" id="pe-bo" style="color:var(--rojo);margin-left:auto">Borrar</button>` : ""}`}</div>`;
+  const v = (id) => { const el = e.querySelector("#" + id); return el ? el.value.trim() : undefined; };
+  const datos = () => ({ id: x.id, partido: pa.id, tipo: x.tipo, estado: x.estado || "rojo", titulo: v("pe-tit"), nombre: v("pe-nom"), tematica: v("pe-tem"), guion: v("pe-gui"), copete: v("pe-cop"), notas: v("pe-not") });
+  e.querySelectorAll("[data-e]").forEach((b) => (b.onclick = () => { x.estado = b.dataset.e; e.querySelectorAll("[data-e]").forEach((y) => y.classList.toggle("on", y === b)); }));
+  e.querySelector("#pe-no").onclick = () => { prEdit = null; prPartidos(cont, m); };
+  const arch = e.querySelector("#pe-arch");
+  if (arch) arch.onchange = async () => { const f = arch.files[0]; if (!f) return; e.querySelector("#pe-gui").value = await f.text(); aviso("Guion adjuntado: " + f.name); };
+  const ok = e.querySelector("#pe-ok");
+  if (ok) ok.onclick = async () => {
+    const d = datos(); if (!t.pre && x.tipo !== "informes" && !d.nombre) { aviso("Poné el nombre", true); return; }
+    ok.disabled = true; try { const r = await guardar("guardarProduccion", d); PR = r.todo; prEdit = null; prPartidos(cont, m); } catch (er) { ok.disabled = false; }
+  };
+  const cp = e.querySelector("#pe-cp");
+  if (cp) cp.onclick = async () => {
+    const d = datos(); if (!d.guion && !d.tematica) { aviso("Para el copete hace falta el guion o la temática", true); return; }
+    cp.disabled = true;
+    try { const r = await srv("guardarProduccion", d); PR = await srv("pedirCopete", r.id); prEdit = Object.assign({}, PR.producciones.find((y) => y.id === r.id)); aviso("Copete pedido ✓ · lo escribe la tarea en la nube"); prPartidos(cont, m); }
+    catch (er) { aviso(er.message || String(er), true); cp.disabled = false; }
+  };
+  const bo = e.querySelector("#pe-bo");
+  if (bo) bo.onclick = async () => {
+    if (!bo.classList.contains("seguro")) { bo.classList.add("seguro"); bo.textContent = "¿Seguro? Tocá de nuevo"; setTimeout(() => { bo.classList.remove("seguro"); bo.textContent = "Borrar"; }, 5000); return; }
+    bo.disabled = true; try { PR = await guardar("borrarProduccion", x.id); prEdit = null; prPartidos(cont, m); } catch (er) { bo.disabled = false; }
+  };
+  return e;
+}
+const nombreCorto = (email) => String(email || "").replace(/@.*/, "");
+function prAgregar(cont, m) {
+  cont.innerHTML = `<div class="eq-grid"><div class="card form"><h2><i style="background:var(--celeste)"></i>Próximos 20 días</h2>
+      <div class="chips" id="pa-ligas"><button class="chip${prLiga ? "" : " on"}" data-l="">Fútbol uruguayo</button><button class="chip${prLiga ? " on" : ""}" data-l="otros">Buscar otros</button></div>
+      <div class="chips" id="pa-otras" ${prLiga ? "" : "hidden"}>${OTRAS_LIGAS.map(([k, n]) => `<button class="chip${prLiga === k ? " on" : ""}" data-o="${k}">${n}</button>`).join("")}</div>
+      <input type="text" id="pa-fil" placeholder="Filtrar por equipo" value="${esc(prFiltro)}">
+      <span class="ayuda" style="font-size:12px;color:var(--gris);font-weight:600">${prLiga ? "Elegí una liga y tocá el partido para agregarlo." : "El Uruguayo, las copas con equipos uruguayos y la Selección. Tocá uno para agregarlo."}</span>
+      <div class="sug" id="pa-sug" style="max-height:480px"><span style="color:var(--gris);font-weight:600">Buscando partidos…</span></div></div>
+    <div class="card form" id="pa-mano"><h2><i style="background:var(--amarillo)"></i>Cargar a mano</h2><span class="ayuda" style="font-size:12px;color:var(--gris);font-weight:600">Para lo que no aparece en la lista (básquetbol, otro deporte, un amistoso…).</span>
+      <div class="dos"><label>Local (o qué es)<input type="text" name="local" placeholder="Peñarol"></label><label>Visitante<input type="text" name="visitante" placeholder="Nacional"></label></div>
+      <div class="dos"><label>Día<input type="date" name="fecha" min="${hoyUY()}"></label><label>Hora<input type="time" name="hora"></label></div>
+      <label>Competencia<input type="text" name="competencia" placeholder="Liga Uruguaya de Básquetbol"></label>
+      <div class="pie"><button class="btn am" id="pa-ok">Agregar partido</button></div></div></div>`;
+  cont.querySelectorAll("#pa-ligas .chip").forEach((b) => (b.onclick = () => { prLiga = b.dataset.l ? (prLiga && prLiga !== "otros" ? prLiga : "otros") : null; prAgregar(cont, m); }));
+  cont.querySelectorAll("#pa-otras .chip").forEach((b) => (b.onclick = () => { prLiga = b.dataset.o; prAgregar(cont, m); }));
+  const S = cont.querySelector("#pa-sug"), fil = cont.querySelector("#pa-fil");
+  let lista = [];
+  const agregar = async (p, btn) => {
+    if (btn) btn.disabled = true;
+    try { const r = await guardar("guardarPartidoProd", p); PR = r.todo; prEdit = { partido: r.id, tipo: "", estado: "rojo" }; subPr = "partidos"; pintarPr(m); }
+    catch (e) { if (btn) btn.disabled = false; }
+  };
+  const pintar = () => {
+    const q = sinT(fil.value.trim()); prFiltro = fil.value;
+    const ya = new Set(PR.partidos.map((x) => x.espn).filter(Boolean));
+    const L = lista.filter((p) => !q || sinT(p.local + " " + p.visitante).includes(q));
+    S.innerHTML = L.length ? "" : `<span style="color:var(--gris);font-weight:600">${prLiga === "otros" ? "Elegí una liga." : "No hay partidos."}</span>`;
+    L.slice(0, 150).forEach((p) => {
+      const b = h(`<button${ya.has(p.espn) ? ' class="on" disabled' : ""}><b>${esc(fechaTxt(p.fecha))} ${esc(p.hora)}</b>${esc(p.local)} vs ${esc(p.visitante)}<small>${esc(p.competencia)}${ya.has(p.espn) ? " · ya está" : ""}</small></button>`);
+      b.onclick = () => agregar({ fecha: p.fecha, hora: p.hora, local: p.local, visitante: p.visitante, competencia: p.competencia, espn: p.espn }, b);
+      S.appendChild(b);
+    });
+  };
+  fil.oninput = pintar;
+  (prLiga === "otros" ? Promise.resolve([]) : prLiga ? partidosESPN([OTRAS_LIGAS.find((x) => x[0] === prLiga)]) : partidosUruguayos()).then((r) => { lista = r; if (subPr === "agregar" && seccion === "producciones") pintar(); });
+  const M = cont.querySelector("#pa-mano"), c = (n) => M.querySelector(`[name="${n}"]`).value.trim();
+  M.querySelector("#pa-ok").onclick = (ev) => {
+    if (!c("local") || !c("fecha")) { aviso("Poné al menos el local (o qué es) y el día", true); return; }
+    agregar({ local: c("local"), visitante: c("visitante"), fecha: c("fecha"), hora: c("hora"), competencia: c("competencia") }, ev.target);
+  };
+}
+
 VISTAS.convocatorias = async (m) => {
   m.innerHTML = titulo("Convocatorias") + `<div class="aviso">Cargando convocatorias…</div>`;
   try { CV = await srv("leerConvocatorias"); } catch (e) { m.querySelector(".aviso").textContent = e.message || String(e); return; }
