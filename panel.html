@@ -852,7 +852,7 @@ function encuadrador(onCambio) {
 const PANT = [["A", "Una cámara", "cam-A-una-camara"], ["B", "Mano a mano", "cam-B-mano-a-mano"], ["C", "Tres cámaras", "cam-C-tres-camaras"], ["D", "Mesa de cuatro", "cam-D-mesa-de-cuatro"],
   ["E", "TITULARES", "cam-E-titulares"], ["F", "Cuadros sueltos", "cam-F-cuadros-sueltos"], ["G", "Zócalo bloques", "cam-G-zocalo-bloques"], ["H", "Charla", "cam-H-charla"],
   ["I", "Solo logo", "cam-I-logo"], ["J", "Cinco vertical", "cam-J-cinco-vertical"], ["K", "Cinco horizontal", "cam-K-cinco-horizontal"],
-  ["L", "Tres vertical", "cam-L-tres-vertical"]];
+  ["L", "Tres vertical", "cam-L-tres-vertical"], ["M", "Tabla del torneo", "cam-M-tabla-torneo"], ["N", "Tabla anual", "cam-N-tabla-anual"], ["O", "Promedios", "cam-O-tabla-promedios"]];
 let pantalla = "A";
 function filasClave(t) {
   const c = cab(t), iq = c.indexOf("qué cambia") >= 0 ? c.indexOf("qué cambia") : 0, iv = c.indexOf("valor"), ia = c.indexOf("ayuda"), ik = c.indexOf("clave");
@@ -884,7 +884,7 @@ VISTAS.camaras = (m) => {
   const mandar = debounce(() => { try { pv.querySelector("iframe").contentWindow.postMessage({ panel13a0: true, valores: st }, "*"); } catch (e) {} }, 150);
   pv.querySelector("iframe").addEventListener("load", () => setTimeout(mandar, 1200));
   const set = (k, v) => { st[k] = v; cambios[k] = v; mandar(); };
-  if (!filas.length) F.appendChild(h(`<div class="aviso">${l === "E" ? "TITULARES no tiene textos propios: muestra las noticias que están al aire (se cargan en <b>Noticias</b>)." : "Esta pantalla no tiene textos para cambiar."}</div>`));
+  if (!filas.length) F.appendChild(h(`<div class="aviso">${"MNO".includes(l) ? "Se arma sola con ESPN y se actualiza en vivo: si se está jugando, suma el resultado parcial (cuadradito rojo = está jugando; flechas = sube o baja). Los ajustes de puntos y cuántos descienden se cambian en <b>Partido en vivo</b>." : l === "E" ? "TITULARES no tiene textos propios: muestra las noticias que están al aire (se cargan en <b>Noticias</b>)." : "Esta pantalla no tiene textos para cambiar."}</div>`));
   // agrupar: f.tema / f.dato / f.zocalo / b1 / b2 …
   const grupos = {};
   filas.forEach((r) => { const p = r.clave.split("."); const g = p.length > 2 ? p[1] : /\d$/.test(p[0]) ? p[0] : "_"; (grupos[g] = grupos[g] || []).push(r); });

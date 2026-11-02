@@ -114,6 +114,9 @@
   .ico { flex:none; display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; color:#fff; }
   .ico svg { width:28px; height:28px; }
   .ico.ce { background:var(--celeste); } .ico.ro { background:var(--rojo); } .ico.am { background:var(--amarillo); color:var(--azul); } .ico.ne { background:var(--negro); }
+  /* tomas de tabla para una cámara (cam-M/N/O o ?tabla=torneo|anual|promedios): solo la tabla, a la derecha */
+  .solo-tabla .panel-cab { font-size:30px; } .solo-tabla .tabla { font-size:26px; } .solo-tabla .tabla td { height:44px; } .solo-tabla .tabla td img { width:32px; height:32px; }
+  .solo-tabla .cola { position:absolute; background:var(--amarillo); }
   .espera { position:absolute; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; background:var(--blanco); text-align:center; }
   .espera b { font:900 64px/1 var(--grotesca); letter-spacing:-.02em; } .espera span { font:700 30px/1.3 var(--grotesca); color:var(--gris); }
 </style>
@@ -490,8 +493,11 @@
     `<div class="logo" id="logo" style="left:1372px;top:16px;width:396px;height:86px"><img src="logo.png" alt="13a0"><span class="barras"><i></i><i></i><i></i></span></div>` +
     `<div id="partido"></div><div id="lado"></div>` +
     `<div class="redes" style="left:152px;top:930px;width:1616px;height:64px"><div class="lst">${REDES}</div></div>`;
-  pant.innerHTML = MARCO;
-  const elPartido = document.getElementById("partido"), elLado = document.getElementById("lado");
+  // toma de tabla sola: el nombre del archivo (cam-M-tabla-torneo, cam-N-tabla-anual, cam-O-tabla-promedios) o ?tabla=
+  const TABLA = (T.params.get("tabla") || (location.pathname.match(/tabla-(torneo|anual|promedios)/) || [])[1] || "").toLowerCase();
+  pant.innerHTML = TABLA ? `<div class="solo-tabla"><div class="cola" style="left:1166px;top:64px;width:14px;height:72px"></div><div class="panel-cab az" style="left:1180px;top:64px;width:676px;height:72px"><span id="ptit"></span></div>` +
+    `<div class="panel" style="left:1180px;top:136px;width:676px;height:820px"><div class="hoja" id="thoja"></div></div></div><div id="logo" hidden></div>` : MARCO;
+  const elPartido = document.getElementById("partido") || T.el("div"), elLado = document.getElementById("lado") || T.el("div");
 
   const tiempoTxt = (p) => p.estado === "pre" ? "Previa" : p.estado === "post" ? "Final" :
     /HALFTIME/.test(p.nombreEstado) ? "Entretiempo" : /SHOOTOUT|PENALT/.test(p.nombreEstado) ? "Penales" :
@@ -573,11 +579,26 @@
 
   /* ---- Ciclo ---- */
   let torneoActual = "";
-  async function ciclo() {
+  async function cicloTabla() {
+    const QUE = { torneo: (t) => /^(En vivo|Tabla) · /.test(t), anual: (t) => /^Tabla anual/.test(t), promedios: (t) => /^Promedios/.test(t) }[TABLA] || (() => false);
     for (;;) {
       try {
         await leerHoja();
-        if (!T.demo) await T.cargarEscudosHoja();
+        if (!T.demo) { await T.cargarEscudosHoja(); try { await T.cargarCorrecciones(); } catch (e) {} }   // nombres corregidos, igual que el ticker
+        const pn = await paneles({ liga: URU, fecha: new Date(), id: "-" });
+        const x = pn.find((q) => QUE(q[0]));
+        document.getElementById("ptit").textContent = x ? x[0].replace(/ · descenso$/, "").replace(/^Tabla · /, "Torneo ") : ({ torneo: "Torneo", anual: "Tabla anual", promedios: "Promedios" }[TABLA] || "Tabla");
+        document.getElementById("thoja").innerHTML = x ? x[1] : `<div class="vacio">Sin datos de ESPN por ahora</div>`;
+      } catch (e) { console.warn("tabla:", e.message); }
+      await T.esperar(SEG_LEER);
+    }
+  }
+  async function ciclo() {
+    if (TABLA) return cicloTabla();
+    for (;;) {
+      try {
+        await leerHoja();
+        if (!T.demo) { await T.cargarEscudosHoja(); try { await T.cargarCorrecciones(); } catch (e) {} }   // nombres corregidos, igual que el ticker
         const p = T.demo ? DEMO() : await elegir();
         if (!p) dibujarEspera();
         else {
