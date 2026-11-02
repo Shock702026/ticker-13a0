@@ -61,6 +61,19 @@
   .incid li .t { font-weight:900; min-width:64px; } .incid ul.der li .t { text-align:right; }
   .incid li .tag { font:900 19px/1 var(--grotesca); letter-spacing:.1em; padding:8px 10px; }
   .incid li .gol { background:var(--amarillo); color:var(--azul); } .incid li .roja { background:var(--rojo); color:#fff; }
+  .incid li .amarilla { background:#FFE14D; color:var(--azul); width:22px; height:30px; padding:0; }
+  .incid li .tag.roja.carta { width:22px; height:30px; padding:0; }
+  .incid li .cambio { background:var(--celeste); color:#fff; }
+  .incid li .sale { font-weight:500; opacity:.75; }
+  .incid li { max-width:100%; overflow:hidden; } .incid li .tag { flex:none; } .incid li .t { flex:none; }
+  /* alineaciones (panel que rota) */
+  .alin { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .alin h4 { font:900 22px/1.1 var(--grotesca); margin-bottom:4px; } .alin h4 small { font-weight:700; color:var(--gris); margin-left:6px; }
+  .alin ol { list-style:none; display:flex; flex-direction:column; gap:5px; }
+  .alin li { display:flex; align-items:center; gap:8px; font:700 19px/1.15 var(--grotesca); white-space:nowrap; overflow:hidden; }
+  .alin li b { flex:none; width:30px; text-align:right; font-weight:900; color:var(--rojo); }
+  .alin li.salio { opacity:.55; } .alin li i { font-style:normal; font-size:15px; color:var(--celeste); font-weight:800; }
+  .alin .entraron { margin-top:8px; font:700 16px/1.3 var(--grotesca); color:var(--gris); white-space:normal; }
   .incid.chico li { font-size:23px; gap:10px; } .incid.chico { gap:0 24px; }
 
   /* panel que rota */
@@ -201,6 +214,61 @@
         nombre: ((d.athletesInvolved || [])[0] || {}).displayName || ""
       })).filter((d) => !d.shootout)
     };
+  }
+
+  /* ---- Alineaciones, tarjetas y cambios ----
+     ESPN (resumen del partido): en las copas trae alineaciones, amarillas, rojas y cambios; en el Uruguayo solo goles.
+     Tarjetas a mano (pestaña partido_vivo, clave "tarjetas"): "L 10 23 amarilla; V 5 40 roja" = lado, número, minuto, tipo.
+     El número se pasa al nombre con el plantel de ESPN de ese equipo. */
+  const minNum = (m) => { const x = String(m || "").match(/(\d+)(?:'?\s*\+\s*(\d+))?/); return x ? +x[1] + (x[2] ? +x[2] / 100 : 0) : 999; };
+  async function extras(p) {
+    const r = { alin: [], ev: [], plantel: {} };
+    if (p.manual) return r;
+    let s = null;
+    try { s = await json(API + p.liga + "/summary?event=" + p.id, p.estado === "in" ? 40 : 300); } catch (e) {}
+    (s && s.rosters || []).forEach((t) => {
+      const id = String((t.team || {}).id || ""); const pl = (r.plantel[id] = r.plantel[id] || {});
+      const tit = [], ent = [];
+      (t.roster || []).forEach((x) => {
+        const nom = (x.athlete || {}).displayName || ""; if (x.jersey) pl[x.jersey] = nom;
+        const sale = ((x.plays || []).find((y) => y.substitution) || {}).clock;
+        if (x.starter) tit.push({ num: x.jersey || "", nombre: nom, salio: !!x.subbedOut, min: x.subbedOut && sale ? sale.displayValue : "", lugar: +x.formationPlace || 99 });
+        else if (x.subbedIn) ent.push({ num: x.jersey || "", nombre: nom, min: sale ? sale.displayValue : "" });
+      });
+      if (tit.length) r.alin.push({ id, formacion: t.formation || "", titulares: tit.sort((a, b) => a.lugar - b.lugar), entraron: ent });
+    });
+    (s && s.keyEvents || []).forEach((k) => {
+      const tt = (k.type || {}).text || "", par = (k.participants || []).map((x) => (x.athlete || {}).displayName || "");
+      const tipo = /yellow/i.test(tt) ? "amarilla" : /red card/i.test(tt) ? "roja" : /substitution/i.test(tt) ? "cambio" : null;
+      if (tipo) r.ev.push({ min: (k.clock || {}).displayValue || "", equipo: String((k.team || {}).id || ""), tipo, nombre: par[0] || "", sale: tipo === "cambio" ? par[1] || "" : "" });
+    });
+    // plantel con números para las tarjetas a mano (el Uruguayo no trae alineaciones)
+    for (const e of [p.l, p.v]) {
+      const id = String(e.id || ""); if (!id || (r.plantel[id] && Object.keys(r.plantel[id]).length)) continue;
+      try { const d = await json(API + p.liga + "/teams/" + id + "/roster", 21600); const pl = (r.plantel[id] = {}); (d.athletes || []).forEach((a) => { if (a.jersey) pl[a.jersey] = a.displayName || a.fullName || ""; }); } catch (e2) {}
+    }
+    return r;
+  }
+  function sumarExtras(p, x) {
+    if (x.ev.length) p.inc = p.inc.filter((i) => i.tipo !== "roja").concat(x.ev);   // las rojas de ESPN vienen mejor en el resumen
+    hv("tarjetas").split(/[;\n]/).map((t) => t.trim()).filter(Boolean).forEach((t) => {
+      const m = t.match(/^([LV])\s+(\d+)\s+(\d+(?:\+\d+)?)'?\s*(amarilla|roja)?/i); if (!m) return;
+      const lado = m[1].toUpperCase(), eq = lado === "L" ? p.l : p.v, tipo = (m[4] || "amarilla").toLowerCase();
+      const nombre = ((x.plantel[String(eq.id || "")] || {})[m[2]]) || ("N.º " + m[2]);
+      const ya = p.inc.some((i) => i.tipo === tipo && i.nombre === nombre && (p.manual ? i.lado === lado : i.equipo === String(eq.id)));
+      if (!ya) p.inc.push({ min: m[3] + "'", equipo: String(eq.id || ""), lado, tipo, nombre });
+    });
+    p.inc.sort((a, b) => minNum(a.min) - minNum(b.min));
+    p.alin = x.alin;
+  }
+  function alinHTML(p) {
+    const col = (e) => {
+      const a = p.alin.find((x) => x.id === String(e.id)); if (!a) return "";
+      return `<div><h4>${esc(e.nombre)}${a.formacion ? `<small>${esc(a.formacion)}</small>` : ""}</h4><ol>` +
+        a.titulares.map((t) => `<li class="${t.salio ? "salio" : ""}"><b>${esc(t.num)}</b>${esc(t.nombre)}${t.salio ? ` <i>↓${esc(t.min)}</i>` : ""}</li>`).join("") + `</ol>` +
+        (a.entraron.length ? `<div class="entraron">Entraron: ${a.entraron.map((t) => esc(t.num + " " + t.nombre + (t.min ? " " + t.min : ""))).join(" · ")}</div>` : "") + `</div>`;
+    };
+    return `<div class="alin">${col(p.l)}${col(p.v)}</div>`;
   }
 
   /* ---- Uruguayos en las copas: escudos propios con archivo uruguay-* ---- */
@@ -409,10 +477,12 @@
     return [p.reloj || "En vivo", ""];
   }
   function incHTML(p, lado) {
-    const lst = p.inc.filter((x) => p.manual ? x.lado === lado : x.equipo === (lado === "L" ? p.l.id : p.v.id));
+    let lst = p.inc.filter((x) => p.manual ? x.lado === lado : String(x.equipo) === String(lado === "L" ? p.l.id : p.v.id));
+    if (lst.length > 9) lst = lst.slice(-9);   // si no entran, las últimas
     return lst.map((x) => {
-      const tag = `<span class="tag ${x.tipo}">${x.tipo === "roja" ? "ROJA" : "GOL"}</span>`;
-      const n = esc(x.nombre + (x.ec ? " (en contra)" : x.pen ? " (penal)" : ""));
+      const tag = x.tipo === "amarilla" ? `<span class="tag amarilla"></span>` : x.tipo === "cambio" ? `<span class="tag cambio">⇄</span>` :
+        x.tipo === "roja" ? `<span class="tag roja carta"></span>` : `<span class="tag gol">GOL</span>`;
+      const n = x.tipo === "cambio" ? esc(x.nombre) + (x.sale ? ` <span class="sale">por ${esc(x.sale)}</span>` : "") : esc(x.nombre + (x.ec ? " (en contra)" : x.pen ? " (penal)" : ""));
       return lado === "L" ? `<li><span class="t">${esc(x.min)}</span>${tag}${n}</li>` : `<li>${n}${tag}<span class="t">${esc(x.min)}</span></li>`;
     }).join("");
   }
@@ -431,7 +501,8 @@
     const serie = !p.manual && p.liga !== URU && p.aggL != null && (p.vuelta || p.estado !== "pre") ? `<div class="serie">Global ${p.aggL} – ${p.aggV}</div>` : "";
     const pen = p.l.penales != null ? `<div class="pen">Penales ${p.l.penales} – ${p.v.penales}</div>` : "";
     const goles = p.estado === "pre" || p.l.goles == null ? `<div class="goles previa">vs</div>` : `<div class="goles">${p.l.goles}<i></i>${p.v.goles}</div>`;
-    const muchas = p.inc.length > 10;
+    const porLado = (l) => p.inc.filter((x) => p.manual ? x.lado === l : String(x.equipo) === String(l === "L" ? p.l.id : p.v.id)).length;
+    const muchas = Math.max(porLado("L"), porLado("V")) > 5;
     const html = `<div class="estadio ce" style="left:152px;top:118px;width:${ancho}px;height:60px"><span>${esc(p.estadio)}</span><span>${esc(tiempoTxt(p))}</span></div>` +
       `<div class="marcador${conPanel ? "" : " ancho"}" style="left:152px;top:194px;width:${ancho}px;height:440px">` +
         `<div class="eq">${img(p.l.escudo)}<b>${esc(p.l.nombre)}</b></div>` +
@@ -485,7 +556,9 @@
         if (!p) dibujarEspera();
         else {
           if (p.liga === URU) try { const d = await standings(URU, null, null, 600); torneoActual = ((d.children || [])[0] || {}).name || ""; torneoActual = torneoActual.replace(/\s+\d{4}$/, ""); } catch (e) {}
+          if (!T.demo) { try { sumarExtras(p, await extras(p)); } catch (e) { console.warn("extras:", e.message); } }
           const pn = T.demo ? [] : await paneles(p);
+          if (p.alin && p.alin.length) pn.splice(Math.min(1, pn.length), 0, ["Alineaciones", alinHTML(p), "am"]);
           const con = pn.length > 0;
           armarLado(con);
           dibujarPartido(p, con);
