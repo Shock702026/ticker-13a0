@@ -89,11 +89,14 @@
 
   /* Cuadro de tema */
   .tema2 { position:absolute; display:flex; align-items:stretch; max-width:1790px; }
-  .tema2 .et { flex:none; background:var(--rojo); color:#fff; font:800 30px/1 var(--slab); letter-spacing:.05em; text-transform:uppercase; padding:0 30px; display:flex; align-items:center; }
+  .tema2 .et { flex:none; background:var(--rojo); color:#fff; font:800 20px/1 var(--slab); letter-spacing:.05em; text-transform:uppercase; padding:0 20px; display:flex; align-items:center; }
   .tema2.azul .et { background:var(--azul); } .tema2.celeste .et { background:var(--celeste); }
-  .tema2 .tx { background:var(--blanco); color:var(--azul); font-weight:900; font-size:46px; line-height:1.05; letter-spacing:-.02em; padding:22px 34px; display:flex; align-items:center; }
+  .tema2 .tx { background:var(--blanco); color:var(--azul); font-weight:900; font-size:31px; line-height:1.05; letter-spacing:-.02em; padding:14px 22px; display:flex; align-items:center; }
   .tema2 .tx em, .tit-not em { font-style:normal; color:var(--rojo); }
-  .tema2 .cola { flex:none; width:22px; background:var(--amarillo); }
+  .tema2 .cola { flex:none; width:14px; background:var(--amarillo); }
+  /* posición "abajo": centrado, arriba del ticker; entra y sale por abajo */
+  .tema2.abajo { left:50% !important; top:auto !important; bottom:110px; transform:translateX(-50%); }
+  .pieza.arriba.abajo:not(.on) > * { transform:translateY(260%); }
 
   /* Cuadro de dato */
   .dato { position:absolute; display:grid; grid-template-rows:auto auto auto; }
@@ -212,7 +215,7 @@
          `<div class="tit-zona" id="tit-zona" style="left:1148px;top:220px;width:756px;height:752px"></div>` +
          `<div class="tit-barra" style="left:1148px;top:972px;width:756px"><i id="tit-tiempo"></i></div>`,
     // F · cuadros sueltos (con ?solo=tema|dato|zocalo|redes se ve uno solo)
-    f: () => (!SOLO || SOLO === "tema" ? `<div class="tema2 pieza arriba" data-m="f.tema" data-color="f.tema.color" style="left:64px;top:64px"><div class="et" data-k="f.tema.etiqueta"></div><div class="tx" data-k="f.tema.texto" data-rojo></div><div class="cola"></div></div>` : "") +
+    f: () => (!SOLO || SOLO === "tema" ? `<div class="tema2 pieza arriba" data-m="f.tema" data-color="f.tema.color" data-pos="f.tema.posicion" style="left:64px;top:64px"><div class="et" data-k="f.tema.etiqueta"></div><div class="tx" data-k="f.tema.texto" data-rojo></div><div class="cola"></div></div>` : "") +
          (!SOLO || SOLO === "dato" ? `<div class="dato pieza derecha" data-m="f.dato" style="left:1500px;top:64px;width:356px">${k("f.dato.etiqueta", "div", "et")}${k("f.dato.numero", "div", "num")}${k("f.dato.pie", "div", "pie")}</div>` : "") +
          (!SOLO || SOLO === "zocalo" ? zoc("f.zocalo", 64, 836) : "") +
          (!SOLO || SOLO === "redes" ? redes("left:1340px;top:880px;width:540px;height:100px", true) : ""),
@@ -220,7 +223,7 @@
     g: () => logo("left:1636px;top:16px;width:268px;height:110px") +
          `<div class="zoc2 pieza" data-m="g" style="left:64px;top:780px"><div class="cuad">13<b>a</b>0</div>${k("g.nombre", "div", "nom")}${k("g.rol", "div", "rol")}</div>`,
     // H · cuadro de tema, independiente
-    h: () => `<div class="tema2 pieza arriba" data-m="h" data-color="h.color" style="left:64px;top:64px"><div class="et" data-k="h.etiqueta"></div><div class="tx" data-k="h.texto" data-rojo></div><div class="cola"></div></div>`,
+    h: () => `<div class="tema2 pieza arriba" data-m="h" data-color="h.color" data-pos="h.posicion" style="left:64px;top:64px"><div class="et" data-k="h.etiqueta"></div><div class="tx" data-k="h.texto" data-rojo></div><div class="cola"></div></div>`,
     // I · solo el logo animado, arriba a la derecha
 i: () => logo("left:1652px;top:24px;width:244px;height:96px"),
 // J · cinco: cuatro cámaras a los costados y la videollamada vertical (9:16) al medio
@@ -295,6 +298,7 @@ l: () => negro(0, 0, 1920, 1010).replace('class="negro"', 'class="negro" data-fo
       const c = T.sinTildes ? T.sinTildes(V[el.dataset.color] || "") : String(V[el.dataset.color] || "").toLowerCase();
       el.classList.toggle("azul", /azul/.test(c)); el.classList.toggle("celeste", /celeste/.test(c));
     });
+    pant.querySelectorAll("[data-pos]").forEach((el) => el.classList.toggle("abajo", /abajo/i.test(V[el.dataset.pos] || "")));
     pant.querySelectorAll("[data-m]").forEach((el) => {
       const m = V[el.dataset.m + ".mostrar"];
       el.classList.toggle("on", !m || T.esSi(m));   // sin dato = se muestra

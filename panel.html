@@ -430,7 +430,7 @@ function interruptor(texto, on, sub, onChange) {
   return el;
 }
 // versión de las pantallas: va en cada link, así el navegador no muestra copias viejas guardadas
-const VER = "20261101b";
+const VER = "20261102";
 const conVer = (src) => src + (src.includes("?") ? "&" : "?") + "v=" + VER;
 function vistaPrevia(src, cls = "") {
   const pv = h(`<div class="pv ${cls}"><iframe src="${conVer(src)}"></iframe></div>`);
@@ -876,6 +876,9 @@ VISTAS.camaras = (m) => {
   V.appendChild(h(`<div class="aviso">Lo que cambiás se ve acá al instante. Recién al tocar <b>Guardar</b> va a la planilla y sale al aire.</div>`));
   // filas de esta pantalla: claves que empiezan con la letra (a.nombre, b1.rol, f.tema.texto…)
   const filas = filasClave(D.camaras).filter((r) => r.clave && r.clave.split(".")[0].replace(/\d+$/, "") === l.toLowerCase());
+  // el cuadro de tema (H y F) se puede poner arriba a la izquierda o abajo al centro; la fila se crea al guardar
+  ["h", "f.tema"].forEach((pre) => { const i = filas.findIndex((r) => r.clave === pre + ".color");
+    if (i >= 0 && !filas.some((r) => r.clave === pre + ".posicion")) filas.splice(i + 1, 0, { clave: pre + ".posicion", que: "Posición", valor: "" }); });
   const st = {}; filas.forEach((r) => (st[r.clave] = r.valor));
   const cambios = {};
   const mandar = debounce(() => { try { pv.querySelector("iframe").contentWindow.postMessage({ panel13a0: true, valores: st }, "*"); } catch (e) {} }, 150);
@@ -893,6 +896,10 @@ VISTAS.camaras = (m) => {
       if (fin === "mostrar") G.appendChild(interruptor(r.que.replace(/^.*·\s*/, "") || "¿Se ve?", esSi(r.valor) || r.valor === "", "SI = entra con su animación · NO = sale", (on) => set(r.clave, on ? "SI" : "NO")));
       else if (fin === "color") {
         const w = h(`<div class="lbl"><span>${esc(r.que)}</span><div class="chips">${["rojo", "azul", "celeste"].map((c) => `<button class="chip c-${c}${sinT(r.valor || "rojo") === c ? " on" : ""}" data-c="${c}">${c[0].toUpperCase() + c.slice(1)}</button>`).join("")}</div></div>`);
+        w.querySelectorAll(".chip").forEach((b) => (b.onclick = () => { w.querySelectorAll(".chip").forEach((x) => x.classList.remove("on")); b.classList.add("on"); set(r.clave, b.dataset.c); }));
+        G.appendChild(w);
+      } else if (fin === "posicion") {
+        const w = h(`<div class="lbl"><span>Posición</span><div class="chips">${[["arriba", "Arriba a la izquierda"], ["abajo", "Abajo al centro"]].map(([c, t]) => `<button class="chip${(/abajo/i.test(r.valor) ? "abajo" : "arriba") === c ? " on" : ""}" data-c="${c}">${t}</button>`).join("")}</div></div>`);
         w.querySelectorAll(".chip").forEach((b) => (b.onclick = () => { w.querySelectorAll(".chip").forEach((x) => x.classList.remove("on")); b.classList.add("on"); set(r.clave, b.dataset.c); }));
         G.appendChild(w);
       } else if (fin === "texto") {
