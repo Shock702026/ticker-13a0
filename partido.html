@@ -140,6 +140,7 @@
   const API = "https://site.api.espn.com/apis/site/v2/sports/soccer/";
   const API_T = "https://site.api.espn.com/apis/v2/sports/soccer/";
   const URU = "uru.1", LIB = "conmebol.libertadores", SUD = "conmebol.sudamericana";
+  const ELI = "fifa.worldq.conmebol", AMI = "fifa.friendly", SEL = [ELI, AMI];   // Selección uruguaya (ESPN id 212)
 
   function medir() { const w = innerWidth || document.documentElement.clientWidth, h = innerHeight || document.documentElement.clientHeight; if (w && h) pant.style.transform = "scale(" + Math.min(w / 1920, h / 1080) + ")"; }
   medir(); addEventListener("resize", medir);
@@ -260,11 +261,21 @@
     });
     p.inc.sort((a, b) => minNum(a.min) - minNum(b.min));
     p.alin = x.alin;
+    // alineación de la planilla (la trae el robot de Ovación / Referí / futbol.uy, o se escribe a mano):
+    // una línea por equipo: "Peñarol (4-4-2): 1 Aguerre, 3 Nández, ... | Ovación". Solo se usa si el nombre coincide con un equipo del partido.
+    hv("alineacion").split(/\n|;;/).map((t) => t.trim()).filter(Boolean).forEach((t) => {
+      const m = t.match(/^([^:(]+?)\s*(?:\(([^)]*)\))?\s*:\s*([^|]+)(?:\|\s*(.+))?$/); if (!m) return;
+      const eq = [p.l, p.v].find((e) => mismo(e.nombre, m[1]) || mismo(e.largo, m[1])); if (!eq) return;
+      const id = String(eq.id || ""); if (p.alin.some((a) => a.id === id)) return;   // ESPN manda
+      const pl = x.plantel[id] || {};
+      const tit = m[3].split(",").map((j) => j.trim()).filter(Boolean).map((j) => { const q = j.match(/^(\d{1,2})\.?\s*(.*)$/); return q ? { num: q[1], nombre: q[2] || pl[q[1]] || "" } : { num: "", nombre: j }; });
+      if (tit.length) p.alin.push({ id, formacion: (m[2] || "").trim(), titulares: tit.slice(0, 11), entraron: [], fuente: (m[4] || "").trim() });
+    });
   }
   function alinHTML(p) {
     const col = (e) => {
       const a = p.alin.find((x) => x.id === String(e.id)); if (!a) return "";
-      return `<div><h4>${esc(e.nombre)}${a.formacion ? `<small>${esc(a.formacion)}</small>` : ""}</h4><ol>` +
+      return `<div><h4>${esc(e.nombre)}${a.formacion ? `<small>${esc(a.formacion)}</small>` : ""}${a.fuente ? `<small>· ${esc(a.fuente)}</small>` : ""}</h4><ol>` +
         a.titulares.map((t) => `<li class="${t.salio ? "salio" : ""}"><b>${esc(t.num)}</b>${esc(t.nombre)}${t.salio ? ` <i>↓${esc(t.min)}</i>` : ""}</li>`).join("") + `</ol>` +
         (a.entraron.length ? `<div class="entraron">Entraron: ${a.entraron.map((t) => esc(t.num + " " + t.nombre + (t.min ? " " + t.min : ""))).join(" · ")}</div>` : "") + `</div>`;
     };
@@ -274,6 +285,9 @@
   /* ---- Uruguayos en las copas: escudos propios con archivo uruguay-* ---- */
   const ID_URU = new Set(Object.entries((window.ESCUDOS || {}).equipos || {}).filter(([, p]) => /\/uruguay-/.test(p)).map(([id]) => id));
   const esUru = (p) => ID_URU.has(String(p.l.id)) || ID_URU.has(String(p.v.id));
+  const esSel = (p) => [p.l, p.v].some((e) => String(e.id) === "212" || sinT(e.largo || e.nombre) === "uruguay");
+  // solo fútbol uruguayo: el Uruguayo, las copas con un equipo uruguayo y la Selección
+  const sirve = (p) => p.liga === URU || ((p.liga === LIB || p.liga === SUD) && esUru(p)) || (SEL.includes(p.liga) && esSel(p));
 
   /* ---- Qué partido mostrar ----
      equipo (planilla o ?equipo=) > el que se está jugando con un uruguayo > el próximo de hoy > el último de hoy.
@@ -283,12 +297,12 @@
     if (/auf|manual/.test(comp)) return manual();
     const base = hv("fecha") ? new Date(hv("fecha").replace(/(\d{4})(\d\d)(\d\d)/, "$1-$2-$3") + "T12:00:00") : new Date();
     const desde = dias(-1, base), hasta = dias(1, base);
-    const ligas = /libert/.test(comp) ? [LIB] : /sudam/.test(comp) ? [SUD] : /urug|primera/.test(comp) ? [URU] : [URU, LIB, SUD];
+    const ligas = /libert/.test(comp) ? [LIB] : /sudam/.test(comp) ? [SUD] : /selec|elimin|celeste/.test(comp) ? SEL : /urug|primera/.test(comp) ? [URU] : [URU, LIB, SUD, ELI, AMI];
     let todos = [];
     for (const l of ligas) { try { todos = todos.concat(await partidos(l, desde, hasta)); } catch (e) {} }
     const equipo = hv("equipo");
-    let cand = todos.filter((p) => equipo ? (mismo(p.l.nombre, equipo) || mismo(p.v.nombre, equipo) || mismo(p.l.largo, equipo) || mismo(p.v.largo, equipo)) : (p.liga === URU || esUru(p)));
-    if (!cand.length && !equipo) cand = todos;
+    let cand = todos.filter(sirve);
+    if (equipo) cand = cand.filter((p) => mismo(p.l.nombre, equipo) || mismo(p.v.nombre, equipo) || mismo(p.l.largo, equipo) || mismo(p.v.largo, equipo));
     const ahora = Date.now(), dist = (p) => Math.abs(new Date(p.fecha) - ahora);
     const enJuego = cand.filter((p) => p.estado === "in").sort((a, b) => ligas.indexOf(a.liga) - ligas.indexOf(b.liga));
     if (enJuego.length) return enJuego[0];
@@ -430,6 +444,18 @@
       } catch (e) {}
       return out;
     }
+    if (p.liga === AMI) return [];
+    if (p.liga === ELI) {   // Eliminatorias: la fecha y la tabla
+      const out = [];
+      try { const f = (await partidos(ELI, dias(-2, p.fecha), dias(2, p.fecha))).filter((x) => x.id !== p.id); if (f.length) out.push(["Eliminatorias · la fecha", f.map(fila).join(""), "ro"]); } catch (e) {}
+      try {
+        const d = await standings(ELI, null, null, 300), g = (d.children || [])[0] || d;
+        const vivos = (await partidos(ELI, dias(-2, p.fecha), dias(2, p.fecha))).filter((x) => x.estado !== "pre");
+        const f = filasDe(g); f.tag = "elim";
+        if (f.length) out.push(["Eliminatorias · tabla", tablaHTML(enVivo(f, vivos), [["PJ", (x) => x.pj], ["DG", (x) => dgTxt(x.dg)], ["PTS", (x) => x.pts]]), "az"]);
+      } catch (e) {}
+      return out;
+    }
     // copas: primero la de este partido, después la otra
     const out = [];
     for (const liga of p.liga === LIB ? [LIB, SUD] : [SUD, LIB]) {
@@ -489,8 +515,8 @@
   let ultimo = "";
   function dibujarPartido(p, conPanel) {
     const ancho = conPanel ? 984 : 1616;
-    const torneo = p.manual ? p.torneo : p.liga === URU ? (CP.nombreUruguay || "Liga AUF Uruguaya") : p.liga === LIB ? "CONMEBOL Libertadores" : "CONMEBOL Sudamericana";
-    const fase = p.manual ? p.faseTxt : p.liga === URU ? (hv("fase") || torneoActual || "") : faseTxt(p.fase) + (p.vuelta ? " · vuelta" : p.ida ? " · ida" : "");
+    const torneo = p.manual ? p.torneo : p.liga === URU ? (CP.nombreUruguay || "Liga AUF Uruguaya") : p.liga === LIB ? "CONMEBOL Libertadores" : p.liga === ELI ? "Eliminatorias Sudamericanas" : p.liga === AMI ? "Amistoso internacional" : "CONMEBOL Sudamericana";
+    const fase = p.manual ? p.faseTxt : p.liga === URU ? (hv("fase") || torneoActual || "") : SEL.includes(p.liga) ? (hv("fase") || "") : faseTxt(p.fase) + (p.vuelta ? " · vuelta" : p.ida ? " · ida" : "");
     document.getElementById("torneo").innerHTML = esc(torneo) + (fase ? `<span>· ${esc(fase)}</span>` : "");
     // arriba a la izquierda: EN VIVO (titila), PREVIA o FINAL
     const v = document.getElementById("vivo");

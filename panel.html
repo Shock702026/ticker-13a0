@@ -421,7 +421,7 @@ function interruptor(texto, on, sub, onChange) {
   return el;
 }
 // versión de las pantallas: va en cada link, así el navegador no muestra copias viejas guardadas
-const VER = "20261101";
+const VER = "20261101b";
 const conVer = (src) => src + (src.includes("?") ? "&" : "?") + "v=" + VER;
 function vistaPrevia(src, cls = "") {
   const pv = h(`<div class="pv ${cls}"><iframe src="${conVer(src)}"></iframe></div>`);
@@ -921,7 +921,7 @@ VISTAS.partido = (m) => {
   }, 700);
   F.innerHTML = `<h2><i style="background:var(--celeste)"></i>¿Qué partido mostramos?</h2>`;
   const manual = /auf|manual/i.test(st.competencia || "");
-  const G1 = h(`<div class="grupo"><b>Competencia</b><div class="chips">${[["", "Automático"], ["uruguay", "Uruguay"], ["libertadores", "Libertadores"], ["sudamericana", "Sudamericana"], ["copa auf", "Copa AUF (a mano)"]].map(([k, t]) => `<button class="chip${sinT(st.competencia || "") === k ? " on" : ""}" data-k="${k}">${t}</button>`).join("")}</div></div>`);
+  const G1 = h(`<div class="grupo"><b>Competencia</b><div class="chips">${[["", "Automático"], ["uruguay", "Uruguay"], ["libertadores", "Libertadores"], ["sudamericana", "Sudamericana"], ["seleccion", "Selección"], ["copa auf", "Copa AUF (a mano)"]].map(([k, t]) => `<button class="chip${sinT(st.competencia || "") === k ? " on" : ""}" data-k="${k}">${t}</button>`).join("")}</div></div>`);
   G1.querySelectorAll(".chip").forEach((b) => (b.onclick = () => { set("competencia", b.dataset.k); D.partido = conValores(D.partido, st); VISTAS.partido(m); Object.assign(cambiosPend, cambios); }));
   F.appendChild(G1);
   if (!manual) {
@@ -1001,6 +1001,16 @@ VISTAS.partido = (m) => {
   }));
   pintarT();
   F.appendChild(GT);
+  // alineación: la carga sola la tarea en la nube (Ovación / Referí / futbol.uy) antes del partido; acá se ve y se corrige
+  const GA = h(`<div class="grupo"><b>Alineaciones</b>
+    <textarea id="a-txt" rows="4" placeholder="Peñarol (4-4-2): 1 Aguerre, 3 Nández, 10 Fernández... | Ovación"></textarea>
+    <div class="botonera"><button class="btn am" id="a-ok">Guardar alineación</button><button class="btn sec chico" id="a-no">Borrar</button></div>
+    <span class="ayuda">Una línea por equipo: nombre, formación entre paréntesis, dos puntos y los 11 separados por coma (con número si se sabe). La busca sola la tarea en la nube antes de cada partido del Uruguayo. En las copas y la Selección sale de ESPN y esto no hace falta.</span></div>`);
+  const aTxt = GA.querySelector("#a-txt"); aTxt.value = st.alineacion || "";
+  const guardarA = async (v) => { const c = { alineacion: v }; st.alineacion = v; cambios.alineacion = v; aTxt.value = v; refrescar(); try { await guardar("guardarClaves", "partido_vivo", c); } catch (e) {} };
+  GA.querySelector("#a-ok").onclick = () => guardarA(aTxt.value.trim());
+  GA.querySelector("#a-no").onclick = () => guardarA("");
+  F.appendChild(GA);
   const pie = h(`<div class="pie"><button class="btn am">Guardar y mandar al aire</button></div>`);
   pie.querySelector("button").onclick = async (e) => { const c = Object.assign({}, cambiosPend, cambios); if (!Object.keys(c).length) { aviso("No hay cambios"); return; } e.target.disabled = true; try { await guardar("guardarClaves", "partido_vivo", c); cambiosPend = {}; await recargar(); } catch (x) { e.target.disabled = false; } };
   F.appendChild(pie);
