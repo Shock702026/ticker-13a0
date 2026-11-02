@@ -1020,13 +1020,49 @@ VISTAS.partido = (m) => {
   F.appendChild(GT);
   // alineación: la carga sola la tarea en la nube (Ovación / Referí / futbol.uy) antes del partido; acá se ve y se corrige
   const GA = h(`<div class="grupo"><b>Alineaciones</b>
+    <div class="dos"><label>Local<input type="text" id="a-nl" value="${esc(manual ? st.local || "" : "")}" placeholder="Buscando el partido…"></label><label>Visitante<input type="text" id="a-nv" value="${esc(manual ? st.visitante || "" : "")}"></label></div>
+    <div class="dos"><label class="btn sec chico" style="cursor:pointer;text-align:center">📎 Imágenes del local<input type="file" id="a-fl" accept="image/*" multiple hidden></label><label class="btn sec chico" style="cursor:pointer;text-align:center">📎 Imágenes del visitante<input type="file" id="a-fv" accept="image/*" multiple hidden></label></div>
+    <div class="botonera"><button class="btn ce" id="a-ia">✨ Armar alineación con las imágenes</button><span id="a-cnt" class="ayuda" style="align-self:center"></span></div>
     <textarea id="a-txt" rows="4" placeholder="Peñarol (4-4-2): 1 Aguerre, 3 Nández, 10 Fernández... | Ovación"></textarea>
     <div class="botonera"><button class="btn am" id="a-ok">Guardar alineación</button><button class="btn sec chico" id="a-no">Borrar</button></div>
-    <span class="ayuda">Una línea por equipo: nombre, formación entre paréntesis, dos puntos y los 11 separados por coma (con número si se sabe). La busca sola la tarea en la nube antes de cada partido del Uruguayo. En las copas y la Selección sale de ESPN y esto no hace falta.</span></div>`);
+    <span class="ayuda">Adjuntá capturas (TV, redes del club, la nota de un medio) de cada equipo y tocá «Armar alineación»: Claude las lee, completa los números con el plantel y la deja acá para revisar. Después, «Guardar alineación». También se puede escribir a mano: una línea por equipo, nombre, formación entre paréntesis, dos puntos y los 11 separados por coma. En las copas y la Selección sale de ESPN y esto no hace falta.</span></div>`);
   const aTxt = GA.querySelector("#a-txt"); aTxt.value = st.alineacion || "";
   const guardarA = async (v) => { const c = { alineacion: v }; st.alineacion = v; cambios.alineacion = v; aTxt.value = v; refrescar(); try { await guardar("guardarClaves", "partido_vivo", c); } catch (e) {} };
   GA.querySelector("#a-ok").onclick = () => guardarA(aTxt.value.trim());
   GA.querySelector("#a-no").onclick = () => guardarA("");
+  // armar con imágenes: se achican en el navegador (lado mayor 1568 px, JPG) y las lee Claude en el servidor
+  const nl = GA.querySelector("#a-nl"), nv = GA.querySelector("#a-nv"), fl = GA.querySelector("#a-fl"), fv = GA.querySelector("#a-fv"), cnt = GA.querySelector("#a-cnt");
+  let partidoA = null;
+  const contar = () => (cnt.textContent = `${fl.files.length} del local · ${fv.files.length} del visitante`);
+  fl.onchange = fv.onchange = contar; contar();
+  if (!manual) partidosUruguayos(2).then((L) => {   // el partido de hoy (o el más cercano) para los nombres y el plantel
+    const ahora = Date.now(); partidoA = L.sort((a, b) => Math.abs(new Date(a.fecha + "T" + a.hora) - ahora) - Math.abs(new Date(b.fecha + "T" + b.hora) - ahora))[0] || null;
+    if (partidoA) { if (!nl.value) nl.value = partidoA.local; if (!nv.value) nv.value = partidoA.visitante; }
+    nl.placeholder = "Nombre del local";
+  }).catch(() => {});
+  const achicar = (f) => new Promise((ok, mal) => { const im = new Image(), u = URL.createObjectURL(f);
+    im.onload = () => { const k = Math.min(1, 1568 / Math.max(im.width, im.height)), c = document.createElement("canvas"); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+      c.getContext("2d").drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(u); ok({ tipo: "image/jpeg", base64: c.toDataURL("image/jpeg", 0.85).split(",")[1] }); };
+    im.onerror = () => mal(new Error("No pude abrir " + f.name)); im.src = u; });
+  const plantel = async (id) => { if (!partidoA || !id) return ""; try { const j = await (await fetch("https://site.api.espn.com/apis/site/v2/sports/soccer/" + partidoA.liga + "/teams/" + id + "/roster")).json();
+    return (j.athletes || []).filter((a) => a.jersey).map((a) => a.jersey + " " + (a.displayName || a.fullName)).join("; "); } catch (e) { return ""; } };
+  GA.querySelector("#a-ia").onclick = async (ev) => {
+    const b = ev.target; if (!fl.files.length && !fv.files.length) { aviso("Adjuntá al menos una imagen", true); return; }
+    if ((fl.files.length && !nl.value.trim()) || (fv.files.length && !nv.value.trim())) { aviso("Poné el nombre del equipo", true); return; }
+    b.disabled = true; const t0 = b.textContent; b.textContent = "Leyendo las imágenes…";
+    try {
+      const mismoA = partidoA && sinT(partidoA.local) === sinT(nl.value.trim()), mismoV = partidoA && sinT(partidoA.visitante) === sinT(nv.value.trim());
+      const d = { local: nl.value.trim(), visitante: nv.value.trim(), imgLocal: await Promise.all([...fl.files].slice(0, 6).map(achicar)), imgVisitante: await Promise.all([...fv.files].slice(0, 6).map(achicar)),
+        plantelLocal: mismoA ? await plantel(partidoA.ids[0]) : "", plantelVisitante: mismoV ? await plantel(partidoA.ids[1]) : "" };
+      const r = await srv("armarAlineacion", d);
+      const eqDe = (l) => sinT(String(l).split(/[:(]/)[0].trim());
+      const nuevas = r.map((x) => x.linea), quedan = aTxt.value.split("\n").filter((l) => l.trim() && !nuevas.some((n) => eqDe(n) === eqDe(l)));
+      aTxt.value = quedan.concat(nuevas).join("\n");
+      const dudas = r.filter((x) => x.nota || x.n < 11).map((x) => (x.lado === "local" ? d.local : d.visitante) + ": " + (x.n < 11 ? x.n + " titulares. " : "") + (x.nota || ""));
+      aviso(dudas.length ? "Revisá antes de guardar · " + dudas.join(" · ") : "Listo ✓ Revisala y tocá «Guardar alineación»", !!dudas.length);
+    } catch (e) { aviso(e.message || String(e), true); }
+    b.disabled = false; b.textContent = t0;
+  };
   F.appendChild(GA);
   const pie = h(`<div class="pie"><button class="btn am">Guardar y mandar al aire</button></div>`);
   pie.querySelector("button").onclick = async (e) => { const c = Object.assign({}, cambiosPend, cambios); if (!Object.keys(c).length) { aviso("No hay cambios"); return; } e.target.disabled = true; try { await guardar("guardarClaves", "partido_vivo", c); cambiosPend = {}; await recargar(); } catch (x) { e.target.disabled = false; } };
@@ -1446,9 +1482,9 @@ const hoyUY = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/
 let PR = null, subPr = "partidos", prEdit = null, soloProntas = null, prLiga = null, prFiltro = "";
 const cachePr = {};
 // partidos de ESPN de los próximos 20 días; filtro: qué partidos sirven
-async function partidosESPN(ligas, filtro) {
+async function partidosESPN(ligas, filtro, dias = 20) {
   const ymd = (d) => d.toLocaleDateString("en-CA", { timeZone: "America/Montevideo" }), pedidos = [];
-  for (const [l, nom] of ligas) for (let i = 0; i < 20; i++) {
+  for (const [l, nom] of ligas) for (let i = 0; i < dias; i++) {
     const d = ymd(new Date(Date.now() + i * 864e5)).replace(/-/g, ""), k = l + d;
     pedidos.push(cachePr[k] || (cachePr[k] = fetch("https://site.api.espn.com/apis/site/v2/sports/soccer/" + l + "/scoreboard?dates=" + d).then((r) => r.json()).then((j) => (j.events || []).map((ev) => {
       const co = ev.competitions[0], eq = co.competitors || [], loc = eq.find((x) => x.homeAway === "home") || eq[0], vis = eq.find((x) => x.homeAway === "away") || eq[1], f = new Date(ev.date);
@@ -1460,10 +1496,10 @@ async function partidosESPN(ligas, filtro) {
   return (await Promise.all(pedidos)).flat().filter((p) => p.local && !p.hecho && (!filtro || filtro(p)) && !vistos.has(p.espn) && vistos.add(p.espn)).sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora));
 }
 let idsUru = null;
-async function partidosUruguayos() {   // el Uruguayo, las copas con equipos uruguayos y la Selección
+async function partidosUruguayos(dias = 20) {   // el Uruguayo, las copas con equipos uruguayos y la Selección
   if (!idsUru) { try { const j = await (await fetch("https://site.api.espn.com/apis/site/v2/sports/soccer/uru.1/teams")).json(); idsUru = new Set(j.sports[0].leagues[0].teams.map((t) => t.team.id)); } catch (e) { idsUru = new Set(); } }
   return partidosESPN([["uru.1", "Campeonato Uruguayo"], ["conmebol.libertadores", "Copa Libertadores"], ["conmebol.sudamericana", "Copa Sudamericana"], ["fifa.worldq.conmebol", "Eliminatorias"], ["fifa.friendly", "Amistoso internacional"]],
-    (p) => p.liga === "uru.1" || (/conmebol\./.test(p.liga) && p.ids.some((i) => idsUru.has(i))) || (/^fifa\./.test(p.liga) && (p.ids.includes("212") || /^uruguay$/i.test(p.local) || /^uruguay$/i.test(p.visitante))));
+    (p) => p.liga === "uru.1" || (/conmebol\./.test(p.liga) && p.ids.some((i) => idsUru.has(i))) || (/^fifa\./.test(p.liga) && (p.ids.includes("212") || /^uruguay$/i.test(p.local) || /^uruguay$/i.test(p.visitante))), dias);
 }
 const OTRAS_LIGAS = [["arg.1", "Liga Argentina"], ["bra.1", "Brasileirão"], ["eng.1", "Premier League"], ["esp.1", "LaLiga"], ["ita.1", "Serie A"], ["uefa.champions", "Champions League"],
   ["conmebol.libertadores", "Libertadores (todos)"], ["conmebol.sudamericana", "Sudamericana (todos)"], ["usa.1", "MLS"], ["mex.1", "Liga MX"]];
@@ -1556,8 +1592,8 @@ function editorPr(pa, x, cont, m) {
   const cp = e.querySelector("#pe-cp");
   if (cp) cp.onclick = async () => {
     const d = datos(); if (!d.guion && !d.tematica) { aviso("Para el copete hace falta el guion o la temática", true); return; }
-    cp.disabled = true;
-    try { const r = await srv("guardarProduccion", d); PR = await srv("pedirCopete", r.id); prEdit = Object.assign({}, PR.producciones.find((y) => y.id === r.id)); aviso("Copete pedido ✓ · lo escribe la tarea en la nube"); prPartidos(cont, m); }
+    cp.disabled = true; cp.textContent = "Escribiendo…";
+    try { const r = await srv("guardarProduccion", d); PR = await srv("pedirCopete", r.id); prEdit = Object.assign({}, PR.producciones.find((y) => y.id === r.id)); aviso(prEdit.copete_pedido ? "Copete pedido ✓ · lo escribe la tarea en la nube" : "Copete listo ✓ · revisalo y guardá"); prPartidos(cont, m); }
     catch (er) { aviso(er.message || String(er), true); cp.disabled = false; }
   };
   const bo = e.querySelector("#pe-bo");
