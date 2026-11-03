@@ -269,6 +269,7 @@
      Tarjetas a mano (pestaña partido_vivo, clave "tarjetas"): "L 10 23 amarilla; V 5 40 roja" = lado, número, minuto, tipo.
      El número se pasa al nombre con el plantel de ESPN de ese equipo. */
   const minNum = (m) => { const x = String(m || "").match(/(\d+)(?:'?\s*\+\s*(\d+))?/); return x ? +x[1] + (x[2] ? +x[2] / 100 : 0) : 999; };
+  let tmCache = null;
   async function extras(p) {
     const r = { alin: [], ev: [], plantel: {} };
     if (p.manual) return r;
@@ -290,6 +291,11 @@
       const tipo = /yellow/i.test(tt) ? "amarilla" : /red card/i.test(tt) ? "roja" : /substitution/i.test(tt) ? "cambio" : null;
       if (tipo) r.ev.push({ min: (k.clock || {}).displayValue || "", equipo: String((k.team || {}).id || ""), tipo, nombre: par[0] || "", sale: tipo === "cambio" ? par[1] || "" : "" });
     });
+    // planteles de Transfermarkt (pestaña "planteles", se actualiza los lunes): completan los números que no trae el partido y van antes que el plantel de ESPN
+    try {
+      if (!tmCache || Date.now() - tmCache.t > 600000) tmCache = { t: Date.now(), f: (await T.leerHoja("planteles")) || [] };
+      tmCache.f.forEach((f) => { if (f.espn_id && f.numero && (String(f.espn_id) === String(p.l.id) || String(f.espn_id) === String(p.v.id))) { const pl = (r.plantel[f.espn_id] = r.plantel[f.espn_id] || {}); if (!pl[f.numero]) pl[f.numero] = f.nombre; } });   // lo del partido (ESPN, copas) queda primero
+    } catch (e) {}
     // plantel con números para las tarjetas a mano (el Uruguayo no trae alineaciones)
     for (const e of [p.l, p.v]) {
       const id = String(e.id || ""); if (!id || (r.plantel[id] && Object.keys(r.plantel[id]).length)) continue;
