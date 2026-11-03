@@ -235,6 +235,11 @@
   .g-cuenta { margin-left:auto; font:800 12px var(--f); color:var(--verde); } .g-cuenta.mal { color:var(--rojo); }
   .g-sub { font:800 11px/1 var(--f); letter-spacing:.12em; text-transform:uppercase; color:var(--gris); margin-top:6px; }
   .g-j { display:flex; gap:4px; align-items:center; } .g-j .g-n { width:48px; flex:none; text-align:center; padding:7px 4px; font-weight:900; } .g-j .g-nom { flex:1; min-width:0; padding:7px 8px; }
+  .g-agarre { flex:none; width:18px; text-align:center; cursor:grab; color:var(--gris); font-size:16px; user-select:none; touch-action:none; }
+  .g-j.arrastrando { opacity:.4; } .g-j.sobre-a { box-shadow:0 -3px 0 var(--celeste); } .g-j.sobre-b { box-shadow:0 3px 0 var(--celeste); } .g-tit.vacia, .g-sup.vacia { outline:2px dashed var(--celeste); min-height:30px; }
+  .g-tit, .g-sup { display:flex; flex-direction:column; gap:4px; min-height:8px; }
+  .g-ok { flex:none; min-width:30px; text-align:center; font:800 11px var(--f); padding:4px 3px; border-radius:3px; }
+  .g-ok.si { color:var(--verde); font-size:15px; } .g-ok.no { color:var(--gris); background:var(--fondo); } .g-ok.dif { background:#FFF6CC; color:#8a6500; cursor:pointer; }
   .g-b { flex:none; width:28px; height:30px; border:0; background:var(--fondo); color:var(--azul); font:800 13px var(--f); } .g-b.x { color:var(--rojo); }
   .a-crudo summary { cursor:pointer; font:700 12px var(--f); color:var(--gris); } .a-crudo textarea { margin-top:6px; }
   .eqa { display:flex; flex-direction:column; gap:8px; min-width:0; padding:12px; outline:1px solid var(--linea); } .eqa .a-tx { font:600 14px/1.35 var(--f); }
@@ -1066,22 +1071,53 @@ VISTAS.partido = (m) => {
   const armarLinea = (e) => { const j = (L) => L.filter((x) => x.nombre.trim() || x.num.trim()).map((x) => (x.num.trim() ? x.num.trim() + " " : "") + x.nombre.trim()).join(", ");
     return `${e.equipo}${e.forma ? ` (${e.forma})` : ""}: ${j(e.tit)}${e.fuente ? " | " + e.fuente : ""}${e.sup.some((x) => x.nombre.trim()) ? " | Suplentes: " + j(e.sup) : ""}`; };
   const grilla = GA.querySelector("#a-grilla");
+  // plantel de cada equipo para verificar número ↔ jugador: Transfermarkt (pestaña "planteles") y, si no está, ESPN
+  const planGr = {};
+  let tmFilas = null;
+  async function plantelGrilla(nombre) {
+    await Promise.resolve();
+    const k = sinT(nombre); if (planGr[k]) return planGr[k];
+    if (!tmFilas) { try { const r = await fetch("https://docs.google.com/spreadsheets/d/1RWYJrnosHmqeEXJoR9lqTS8V6bsuwzusLhwZLm2D1Hc/gviz/tq?tqx=out:csv&headers=1&sheet=planteles"); const c = csv(await r.text()), h0 = cab(c); tmFilas = c.slice(1).map((f) => Object.fromEntries(h0.map((x, i) => [x, f[i] || ""]))); } catch (e) { tmFilas = []; } }
+    const parecido = (a, b) => { a = sinT(a); b = sinT(b); return a === b || a.includes(b) || b.includes(a); };
+    let L = tmFilas.filter((f) => parecido(f.equipo, nombre)).map((f) => ({ num: f.numero, nombre: f.nombre, de: "Transfermarkt" }));
+    if (!L.length) { const t = await plantelDe(nombre, sinT(nombre) === sinT(nl.value) ? "l" : "v"); L = t.split(";").map((x) => x.trim().match(/^(\d+)\s+(.+?)(?:\s+\(.*\))?$/)).filter(Boolean).map((m) => ({ num: m[1], nombre: m[2], de: "ESPN" })); }
+    return (planGr[k] = L);
+  }
+  const toks = (n) => sinT(n).replace(/[øØ]/g, "o").split(/[\s.\-]+/).filter((w) => w.length >= 3 && !/^(del|los|las)$/.test(w));
+  const buscarJ = (nombre, L) => {   // el jugador del plantel que corresponde a un nombre escrito
+    const w = toks(nombre); if (!w.length) return null; let mejor = null, pts = 0;
+    L.forEach((p) => { const pt = toks(p.nombre); let x = 0;
+      if (sinT(p.nombre) === sinT(nombre)) x = 100; else if (w.length > 1 && w.every((y) => pt.includes(y))) x = 60; else if (pt[1] === w[w.length - 1]) x = 45; else if (pt.slice(1).includes(w[w.length - 1])) x = 30; else if (pt.length === 1 && pt[0] === w[0]) x = 45;
+      if (x > pts) { pts = x; mejor = p; } });
+    return pts >= 30 ? mejor : null;
+  };
   function pintarGrilla() {
     const eqsL = aTxt.value.split("\n").map((l) => l.trim()).filter(Boolean).map(leerLinea).filter(Boolean);
     grilla.innerHTML = eqsL.length ? "" : `<div class="ayuda">Acá aparece cada equipo con sus jugadores para corregir. Tocá «Armar equipos».</div>`;
     const volcar = () => { aTxt.value = eqsL.map(armarLinea).join("\n"); };
-    eqsL.forEach((e) => {
-      const c = h(`<div class="g-eq"><div class="g-cab"><b>${esc(e.equipo)}</b><select class="g-f">${["", ...FORMAS].map((f) => `<option value="${f}"${f === e.forma ? " selected" : ""}>${f || "Sin formación"}</option>`).join("")}${e.forma && !FORMAS.includes(e.forma) ? `<option selected>${esc(e.forma)}</option>` : ""}</select>
+    eqsL.forEach((e, ei) => {
+      const lid = "pl" + ei + Date.now() % 100000; let plan = planGr[sinT(e.equipo)] || null;
+      const c = h(`<div class="g-eq"><datalist id="dl-${lid}"></datalist><div class="g-cab"><b>${esc(e.equipo)}</b><select class="g-f">${["", ...FORMAS].map((f) => `<option value="${f}"${f === e.forma ? " selected" : ""}>${f || "Sin formación"}</option>`).join("")}${e.forma && !FORMAS.includes(e.forma) ? `<option selected>${esc(e.forma)}</option>` : ""}</select>
         <span class="g-cuenta"></span></div><div class="g-tit"></div><b class="g-sub">Suplentes</b><div class="g-sup"></div>
         <div class="botonera"><button class="btn sec chico g-mas" data-l="tit">+ Titular</button><button class="btn sec chico g-mas" data-l="sup">+ Suplente</button></div></div>`);
       const cuenta = () => { const n = e.tit.filter((x) => x.nombre.trim()).length; const el = c.querySelector(".g-cuenta"); el.textContent = n + " titulares"; el.classList.toggle("mal", n !== 11); };
       const filas = (k) => { const box = c.querySelector(k === "tit" ? ".g-tit" : ".g-sup"); box.innerHTML = "";
         e[k].forEach((j, i) => {
-          const f = h(`<div class="g-j"><input class="g-n" type="text" inputmode="numeric" maxlength="2" value="${esc(j.num)}" placeholder="N.º"><input class="g-nom" type="text" value="${esc(j.nombre)}" placeholder="Nombre">
+          const f = h(`<div class="g-j" data-k="${k}" data-i="${i}"><span class="g-agarre" title="Arrastrar para mover">⠿</span><input class="g-n" type="text" inputmode="numeric" maxlength="2" value="${esc(j.num)}" placeholder="N.º"><input class="g-nom" type="text" value="${esc(j.nombre)}" placeholder="Nombre" list="dl-${lid}"><span class="g-ok"></span>
             <button class="g-b" title="Subir">↑</button><button class="g-b" title="Bajar">↓</button><button class="g-b" title="${k === "tit" ? "Pasar a suplentes" : "Pasar a titulares"}">${k === "tit" ? "⇣" : "⇡"}</button><button class="g-b x" title="Sacar">✕</button></div>`);
-          const [n, nom] = f.querySelectorAll("input"), [up, dn, pasa, x] = f.querySelectorAll("button");
-          n.oninput = () => { j.num = n.value.replace(/\D/g, ""); n.value = j.num; volcar(); };
-          nom.oninput = () => { j.nombre = nom.value; volcar(); cuenta(); };
+          const [n, nom] = f.querySelectorAll("input"), [up, dn, pasa, x] = f.querySelectorAll("button"), ok = f.querySelector(".g-ok");
+          // número ↔ jugador contra el plantel: ✓ coincide · «TM 8» distinto (tocá para usarlo) · ? no está
+          const verificar = () => { const L = plan || []; if (!L.length) { ok.className = "g-ok"; ok.textContent = ""; return; }
+            const p = buscarJ(j.nombre, L);
+            if (!j.nombre.trim()) { ok.className = "g-ok"; ok.textContent = ""; }
+            else if (!p) { ok.className = "g-ok no"; ok.textContent = "?"; ok.title = "No está en el plantel (" + (L[0] || {}).de + ")"; ok.onclick = null; }
+            else if (p.num === j.num) { ok.className = "g-ok si"; ok.textContent = "✓"; ok.title = p.nombre + " · " + p.de; ok.onclick = null; }
+            else { ok.className = "g-ok dif"; ok.textContent = (p.de === "ESPN" ? "ESPN " : "TM ") + p.num; ok.title = p.de + " le da el " + p.num + " a " + p.nombre + ". Tocá para usarlo."; ok.onclick = () => { j.num = p.num; n.value = p.num; volcar(); verificar(); }; } };
+          n.oninput = () => { j.num = n.value.replace(/\D/g, ""); n.value = j.num; volcar(); verificar(); };
+          n.onchange = () => { if (j.num && !j.nombre.trim()) { const p = (plan || []).find((y) => y.num === j.num); if (p) { j.nombre = p.nombre; nom.value = p.nombre; volcar(); cuenta(); verificar(); } } };
+          nom.oninput = () => { j.nombre = nom.value; volcar(); cuenta(); verificar(); };
+          nom.onchange = () => { const p = buscarJ(j.nombre, plan || []); if (p && !j.num) { j.num = p.num; n.value = p.num; volcar(); verificar(); } };
+          verificar();
           up.onclick = () => { if (i) { e[k].splice(i - 1, 0, e[k].splice(i, 1)[0]); volcar(); filas(k); } };
           dn.onclick = () => { if (i < e[k].length - 1) { e[k].splice(i + 1, 0, e[k].splice(i, 1)[0]); volcar(); filas(k); } };
           pasa.onclick = () => { const otro = k === "tit" ? "sup" : "tit"; e[otro].push(e[k].splice(i, 1)[0]); volcar(); filas("tit"); filas("sup"); cuenta(); };
@@ -1091,6 +1127,24 @@ VISTAS.partido = (m) => {
       c.querySelector(".g-f").onchange = (ev) => { e.forma = ev.target.value; volcar(); };
       c.querySelectorAll(".g-mas").forEach((b) => (b.onclick = () => { e[b.dataset.l].push({ num: "", nombre: "" }); filas(b.dataset.l); const ins = c.querySelectorAll(b.dataset.l === "tit" ? ".g-tit .g-nom" : ".g-sup .g-nom"); ins[ins.length - 1].focus(); cuenta(); }));
       filas("tit"); filas("sup"); cuenta();
+      const llenarDl = () => { c.querySelector("datalist").innerHTML = (plan || []).map((p) => `<option value="${esc(p.nombre)}">${esc(p.num)}</option>`).join(""); };
+      if (plan) llenarDl(); else plantelGrilla(e.equipo).then((L) => { plan = L; llenarDl(); filas("tit"); filas("sup"); });
+      // arrastrar con el mouse o el dedo desde ⠿ para cambiar el orden (también entre titulares y suplentes)
+      c.addEventListener("pointerdown", (ev) => {
+        const ag = ev.target.closest(".g-agarre"); if (!ag) return;
+        ev.preventDefault(); const fila = ag.closest(".g-j"), k0 = fila.dataset.k, i0 = +fila.dataset.i;
+        fila.classList.add("arrastrando"); let destino = null;
+        const marca = (x, y) => { c.querySelectorAll(".g-j.sobre-a,.g-j.sobre-b,.g-tit.vacia,.g-sup.vacia").forEach((z) => z.classList.remove("sobre-a", "sobre-b", "vacia"));
+          const el = document.elementFromPoint(x, y), f2 = el && el.closest(".g-j"), caja = el && el.closest(".g-tit,.g-sup");
+          if (f2 && f2 !== fila && c.contains(f2)) { const r = f2.getBoundingClientRect(), antes = y < r.top + r.height / 2; f2.classList.add(antes ? "sobre-a" : "sobre-b"); destino = { k: f2.dataset.k, i: +f2.dataset.i + (antes ? 0 : 1) }; }
+          else if (caja && c.contains(caja)) { caja.classList.add("vacia"); destino = { k: caja.classList.contains("g-tit") ? "tit" : "sup", i: 1e9 }; } else destino = null; };
+        const mover = (e2) => marca(e2.clientX, e2.clientY);
+        const soltar = () => { document.removeEventListener("pointermove", mover); document.removeEventListener("pointerup", soltar); fila.classList.remove("arrastrando");
+          c.querySelectorAll(".sobre-a,.sobre-b,.vacia").forEach((z) => z.classList.remove("sobre-a", "sobre-b", "vacia"));
+          if (!destino) return; const it = e[k0].splice(i0, 1)[0]; let i = destino.i; if (destino.k === k0 && i > i0) i--;
+          e[destino.k].splice(Math.min(i, e[destino.k].length), 0, it); volcar(); filas("tit"); filas("sup"); cuenta(); };
+        document.addEventListener("pointermove", mover); document.addEventListener("pointerup", soltar);
+      });
       grilla.appendChild(c);
     });
   }
@@ -1147,8 +1201,7 @@ VISTAS.partido = (m) => {
       let liga = null, id = null;
       if (partidoA && sinT(partidoA[k === "l" ? "local" : "visitante"]) === sinT(nombre)) { liga = partidoA.liga; id = partidoA.ids[k === "l" ? 0 : 1]; }
       if (!id) for (const lg of ["uru.1", "uefa.champions", "conmebol.libertadores", "conmebol.sudamericana", "esp.1", "eng.1", "arg.1", "bra.1", "ita.1"]) {
-        const j = await (await fetch("https://site.api.espn.com/apis/site/v2/sports/soccer/" + lg + "/teams")).json();
-        const t = ((j.sports || [])[0].leagues[0].teams || []).map((x) => x.team).find((t) => sinT(t.displayName) === sinT(nombre) || sinT(t.displayName).includes(sinT(nombre)) || sinT(nombre).includes(sinT(t.shortDisplayName || "~")));
+        const t = (await equiposDeLiga(lg)).find((t) => sinT(t.displayName) === sinT(nombre) || sinT(t.displayName).includes(sinT(nombre)) || sinT(nombre).includes(sinT(t.shortDisplayName || "~")));
         if (t) { liga = lg; id = t.id; break; }
       }
       if (!id) return "";
@@ -1612,8 +1665,17 @@ async function partidosESPN(ligas, filtro, dias = 20) {
   return (await Promise.all(pedidos)).flat().filter((p) => p.local && !p.hecho && (!filtro || filtro(p)) && !vistos.has(p.espn) && vistos.add(p.espn)).sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora));
 }
 let idsUru = null;
+const cacheEqLiga = {};
+async function equiposDeLiga(lg) {   // equipos de una liga, sacados de la tabla de posiciones (la lista /teams de ESPN no deja leer desde el navegador)
+  if (cacheEqLiga[lg]) return cacheEqLiga[lg];
+  try { const j = await (await fetch("https://site.api.espn.com/apis/v2/sports/soccer/" + lg + "/standings")).json();
+    const grupos = (j.children || []).concat(j.standings ? [j] : []), out = [];
+    grupos.forEach((g) => ((g.standings || {}).entries || []).forEach((e) => { if (e.team && !out.some((t) => t.id === e.team.id)) out.push(e.team); }));
+    return (cacheEqLiga[lg] = out);
+  } catch (e) { return []; }
+}
 async function partidosUruguayos(dias = 20) {   // el Uruguayo, las copas con equipos uruguayos y la Selección
-  if (!idsUru) { try { const j = await (await fetch("https://site.api.espn.com/apis/site/v2/sports/soccer/uru.1/teams")).json(); idsUru = new Set(j.sports[0].leagues[0].teams.map((t) => t.team.id)); } catch (e) { idsUru = new Set(); } }
+  if (!idsUru) idsUru = new Set((await equiposDeLiga("uru.1")).map((t) => t.id));
   return partidosESPN([["uru.1", "Campeonato Uruguayo"], ["conmebol.libertadores", "Copa Libertadores"], ["conmebol.sudamericana", "Copa Sudamericana"], ["fifa.worldq.conmebol", "Eliminatorias"], ["fifa.friendly", "Amistoso internacional"]],
     (p) => p.liga === "uru.1" || (/conmebol\./.test(p.liga) && p.ids.some((i) => idsUru.has(i))) || (/^fifa\./.test(p.liga) && (p.ids.includes("212") || /^uruguay$/i.test(p.local) || /^uruguay$/i.test(p.visitante))), dias);
 }

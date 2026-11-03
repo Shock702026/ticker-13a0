@@ -99,10 +99,11 @@
   .angosto .tabla { font-size:20px; } .angosto .tabla td:nth-child(2) { max-width:220px; } .angosto .tabla td img { width:24px; height:24px; margin-right:8px; } .angosto .tabla th { font-size:14px; padding:4px 5px 8px; } .angosto .tabla td { padding:0 5px; }
   .angosto .fila { grid-template-columns:28px 1fr auto 1fr 28px; gap:6px; font-size:18px; height:52px; } .angosto .fila img { width:28px; height:28px; } .angosto .fila .sc { min-width:64px; padding:6px 8px; }
   .angosto .ll-eq { font-size:18px; } .angosto .ll-sc span { min-width:96px; font-size:17px; } .angosto .panel-cab { font-size:22px; }
-  .cambios { position:absolute; background:var(--blanco); padding:10px 18px; display:grid; grid-template-columns:1fr 1fr; gap:0 18px; overflow:hidden; }
+  .cambios { position:absolute; background:var(--blanco); padding:10px 14px; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:0 14px; overflow:hidden; }
+  .cambios > div { min-width:0; overflow:hidden; }
   .cambios h5 { font:800 14px/1 var(--grotesca); letter-spacing:.12em; text-transform:uppercase; color:var(--gris); margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .cambios div div { display:flex; align-items:center; gap:6px; font:700 16px/1.35 var(--grotesca); white-space:nowrap; overflow:hidden; }
-  .cambios .sups { display:block !important; white-space:normal !important; font:700 13px/1.3 var(--grotesca); color:var(--azul); margin-top:3px; } .cambios .sups i { font-style:normal; color:var(--gris); font-weight:800; }
+  .cambios .sups { display:block !important; white-space:normal !important; font:700 12px/1.3 var(--grotesca); color:var(--azul); margin-top:3px; } .cambios .sups i { font-style:normal; color:var(--gris); font-weight:800; }
   .cambios b { font-weight:900; min-width:34px; } .cambios .ent { color:#1a9a4a; font-weight:900; } .cambios .sal { color:var(--gris); }
   /* alineación fija abajo del marcador (cuando hay): marcador más bajo y los 11 de cada uno con sus goles, tarjetas y cambios */
   .marcador.bajo .eq { gap:10px; } .marcador.bajo .eq img { width:120px; height:120px; } .marcador.bajo .eq b { font-size:34px; }
@@ -342,7 +343,7 @@
   }
   // cancha: filas según la formación (arquero + líneas); sin formación válida, 4-4-2
   function canchaHTML(p) {
-    const X = 152, Y = 118, W = 460, CAB = 56, H = 590, top = Y + CAB, CB = 796 - CAB - H;
+    const X = 152, Y = 118, W = 460, CAB = 56, H = 560, top = Y + CAB, CB = 796 - CAB - H;
     const ult = (n) => sinT(n).split(" ").filter(Boolean).pop() || "";
     const corto = (n) => { const w = String(n || "").trim().split(/\s+/); if (w.length < 2) return w[0] || ""; const r = w.slice(1).join(" "); return r.length <= 13 ? r : w[w.length - 1]; };
     const filasDe = (f, n) => { let r = String(f || "").split(/[-–]/).map(Number).filter((x) => x > 0); if (r.reduce((a, b) => a + b, 0) !== n - 1) r = n === 11 ? [4, 4, 2] : [Math.max(0, n - 1)]; return [1].concat(r); };
@@ -386,7 +387,7 @@
     const fl = p.alin.find((x) => x.id === String(p.l.id)), fv = p.alin.find((x) => x.id === String(p.v.id));
     return `<div class="cancha-cab az" style="left:${X}px;top:${Y}px;width:${W}px;height:${CAB}px"><span>${esc(fl && fl.formacion || "")}</span>Formaciones<span>${esc(fv && fv.formacion || "")}</span></div>` +
       `<div class="cancha" style="left:${X}px;top:${top}px;width:${W}px;height:${H}px"></div><div class="lc">` + lineas + jug + `</div>` +
-      `<div class="cambios" style="left:${X}px;top:${top + H}px;width:${W}px;height:${CB}px"><div><h5>${supl.L ? "Cambios y suplentes" : "Cambios"} · ${esc(p.l.nombre)}</h5>${cam.L.join("") || '<div class="sal">—</div>'}</div><div><h5>${supl.V ? "Cambios y suplentes" : "Cambios"} · ${esc(p.v.nombre)}</h5>${cam.V.join("") || '<div class="sal">—</div>'}</div></div>`;
+      `<div class="cambios" style="left:${X}px;top:${top + H}px;width:${W}px;height:${CB}px"><div><h5>${esc(p.l.nombre)}</h5>${cam.L.join("") || '<div class="sal">—</div>'}</div><div><h5>${esc(p.v.nombre)}</h5>${cam.V.join("") || '<div class="sal">—</div>'}</div></div>`;
   }
   // alineación fija: cada jugador con sus goles, tarjetas y si salió; lo que no se pudo asociar va abajo
   function alinFija(p) {
