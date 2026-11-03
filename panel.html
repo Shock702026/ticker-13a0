@@ -229,6 +229,11 @@
   .cal .ev.cancelada { background:#cfccdc; text-decoration:line-through; } .cal .ev.mia { background:var(--amarillo); color:var(--azul); } .cal .ev.sel { outline:3px solid var(--celeste); }
   .cal .aus { font:700 10px var(--f); color:var(--rojo); }
   .mes { display:flex; align-items:center; gap:10px; } .mes b { font:800 20px var(--slab); min-width:180px; text-align:center; }
+  .pega { display:flex; flex-direction:column; gap:6px; min-width:0; } .pega.sobre .pz { border-color:var(--celeste); background:#dff1fa; }
+  .pega .pz { min-height:74px; border:2px dashed var(--linea); padding:10px; font:600 13px/1.3 var(--f); color:var(--gris); outline:none; overflow:hidden; cursor:text; }
+  .pega .pz:empty::before { content:attr(data-ph); } .pega .pz:focus { border-color:var(--celeste); }
+  .mini-imgs { display:flex; flex-wrap:wrap; gap:6px; } .mi { position:relative; } .mi img { width:64px; height:64px; object-fit:cover; display:block; outline:1px solid var(--linea); }
+  .mi button { position:absolute; top:-6px; right:-6px; width:20px; height:20px; border:0; border-radius:50%; background:var(--rojo); color:#fff; font:800 11px/1 var(--f); }
   .pr-part { display:flex; flex-direction:column; gap:10px; } .pr-part h2 small { font:700 13px var(--f); color:var(--gris); margin-left:8px; }
   .pr-it { display:flex; align-items:center; gap:10px; padding:9px 10px; background:var(--fondo); border:0; width:100%; text-align:left; font:700 14px var(--f); color:var(--azul); }
   .pr-it b { font-weight:900; } .pr-it > small { margin-left:auto; color:var(--gris); font-weight:700; white-space:nowrap; } button.pr-it:hover { background:#dff1fa; }
@@ -1025,20 +1030,36 @@ VISTAS.partido = (m) => {
   // alineación: la carga sola la tarea en la nube (Ovación / Referí / futbol.uy) antes del partido; acá se ve y se corrige
   const GA = h(`<div class="grupo"><b>Alineaciones</b>
     <div class="dos"><label>Local<input type="text" id="a-nl" value="${esc(manual ? st.local || "" : "")}" placeholder="Buscando el partido…"></label><label>Visitante<input type="text" id="a-nv" value="${esc(manual ? st.visitante || "" : "")}"></label></div>
-    <div class="dos"><label class="btn sec chico" style="cursor:pointer;text-align:center">📎 Imágenes del local<input type="file" id="a-fl" accept="image/*" multiple hidden></label><label class="btn sec chico" style="cursor:pointer;text-align:center">📎 Imágenes del visitante<input type="file" id="a-fv" accept="image/*" multiple hidden></label></div>
+    <div class="dos">${["l", "v"].map((k) => `<div class="pega" data-lado="${k}"><div class="pz" contenteditable="true" tabindex="0" data-ph="${k === "l" ? "Local" : "Visitante"}: pegá acá las imágenes (⌘V / Ctrl+V) o arrastralas"></div><div class="mini-imgs"></div><label class="btn sec chico" style="cursor:pointer;text-align:center">📎 Elegir archivos<input type="file" accept="image/*" multiple hidden></label></div>`).join("")}</div>
     <div class="botonera"><button class="btn ce" id="a-ia">✨ Armar alineación con las imágenes</button><span id="a-cnt" class="ayuda" style="align-self:center"></span></div>
     <textarea id="a-txt" rows="4" placeholder="Peñarol (4-4-2): 1 Aguerre, 3 Nández, 10 Fernández... | Ovación"></textarea>
     <div class="botonera"><button class="btn am" id="a-ok">Guardar alineación</button><button class="btn sec chico" id="a-no">Borrar</button></div>
-    <span class="ayuda">Adjuntá capturas (TV, redes del club, la nota de un medio) de cada equipo y tocá «Armar alineación»: Claude las lee, completa los números con el plantel y la deja acá para revisar. Después, «Guardar alineación». También se puede escribir a mano: una línea por equipo, nombre, formación entre paréntesis, dos puntos y los 11 separados por coma. En las copas y la Selección sale de ESPN y esto no hace falta.</span></div>`);
+    <span class="ayuda">Pegá (⌘V / Ctrl+V), arrastrá o elegí las capturas de cada equipo (placa del club, Flashscore, TV) y tocá «Armar alineación»: Claude las lee, completa los números con el plantel y la deja acá para revisar. Después, «Guardar alineación». También se puede escribir a mano: una línea por equipo, nombre, formación entre paréntesis, dos puntos y los 11 separados por coma. En las copas y la Selección sale de ESPN y esto no hace falta.</span></div>`);
   const aTxt = GA.querySelector("#a-txt"); aTxt.value = st.alineacion || "";
   const guardarA = async (v) => { const c = { alineacion: v }; st.alineacion = v; cambios.alineacion = v; aTxt.value = v; refrescar(); try { await guardar("guardarClaves", "partido_vivo", c); } catch (e) {} };
   GA.querySelector("#a-ok").onclick = () => guardarA(aTxt.value.trim());
   GA.querySelector("#a-no").onclick = () => guardarA("");
   // armar con imágenes: se achican en el navegador (lado mayor 1568 px, JPG) y las lee Claude en el servidor
-  const nl = GA.querySelector("#a-nl"), nv = GA.querySelector("#a-nv"), fl = GA.querySelector("#a-fl"), fv = GA.querySelector("#a-fv"), cnt = GA.querySelector("#a-cnt");
+  const nl = GA.querySelector("#a-nl"), nv = GA.querySelector("#a-nv"), cnt = GA.querySelector("#a-cnt");
+  // imágenes de cada equipo: se pegan (⌘V / Ctrl+V), se arrastran o se eligen; quedan acá hasta armar
+  const imgs = { l: [], v: [] }, fl = { get files() { return imgs.l; } }, fv = { get files() { return imgs.v; } };
+  const pintarImgs = (k) => { const box = GA.querySelector(`.pega[data-lado="${k}"] .mini-imgs`); box.innerHTML = "";
+    imgs[k].forEach((f, i) => { const u = URL.createObjectURL(f), it = h(`<span class="mi"><img src="${u}"><button title="Sacar">✕</button></span>`);
+      it.querySelector("button").onclick = () => { imgs[k].splice(i, 1); pintarImgs(k); contar(); }; box.appendChild(it); }); };
+  const sumar = (k, lista) => { const nuevas = [...lista].filter((f) => f && /^image\//.test(f.type)); if (!nuevas.length) { aviso("Eso no es una imagen", true); return; }
+    imgs[k] = imgs[k].concat(nuevas).slice(0, 6); pintarImgs(k); contar(); aviso(`${nuevas.length} imagen${nuevas.length > 1 ? "es" : ""} ${k === "l" ? "del local" : "del visitante"} ✓`); };
+  GA.querySelectorAll(".pega").forEach((z) => {
+    const k = z.dataset.lado, pz = z.querySelector(".pz");
+    pz.addEventListener("paste", (e) => { e.preventDefault(); const it = [...(e.clipboardData || {}).items || []].filter((x) => x.kind === "file").map((x) => x.getAsFile()); sumar(k, it); pz.innerHTML = ""; });
+    pz.addEventListener("input", () => (pz.innerHTML = ""));   // no se escribe texto ahí
+    z.addEventListener("dragover", (e) => { e.preventDefault(); z.classList.add("sobre"); });
+    z.addEventListener("dragleave", () => z.classList.remove("sobre"));
+    z.addEventListener("drop", (e) => { e.preventDefault(); z.classList.remove("sobre"); sumar(k, e.dataTransfer.files); });
+    z.querySelector("input[type=file]").onchange = (e) => { sumar(k, e.target.files); e.target.value = ""; };
+  });
   let partidoA = null;
   const contar = () => (cnt.textContent = `${fl.files.length} del local · ${fv.files.length} del visitante`);
-  fl.onchange = fv.onchange = contar; contar();
+  contar();
   if (!manual) partidosUruguayos(2).then((L) => {   // el partido de hoy (o el más cercano) para los nombres y el plantel
     const ahora = Date.now(); partidoA = L.sort((a, b) => Math.abs(new Date(a.fecha + "T" + a.hora) - ahora) - Math.abs(new Date(b.fecha + "T" + b.hora) - ahora))[0] || null;
     if (partidoA) { if (!nl.value) nl.value = partidoA.local; if (!nv.value) nv.value = partidoA.visitante; }
