@@ -75,6 +75,34 @@
   .alin li.salio { opacity:.55; } .alin li i { font-style:normal; font-size:15px; color:var(--celeste); font-weight:800; }
   .alin .entraron { margin-top:8px; font:700 16px/1.3 var(--grotesca); color:var(--gris); white-space:normal; }
   .incid.chico li { font-size:23px; gap:10px; } .incid.chico { gap:0 24px; }
+  /* cancha con las formaciones (columna derecha, fija): visitante arriba, local abajo */
+  .cancha-cab { position:absolute; display:flex; align-items:center; justify-content:space-between; padding:0 22px; color:#fff; font:800 26px/1 var(--slab); letter-spacing:.05em; text-transform:uppercase; white-space:nowrap; }
+  .cancha-cab span { font:800 22px/1 var(--grotesca); letter-spacing:.04em; }
+  .cancha { position:absolute; background:#17345a; overflow:hidden; }
+  .lc .ln { position:absolute; border:3px solid rgba(255,255,255,.28); }
+  .lc .jug { position:absolute; width:96px; margin-left:-48px; display:flex; flex-direction:column; align-items:center; gap:3px; }
+  .lc .jug .cir { position:relative; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font:900 20px/1 var(--grotesca); box-shadow:0 2px 0 rgba(0,0,0,.25); }
+  .lc .jug.L .cir { background:var(--amarillo); color:var(--azul); } .lc .jug.V .cir { background:#fff; color:var(--azul); }
+  .lc .jug .nom { max-width:96px; background:rgba(8,6,40,.72); color:#fff; font:800 15px/1 var(--grotesca); padding:3px 6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lc .jug.salio .cir { opacity:.6; }
+  .lc .ic { position:absolute; display:flex; align-items:center; gap:2px; font:800 13px/1 var(--grotesca); color:#fff; }
+  .lc .ic.a { left:-18px; top:-6px; } .lc .ic.b { right:-22px; top:-6px; } .lc .ic.c { right:-24px; bottom:-6px; }
+  .lc .ic .am { width:12px; height:17px; background:#FFE14D; } .lc .ic .ro { width:12px; height:17px; background:var(--rojo); }
+  .lc .ic .bal { width:17px; height:17px; border-radius:50%; background:#fff; border:3px solid var(--azul); }
+  .lc .ic .cb { width:20px; height:20px; border-radius:50%; background:var(--celeste); display:flex; align-items:center; justify-content:center; font-size:13px; }
+  .lc .ic small { background:rgba(8,6,40,.8); padding:2px 3px; font-size:12px; }
+  .incid.tres { padding:18px 22px; gap:0 18px; } .incid.tres ul { gap:8px; } .incid.tres li { font-size:19px; gap:7px; } .incid.tres li .t { min-width:40px; }
+  .incid.tres li .tag { font-size:13px; padding:5px 6px; } .incid.tres li .amarilla, .incid.tres li .tag.roja.carta { width:14px; height:20px; padding:0; } .incid.tres li .sale { display:none; }
+  .marcador.medio { padding:0 24px; } .marcador.medio .eq img { width:130px; height:130px; } .marcador.medio .eq b { font-size:30px; }
+  .marcador.medio .res { padding:0 10px; } .marcador.medio .res .min { font-size:38px; padding:12px 20px; } .marcador.medio .res .goles { font-size:140px; gap:14px; } .marcador.medio .res .goles.previa { font-size:76px; }
+  .marcador.medio .res .goles i { width:36px; height:13px; }
+  .angosto .tabla { font-size:20px; } .angosto .tabla td:nth-child(2) { max-width:220px; } .angosto .tabla td img { width:24px; height:24px; margin-right:8px; } .angosto .tabla th { font-size:14px; padding:4px 5px 8px; } .angosto .tabla td { padding:0 5px; }
+  .angosto .fila { grid-template-columns:28px 1fr auto 1fr 28px; gap:6px; font-size:18px; height:52px; } .angosto .fila img { width:28px; height:28px; } .angosto .fila .sc { min-width:64px; padding:6px 8px; }
+  .angosto .ll-eq { font-size:18px; } .angosto .ll-sc span { min-width:96px; font-size:17px; } .angosto .panel-cab { font-size:22px; }
+  .cambios { position:absolute; background:var(--blanco); padding:10px 18px; display:grid; grid-template-columns:1fr 1fr; gap:0 18px; overflow:hidden; }
+  .cambios h5 { font:800 14px/1 var(--grotesca); letter-spacing:.12em; text-transform:uppercase; color:var(--gris); margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cambios div div { display:flex; align-items:center; gap:6px; font:700 16px/1.35 var(--grotesca); white-space:nowrap; overflow:hidden; }
+  .cambios b { font-weight:900; min-width:34px; } .cambios .ent { color:#1a9a4a; font-weight:900; } .cambios .sal { color:var(--gris); }
   /* alineación fija abajo del marcador (cuando hay): marcador más bajo y los 11 de cada uno con sus goles, tarjetas y cambios */
   .marcador.bajo .eq { gap:10px; } .marcador.bajo .eq img { width:120px; height:120px; } .marcador.bajo .eq b { font-size:34px; }
   .marcador.bajo .res { gap:8px; } .marcador.bajo .res .min { font-size:34px; padding:10px 20px; } .marcador.bajo .res .goles { font-size:120px; } .marcador.bajo .res .goles.previa { font-size:70px; }
@@ -272,11 +300,13 @@
   function sumarExtras(p, x) {
     if (x.ev.length) p.inc = p.inc.filter((i) => i.tipo !== "roja").concat(x.ev);   // las rojas de ESPN vienen mejor en el resumen
     hv("tarjetas").split(/[;\n]/).map((t) => t.trim()).filter(Boolean).forEach((t) => {
-      const m = t.match(/^([LV])\s+(\d+)\s+(\d+(?:\+\d+)?)'?\s*(amarilla|roja)?/i); if (!m) return;
-      const lado = m[1].toUpperCase(), eq = lado === "L" ? p.l : p.v, tipo = (m[4] || "amarilla").toLowerCase();
-      const nombre = ((x.plantel[String(eq.id || "")] || {})[m[2]]) || ("N.º " + m[2]);
+      // "L 10 23 amarilla" · "V 5 40 roja" · cambio: "L 16 60 cambio 7" (sale el 16, entra el 7)
+      const m = t.match(/^([LV])\s+(\d+)\s+(\d+(?:\+\d+)?)'?\s*(amarilla|roja|cambio)?\s*(\d+)?/i); if (!m) return;
+      const lado = m[1].toUpperCase(), eq = lado === "L" ? p.l : p.v, tipo = (m[4] || "amarilla").toLowerCase(), pl = x.plantel[String(eq.id || "")] || {};
+      const nombre = tipo === "cambio" ? (pl[m[5]] || ("N.º " + (m[5] || "?"))) : (pl[m[2]] || ("N.º " + m[2]));
       const ya = p.inc.some((i) => i.tipo === tipo && i.nombre === nombre && (p.manual ? i.lado === lado : i.equipo === String(eq.id)));
-      if (!ya) p.inc.push({ min: m[3] + "'", equipo: String(eq.id || ""), lado, tipo, nombre });
+      if (!ya) p.inc.push(tipo === "cambio" ? { min: m[3] + "'", equipo: String(eq.id || ""), lado, tipo, nombre, num: m[5] || "", sale: pl[m[2]] || ("N.º " + m[2]), saleNum: m[2] }
+        : { min: m[3] + "'", equipo: String(eq.id || ""), lado, tipo, nombre, num: m[2] });
     });
     p.inc.sort((a, b) => minNum(a.min) - minNum(b.min));
     p.alin = x.alin;
@@ -290,6 +320,54 @@
       const tit = m[3].split(",").map((j) => j.trim()).filter(Boolean).map((j) => { const q = j.match(/^(\d{1,2})\.?\s*(.*)$/); return q ? { num: q[1], nombre: q[2] || pl[q[1]] || "" } : { num: "", nombre: j }; });
       if (tit.length) p.alin.push({ id, formacion: (m[2] || "").trim(), titulares: tit.slice(0, 11), entraron: [], fuente: (m[4] || "").trim() });
     });
+    // número sin nombre en el plantel de ESPN → el nombre de la alineación cargada
+    const porNum = (eqId, lado, n) => { const a = n && p.alin.find((y) => y.id === String(eqId)); const j = a && a.titulares.concat(a.entraron || []).find((y) => y.num === n); return j ? j.nombre : ""; };
+    p.inc.forEach((i) => { const eq = i.lado === "V" || (!p.manual && String(i.equipo) === String(p.v.id)) ? p.v : p.l;
+      if (/^N\.º/.test(i.nombre)) i.nombre = porNum(eq.id, i.lado, i.num) || i.nombre;
+      if (i.sale && /^N\.º/.test(i.sale)) i.sale = porNum(eq.id, i.lado, i.saleNum) || i.sale; });
+  }
+  // cancha: filas según la formación (arquero + líneas); sin formación válida, 4-4-2
+  function canchaHTML(p) {
+    const X = 808, Y = 118, W = 460, CAB = 56, H = 630, top = Y + CAB, CB = 796 - CAB - H;
+    const ult = (n) => sinT(n).split(" ").filter(Boolean).pop() || "";
+    const corto = (n) => { const w = String(n || "").trim().split(/\s+/); if (w.length < 2) return w[0] || ""; const r = w.slice(1).join(" "); return r.length <= 13 ? r : w[w.length - 1]; };
+    const filasDe = (f, n) => { let r = String(f || "").split(/[-–]/).map(Number).filter((x) => x > 0); if (r.reduce((a, b) => a + b, 0) !== n - 1) r = n === 11 ? [4, 4, 2] : [Math.max(0, n - 1)]; return [1].concat(r); };
+    const evDe = (e, lado) => p.inc.filter((x) => p.manual ? x.lado === lado : String(x.equipo) === String(e.id));
+    let jug = "", cam = { L: [], V: [] };
+    [[p.l, "L"], [p.v, "V"]].forEach(([e, lado]) => {
+      const a = p.alin.find((x) => x.id === String(e.id)); if (!a) return;
+      const tit = a.titulares.slice(0, 11), filas = filasDe(a.formacion, tit.length), evs = evDe(e, lado);
+      let k = 0;
+      filas.forEach((cant, fi) => {
+        // local: arquero abajo y sube; visitante: arquero arriba y baja
+        // centro del círculo: arquero visitante a 26 px del borde de arriba, local a 52 del de abajo (lleva el nombre debajo); 72 px libres en la mitad
+        const paso = (H - 26 - 52 - 72) / (2 * Math.max(1, filas.length - 1)), cy = lado === "L" ? H - 52 - fi * paso : 26 + fi * paso, yy = top + cy - 20;
+        for (let c = 0; c < cant && k < tit.length; c++, k++) {
+          const j = tit[k], xx = X + W * (c + 1) / (cant + 1);
+          const mios = evs.filter((x) => x.tipo !== "cambio" && ((x.num && x.num === j.num) || mismo(x.nombre, j.nombre) || (ult(x.nombre) && ult(x.nombre) === ult(j.nombre)) || (/^N\.º\s*(\d+)/.test(x.nombre) && x.nombre.replace(/\D/g, "") === j.num)));
+          const sale = evs.find((x) => x.tipo === "cambio" && ((x.saleNum && x.saleNum === j.num) || (x.sale && (mismo(x.sale, j.nombre) || ult(x.sale) === ult(j.nombre)))));
+          const goles = mios.filter((x) => x.tipo === "gol"), tarj = mios.filter((x) => x.tipo === "amarilla" || x.tipo === "roja");
+          const minSale = sale ? sale.min : j.salio ? j.min : "";
+          jug += `<div class="jug ${lado}${minSale ? " salio" : ""}" style="left:${xx}px;top:${yy}px"><div class="cir">${esc(j.num || "")}` +
+            (tarj.length ? `<span class="ic a">${tarj.map((x) => `<i class="${x.tipo === "roja" ? "ro" : "am"}"></i>`).join("")}</span>` : "") +
+            (goles.length ? `<span class="ic b"><i class="bal"></i>${goles.length > 1 ? `<small>×${goles.length}</small>` : ""}</span>` : "") +
+            (minSale ? `<span class="ic c"><i class="cb">⇄</i><small>${esc(String(minSale).replace(/'$/, ""))}'</small></span>` : "") +
+            `</div><div class="nom">${esc(corto(j.nombre))}</div></div>`;
+        }
+      });
+      // cambios: ESPN (copas, Selección) o lo que se cargue; si no hay, los que entraron según la alineación
+      const cs = evs.filter((x) => x.tipo === "cambio");
+      const nomSale = (x) => { const j = x.saleNum && tit.find((y) => y.num === x.saleNum); return j ? j.nombre : x.sale; };
+      cam[lado] = cs.length ? cs.map((x) => `<div><b>${esc(x.min)}</b><span class="ent">▲ ${esc(corto(x.nombre))}</span><span class="sal">▼ ${esc(corto(nomSale(x)))}</span></div>`)
+        : (a.entraron || []).map((t) => `<div><b>${esc(t.min || "")}</b><span class="ent">▲ ${esc(corto(t.nombre))}</span></div>`);
+    });
+    const ln = (l, t, w, h, extra = "") => `<div class="ln" style="left:${X + l}px;top:${top + t}px;width:${w}px;height:${h}px;${extra}"></div>`;
+    const lineas = ln(14, 10, W - 28, H - 20) + ln(14, H / 2 - 1, W - 28, 0, "border-width:3px 0 0") + ln(W / 2 - 70, H / 2 - 70, 140, 140, "border-radius:50%") +
+      ln(W / 2 - 130, 10, 260, 86) + ln(W / 2 - 130, H - 96, 260, 86);
+    const fl = p.alin.find((x) => x.id === String(p.l.id)), fv = p.alin.find((x) => x.id === String(p.v.id));
+    return `<div class="cancha-cab az" style="left:${X}px;top:${Y}px;width:${W}px;height:${CAB}px"><span>${esc(fl && fl.formacion || "")}</span>Formaciones<span>${esc(fv && fv.formacion || "")}</span></div>` +
+      `<div class="cancha" style="left:${X}px;top:${top}px;width:${W}px;height:${H}px"></div><div class="lc">` + lineas + jug + `</div>` +
+      `<div class="cambios" style="left:${X}px;top:${top + H}px;width:${W}px;height:${CB}px"><div><h5>Cambios · ${esc(p.l.nombre)}</h5>${cam.L.join("") || '<div class="sal">—</div>'}</div><div><h5>Cambios · ${esc(p.v.nombre)}</h5>${cam.V.join("") || '<div class="sal">—</div>'}</div></div>`;
   }
   // alineación fija: cada jugador con sus goles, tarjetas y si salió; lo que no se pudo asociar va abajo
   function alinFija(p) {
@@ -524,7 +602,7 @@
     `<div class="vivo ro" id="vivo" style="left:152px;top:16px;width:260px;height:86px"><i></i>En vivo</div>` +
     `<div class="torneo bl" id="torneo" style="left:428px;top:16px;width:928px;height:86px"></div>` +
     `<div class="logo" id="logo" style="left:1372px;top:16px;width:396px;height:86px"><img src="logo.png" alt="13a0"><span class="barras"><i></i><i></i><i></i></span></div>` +
-    `<div id="partido"></div><div id="lado"></div>` +
+    `<div id="partido"></div><div id="lado"></div><div id="canchaz"></div>` +
     `<div class="redes" style="left:152px;top:930px;width:1616px;height:64px"><div class="lst">${REDES}</div></div>`;
   // toma de tabla sola: el nombre del archivo (cam-M-tabla-torneo, cam-N-tabla-anual, cam-O-tabla-promedios) o ?tabla=
   const TABLA = (T.params.get("tabla") || (location.pathname.match(/tabla-(torneo|anual|promedios)/) || [])[1] || "").toLowerCase();
@@ -552,8 +630,8 @@
     }).join("");
   }
   let ultimo = "";
-  function dibujarPartido(p, conPanel) {
-    const ancho = conPanel ? 984 : 1616;
+  function dibujarPartido(p, conPanel, tres) {
+    const ancho = tres ? 640 : conPanel ? 984 : 1616;
     const torneo = p.manual ? p.torneo : p.liga === URU ? (CP.nombreUruguay || "Liga AUF Uruguaya") : p.liga === LIB ? "CONMEBOL Libertadores" : p.liga === ELI ? "Eliminatorias Sudamericanas" : p.liga === AMI ? "Amistoso internacional" : "CONMEBOL Sudamericana";
     const fase = p.manual ? p.faseTxt : p.liga === URU ? (hv("fase") || torneoActual || "") : SEL.includes(p.liga) ? (hv("fase") || "") : faseTxt(p.fase) + (p.vuelta ? " · vuelta" : p.ida ? " · ida" : "");
     document.getElementById("torneo").innerHTML = esc(torneo) + (fase ? `<span>· ${esc(fase)}</span>` : "");
@@ -568,31 +646,31 @@
     const goles = p.estado === "pre" || p.l.goles == null ? `<div class="goles previa">vs</div>` : `<div class="goles">${p.l.goles}<i></i>${p.v.goles}</div>`;
     const porLado = (l) => p.inc.filter((x) => p.manual ? x.lado === l : String(x.equipo) === String(l === "L" ? p.l.id : p.v.id)).length;
     const muchas = Math.max(porLado("L"), porLado("V")) > 5;
-    const fija = p.alin && p.alin.length ? alinFija(p) : "";
     const html = `<div class="estadio ce" style="left:152px;top:118px;width:${ancho}px;height:60px"><span>${esc(p.estadio)}</span><span>${esc(tiempoTxt(p))}</span></div>` +
-      `<div class="marcador${fija ? " bajo" : conPanel ? "" : " ancho"}" style="left:152px;top:194px;width:${ancho}px;height:${fija ? 290 : 440}px">` +
+      `<div class="marcador${tres ? " medio" : conPanel ? "" : " ancho"}" style="left:152px;top:194px;width:${ancho}px;height:440px">` +
         `<div class="eq">${img(p.l.escudo)}<b>${esc(p.l.nombre)}</b></div>` +
         `<div class="res"><div class="min${mc}">${esc(m)}</div>${goles}${serie}${pen}</div>` +
         `<div class="eq">${img(p.v.escudo)}<b>${esc(p.v.nombre)}</b></div></div>` +
-      (fija ? `<div class="alf" style="left:152px;top:500px;width:${ancho}px;height:414px">${fija}</div>` :
-      `<div class="incid${muchas ? " chico" : ""}" style="left:152px;top:650px;width:${ancho}px;height:264px"><ul>${incHTML(p, "L")}</ul><ul class="der">${incHTML(p, "V")}</ul></div>`);
+      `<div class="incid${tres ? " tres" : muchas ? " chico" : ""}" style="left:152px;top:650px;width:${ancho}px;height:264px"><ul>${incHTML(p, "L")}</ul><ul class="der">${incHTML(p, "V")}</ul></div>`;
     if (html !== ultimo) { elPartido.innerHTML = html; ultimo = html; }
   }
   function dibujarEspera() {
     document.getElementById("torneo").innerHTML = "13a0";
     document.getElementById("vivo").style.visibility = "hidden";
     const html = `<div class="espera" style="left:152px;top:118px;width:1616px;height:796px"><b>Esperando el partido</b><span>Elegí el equipo en la pestaña «partido_vivo» de la planilla<br>o cargá el partido a mano.</span></div>`;
-    if (html !== ultimo) { elPartido.innerHTML = html; ultimo = html; elLado.innerHTML = ""; }
+    if (html !== ultimo) { elPartido.innerHTML = html; ultimo = html; elLado.innerHTML = ""; claveLado = ""; const cz = document.getElementById("canchaz"); cz.innerHTML = ""; cz.dataset.h = ""; }
   }
 
   /* ---- Panel que rota ---- */
   let lista = [], idx = -1, hojaActual = null, claveLado = "";
-  function armarLado(con) {
-    const k = con ? "si" : "no";
+  function armarLado(con, tres) {
+    const k = (con ? "si" : "no") + (tres ? "3" : "");
     if (k === claveLado) return;
     claveLado = k;
-    elLado.innerHTML = con ? `<div class="panel-cab az" id="pcab" style="left:1152px;top:118px;width:616px;height:72px"><span id="ptit"></span><span class="pts" id="ppts"></span></div>` +
-      `<div class="panel" id="panel" style="left:1152px;top:190px;width:616px;height:724px"></div>` : "";
+    const x = tres ? 1284 : 1152, w = tres ? 484 : 616;   // con la cancha, el panel va más angosto a la derecha
+    elLado.className = tres ? "angosto" : "";
+    elLado.innerHTML = con ? `<div class="panel-cab az" id="pcab" style="left:${x}px;top:118px;width:${w}px;height:72px"><span id="ptit"></span><span class="pts" id="ppts"></span></div>` +
+      `<div class="panel" id="panel" style="left:${x}px;top:190px;width:${w}px;height:724px"></div>` : "";
     hojaActual = null;
   }
   function mostrarPanel(i, animar) {
@@ -640,9 +718,12 @@
           if (p.liga === URU) try { const d = await standings(URU, null, null, 600); torneoActual = ((d.children || [])[0] || {}).name || ""; torneoActual = torneoActual.replace(/\s+\d{4}$/, ""); } catch (e) {}
           if (!T.demo) { try { sumarExtras(p, await extras(p)); } catch (e) { console.warn("extras:", e.message); } }
           const pn = T.demo ? [] : await paneles(p);
+          // con alineación: tres columnas (marcador e incidencias · cancha fija · resultados y tablas que rotan)
+          const tres = !!(p.alin && p.alin.length), cz = document.getElementById("canchaz");
+          const ch = tres ? canchaHTML(p) : ""; if (cz.dataset.h !== ch) { cz.innerHTML = ch; cz.dataset.h = ch; }
           const con = pn.length > 0;
-          armarLado(con);
-          dibujarPartido(p, con);
+          armarLado(con, tres);
+          dibujarPartido(p, con || tres, tres);
           lista = pn;
           if (con) { if (idx < 0 || idx >= lista.length) idx = 0; mostrarPanel(idx, !hojaActual); }
         }
