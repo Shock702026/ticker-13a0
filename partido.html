@@ -102,6 +102,7 @@
   .cambios { position:absolute; background:var(--blanco); padding:10px 18px; display:grid; grid-template-columns:1fr 1fr; gap:0 18px; overflow:hidden; }
   .cambios h5 { font:800 14px/1 var(--grotesca); letter-spacing:.12em; text-transform:uppercase; color:var(--gris); margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .cambios div div { display:flex; align-items:center; gap:6px; font:700 16px/1.35 var(--grotesca); white-space:nowrap; overflow:hidden; }
+  .cambios .sups { display:block !important; white-space:normal !important; font:700 13px/1.35 var(--grotesca); color:var(--azul); }
   .cambios b { font-weight:900; min-width:34px; } .cambios .ent { color:#1a9a4a; font-weight:900; } .cambios .sal { color:var(--gris); }
   /* alineación fija abajo del marcador (cuando hay): marcador más bajo y los 11 de cada uno con sus goles, tarjetas y cambios */
   .marcador.bajo .eq { gap:10px; } .marcador.bajo .eq img { width:120px; height:120px; } .marcador.bajo .eq b { font-size:34px; }
@@ -324,11 +325,17 @@
       const eq = [p.l, p.v].find((e) => mismo(e.nombre, m[1]) || mismo(e.largo, m[1])); if (!eq) return;
       const id = String(eq.id || ""); if (p.alin.some((a) => a.id === id)) return;   // ESPN manda
       const pl = x.plantel[id] || {};
-      const tit = m[3].split(",").map((j) => j.trim()).filter(Boolean).map((j) => { const q = j.match(/^(\d{1,2})\.?\s*(.*)$/); return q ? { num: q[1], nombre: q[2] || pl[q[1]] || "" } : { num: "", nombre: j }; });
-      if (tit.length) p.alin.push({ id, formacion: (m[2] || "").trim(), titulares: tit.slice(0, 11), entraron: [], fuente: (m[4] || "").trim() });
+      // sin número: se busca en el plantel (ESPN del partido / Transfermarkt) por apellido
+      const ult = (n) => sinT(n).split(" ").filter(Boolean).pop() || "";
+      const numDe = (n) => { const e = Object.entries(pl).find(([, nom]) => mismo(nom, n) || (ult(n).length > 3 && ult(nom) === ult(n)) || sinT(nom).split(" ").includes(ult(n))); return e ? e[0] : ""; };
+      const tit = m[3].split(",").map((j) => j.trim()).filter(Boolean).map((j) => { const q = j.match(/^(\d{1,2})\.?\s*(.*)$/); return q ? { num: q[1], nombre: q[2] || pl[q[1]] || "" } : { num: numDe(j), nombre: j }; });
+      // después de la fuente puede venir "| Suplentes: 12 Nombre, 13 Otro"
+      const partes = (m[4] || "").split("|").map((x) => x.trim()), supT = (partes.find((x) => /^suplentes\s*:/i.test(x)) || "").replace(/^suplentes\s*:\s*/i, "");
+      const sup = supT.split(",").map((j) => j.trim()).filter(Boolean).map((j) => { const q = j.match(/^(\d{1,2})\.?\s*(.*)$/); return q ? { num: q[1], nombre: q[2] || pl[q[1]] || "" } : { num: numDe(j), nombre: j }; });
+      if (tit.length) p.alin.push({ id, formacion: (m[2] || "").trim(), titulares: tit.slice(0, 11), entraron: [], suplentes: sup, fuente: (partes.find((x) => !/^suplentes\s*:/i.test(x)) || "").trim() });
     });
     // jerarquía para pasar un número a nombre: la alineación cargada (placa del club > Flashscore) manda sobre Transfermarkt y ESPN
-    const porNum = (eqId, lado, n) => { const a = n && p.alin.find((y) => y.id === String(eqId)); const j = a && a.titulares.concat(a.entraron || []).find((y) => y.num === n); return j ? j.nombre : ""; };
+    const porNum = (eqId, lado, n) => { const a = n && p.alin.find((y) => y.id === String(eqId)); const j = a && a.titulares.concat(a.entraron || [], a.suplentes || []).find((y) => y.num === n); return j ? j.nombre : ""; };
     p.inc.forEach((i) => { const eq = i.lado === "V" || (!p.manual && String(i.equipo) === String(p.v.id)) ? p.v : p.l;
       if (i.num) i.nombre = porNum(eq.id, i.lado, i.num) || i.nombre;
       if (i.saleNum) i.sale = porNum(eq.id, i.lado, i.saleNum) || i.sale; });
@@ -340,7 +347,7 @@
     const corto = (n) => { const w = String(n || "").trim().split(/\s+/); if (w.length < 2) return w[0] || ""; const r = w.slice(1).join(" "); return r.length <= 13 ? r : w[w.length - 1]; };
     const filasDe = (f, n) => { let r = String(f || "").split(/[-–]/).map(Number).filter((x) => x > 0); if (r.reduce((a, b) => a + b, 0) !== n - 1) r = n === 11 ? [4, 4, 2] : [Math.max(0, n - 1)]; return [1].concat(r); };
     const evDe = (e, lado) => p.inc.filter((x) => p.manual ? x.lado === lado : String(x.equipo) === String(e.id));
-    let jug = "", cam = { L: [], V: [] };
+    let jug = "", cam = { L: [], V: [] }, supl = {};
     [[p.l, "L"], [p.v, "V"]].forEach(([e, lado]) => {
       const a = p.alin.find((x) => x.id === String(e.id)); if (!a) return;
       const tit = a.titulares.slice(0, 11), filas = filasDe(a.formacion, tit.length), evs = evDe(e, lado);
@@ -366,7 +373,9 @@
       const cs = evs.filter((x) => x.tipo === "cambio");
       const nomSale = (x) => { const j = x.saleNum && tit.find((y) => y.num === x.saleNum); return j ? j.nombre : x.sale; };
       cam[lado] = cs.length ? cs.map((x) => `<div><b>${esc(x.min)}</b><span class="ent">▲ ${esc(corto(x.nombre))}</span><span class="sal">▼ ${esc(corto(nomSale(x)))}</span></div>`)
-        : (a.entraron || []).map((t) => `<div><b>${esc(t.min || "")}</b><span class="ent">▲ ${esc(corto(t.nombre))}</span></div>`);
+        : (a.entraron || []).length ? a.entraron.map((t) => `<div><b>${esc(t.min || "")}</b><span class="ent">▲ ${esc(corto(t.nombre))}</span></div>`)
+        : (a.suplentes || []).length ? [`<div class="sups">${a.suplentes.map((t) => esc((t.num ? t.num + " " : "") + corto(t.nombre))).join(" · ")}</div>`] : [];
+      if (!cs.length && !(a.entraron || []).length && (a.suplentes || []).length) supl[lado] = true;
     });
     const ln = (l, t, w, h, extra = "") => `<div class="ln" style="left:${X + l}px;top:${top + t}px;width:${w}px;height:${h}px;${extra}"></div>`;
     const lineas = ln(14, 10, W - 28, H - 20) + ln(14, H / 2 - 1, W - 28, 0, "border-width:3px 0 0") + ln(W / 2 - 70, H / 2 - 70, 140, 140, "border-radius:50%") +
@@ -374,7 +383,7 @@
     const fl = p.alin.find((x) => x.id === String(p.l.id)), fv = p.alin.find((x) => x.id === String(p.v.id));
     return `<div class="cancha-cab az" style="left:${X}px;top:${Y}px;width:${W}px;height:${CAB}px"><span>${esc(fl && fl.formacion || "")}</span>Formaciones<span>${esc(fv && fv.formacion || "")}</span></div>` +
       `<div class="cancha" style="left:${X}px;top:${top}px;width:${W}px;height:${H}px"></div><div class="lc">` + lineas + jug + `</div>` +
-      `<div class="cambios" style="left:${X}px;top:${top + H}px;width:${W}px;height:${CB}px"><div><h5>Cambios · ${esc(p.l.nombre)}</h5>${cam.L.join("") || '<div class="sal">—</div>'}</div><div><h5>Cambios · ${esc(p.v.nombre)}</h5>${cam.V.join("") || '<div class="sal">—</div>'}</div></div>`;
+      `<div class="cambios" style="left:${X}px;top:${top + H}px;width:${W}px;height:${CB}px"><div><h5>${supl.L ? "Suplentes" : "Cambios"} · ${esc(p.l.nombre)}</h5>${cam.L.join("") || '<div class="sal">—</div>'}</div><div><h5>${supl.V ? "Suplentes" : "Cambios"} · ${esc(p.v.nombre)}</h5>${cam.V.join("") || '<div class="sal">—</div>'}</div></div>`;
   }
   // alineación fija: cada jugador con sus goles, tarjetas y si salió; lo que no se pudo asociar va abajo
   function alinFija(p) {

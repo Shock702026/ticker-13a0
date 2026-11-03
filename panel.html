@@ -229,6 +229,8 @@
   .cal .ev.cancelada { background:#cfccdc; text-decoration:line-through; } .cal .ev.mia { background:var(--amarillo); color:var(--azul); } .cal .ev.sel { outline:3px solid var(--celeste); }
   .cal .aus { font:700 10px var(--f); color:var(--rojo); }
   .mes { display:flex; align-items:center; gap:10px; } .mes b { font:800 20px var(--slab); min-width:180px; text-align:center; }
+  .eqa { display:flex; flex-direction:column; gap:8px; min-width:0; padding:12px; outline:1px solid var(--linea); } .eqa .a-tx { font:600 14px/1.35 var(--f); }
+  .formas { display:flex; flex-wrap:wrap; gap:6px; } .formas[hidden] { display:none; } .formas .chip { padding:7px 10px; }
   .pega { display:flex; flex-direction:column; gap:6px; min-width:0; } .pega.sobre .pz { border-color:var(--celeste); background:#dff1fa; }
   .pega .pz { min-height:74px; border:2px dashed var(--linea); padding:10px; font:600 13px/1.3 var(--f); color:var(--gris); outline:none; overflow:hidden; cursor:text; }
   .pega .pz:empty::before { content:attr(data-ph); } .pega .pz:focus { border-color:var(--celeste); }
@@ -1027,39 +1029,62 @@ VISTAS.partido = (m) => {
   }));
   pintarT();
   F.appendChild(GT);
-  // alineación: la carga sola la tarea en la nube (Ovación / Referí / futbol.uy) antes del partido; acá se ve y se corrige
+  // alineaciones: por equipo se pega el texto (titulares y suplentes), las imágenes y se elige la formación;
+  // «Armar equipos» lo cruza con Transfermarkt (jerarquía: placa del club > Flashscore > texto > plantel) y deja el resultado para revisar
+  const FORMAS = ["4-4-2", "4-3-3", "4-2-3-1", "4-1-4-1", "4-4-1-1", "4-3-1-2", "4-5-1", "3-5-2", "3-4-3", "3-4-2-1", "3-4-1-2", "5-3-2", "5-4-1"];
+  const forma = { l: "", v: "" };
+  const bloqueEq = (k) => `<div class="eqa" data-lado="${k}">
+      <label>${k === "l" ? "Local" : "Visitante"}<input type="text" class="a-nom" value="${esc(manual ? (k === "l" ? st.local : st.visitante) || "" : "")}" placeholder="${k === "l" ? "Buscando el partido…" : ""}"></label>
+      <div class="fila-f"><button class="btn sec chico a-fbtn">⚽ Formación: <b>automática</b> ▾</button></div>
+      <div class="formas" hidden>${["", ...FORMAS].map((f) => `<button class="chip" data-f="${f}">${f || "Automática"}</button>`).join("")}</div>
+      <textarea class="a-tx" rows="5" placeholder="Pegá acá titulares y suplentes (como vienen en la nota o en la cuenta del club).&#10;Ej.: Oblak; Llorente, Hancko, Pubill… Suplentes: Musso, Koke…"></textarea>
+      <div class="pega"><div class="pz" contenteditable="true" tabindex="0" data-ph="Imágenes: pegalas acá (⌘V / Ctrl+V) o arrastralas — placa del club, Flashscore"></div><div class="mini-imgs"></div>
+        <label class="btn sec chico" style="cursor:pointer;text-align:center">📎 Elegir archivos<input type="file" accept="image/*" multiple hidden></label></div>
+    </div>`;
   const GA = h(`<div class="grupo"><b>Alineaciones</b>
-    <div class="dos"><label>Local<input type="text" id="a-nl" value="${esc(manual ? st.local || "" : "")}" placeholder="Buscando el partido…"></label><label>Visitante<input type="text" id="a-nv" value="${esc(manual ? st.visitante || "" : "")}"></label></div>
-    <div class="dos">${["l", "v"].map((k) => `<div class="pega" data-lado="${k}"><div class="pz" contenteditable="true" tabindex="0" data-ph="${k === "l" ? "Local" : "Visitante"}: pegá acá las imágenes (⌘V / Ctrl+V) o arrastralas"></div><div class="mini-imgs"></div><label class="btn sec chico" style="cursor:pointer;text-align:center">📎 Elegir archivos<input type="file" accept="image/*" multiple hidden></label></div>`).join("")}</div>
-    <div class="botonera"><button class="btn ce" id="a-ia">✨ Armar alineación con las imágenes</button><span id="a-cnt" class="ayuda" style="align-self:center"></span></div>
-    <textarea id="a-txt" rows="4" placeholder="Peñarol (4-4-2): 1 Aguerre, 3 Nández, 10 Fernández... | Ovación"></textarea>
+    <div class="dos">${bloqueEq("l")}${bloqueEq("v")}</div>
+    <div class="botonera"><button class="btn ce" id="a-ia">✨ Armar equipos</button><span id="a-cnt" class="ayuda" style="align-self:center"></span></div>
+    <label>Resultado (revisalo antes de guardar)<textarea id="a-txt" rows="5" placeholder="Peñarol (4-4-2): 1 Aguerre, 3 Nández, 10 Fernández… | Placa del club | Suplentes: 25 Silva, …"></textarea></label>
     <div class="botonera"><button class="btn am" id="a-ok">Guardar alineación</button><button class="btn sec chico" id="a-no">Borrar</button></div>
-    <span class="ayuda">Pegá (⌘V / Ctrl+V), arrastrá o elegí las capturas de cada equipo (placa del club, Flashscore, TV) y tocá «Armar alineación»: Claude las lee, completa los números con el plantel y la deja acá para revisar. Después, «Guardar alineación». También se puede escribir a mano: una línea por equipo, nombre, formación entre paréntesis, dos puntos y los 11 separados por coma. En las copas y la Selección sale de ESPN y esto no hace falta.</span></div>`);
+    <span class="ayuda">Para cada equipo: pegá el texto de titulares y suplentes, sumá las imágenes que tengas y, si querés, elegí la formación. «Armar equipos» busca a cada jugador en el plantel de Transfermarkt y le pone el número. Si hay diferencias, manda la placa del club, después Flashscore, después el texto y por último Transfermarkt; te avisa cuáles. Revisá el resultado y tocá «Guardar alineación». En las copas y la Selección sale sola de ESPN.</span></div>`);
   const aTxt = GA.querySelector("#a-txt"); aTxt.value = st.alineacion || "";
   const guardarA = async (v) => { const c = { alineacion: v }; st.alineacion = v; cambios.alineacion = v; aTxt.value = v; refrescar(); try { await guardar("guardarClaves", "partido_vivo", c); } catch (e) {} };
-  GA.querySelector("#a-ok").onclick = () => guardarA(aTxt.value.trim());
+  const esLinea = (l) => /^[^:\n]{2,60}?(\([^)]*\))?\s*:\s*[^\n]+,/.test(l) && !/alineaci|suplentes son/i.test(l);
+  GA.querySelector("#a-ok").onclick = () => {
+    const v = aTxt.value.trim(), lineas = v.split("\n").map((l) => l.trim()).filter(Boolean);
+    if (v && !lineas.every(esLinea)) { aviso("El resultado no tiene el formato «Equipo (4-4-2): 1 Nombre, …». Pegá el texto en el cuadro de cada equipo y tocá «Armar equipos»", true); return; }
+    guardarA(v);
+  };
   GA.querySelector("#a-no").onclick = () => guardarA("");
-  // armar con imágenes: se achican en el navegador (lado mayor 1568 px, JPG) y las lee Claude en el servidor
-  const nl = GA.querySelector("#a-nl"), nv = GA.querySelector("#a-nv"), cnt = GA.querySelector("#a-cnt");
-  // imágenes de cada equipo: se pegan (⌘V / Ctrl+V), se arrastran o se eligen; quedan acá hasta armar
-  const imgs = { l: [], v: [] }, fl = { get files() { return imgs.l; } }, fv = { get files() { return imgs.v; } };
-  const pintarImgs = (k) => { const box = GA.querySelector(`.pega[data-lado="${k}"] .mini-imgs`); box.innerHTML = "";
+  const eqs = { l: GA.querySelector('.eqa[data-lado="l"]'), v: GA.querySelector('.eqa[data-lado="v"]') };
+  const nl = eqs.l.querySelector(".a-nom"), nv = eqs.v.querySelector(".a-nom"), cnt = GA.querySelector("#a-cnt");
+  // formación: botón que despliega las más usadas
+  Object.entries(eqs).forEach(([k, el]) => {
+    const caja = el.querySelector(".formas"), btn = el.querySelector(".a-fbtn");
+    btn.onclick = () => (caja.hidden = !caja.hidden);
+    caja.querySelectorAll(".chip").forEach((c) => (c.onclick = () => { forma[k] = c.dataset.f; caja.querySelectorAll(".chip").forEach((x) => x.classList.toggle("on", x === c)); btn.querySelector("b").textContent = forma[k] || "automática"; caja.hidden = true; }));
+    caja.querySelector('[data-f=""]').classList.add("on");
+  });
+  // imágenes de cada equipo: se pegan (⌘V / Ctrl+V), se arrastran o se eligen
+  const imgs = { l: [], v: [] };
+  const contar = () => (cnt.textContent = `${imgs.l.length} imagen(es) del local · ${imgs.v.length} del visitante`);
+  const pintarImgs = (k) => { const box = eqs[k].querySelector(".mini-imgs"); box.innerHTML = "";
     imgs[k].forEach((f, i) => { const u = URL.createObjectURL(f), it = h(`<span class="mi"><img src="${u}"><button title="Sacar">✕</button></span>`);
       it.querySelector("button").onclick = () => { imgs[k].splice(i, 1); pintarImgs(k); contar(); }; box.appendChild(it); }); };
   const sumar = (k, lista) => { const nuevas = [...lista].filter((f) => f && /^image\//.test(f.type)); if (!nuevas.length) { aviso("Eso no es una imagen", true); return; }
     imgs[k] = imgs[k].concat(nuevas).slice(0, 6); pintarImgs(k); contar(); aviso(`${nuevas.length} imagen${nuevas.length > 1 ? "es" : ""} ${k === "l" ? "del local" : "del visitante"} ✓`); };
-  GA.querySelectorAll(".pega").forEach((z) => {
-    const k = z.dataset.lado, pz = z.querySelector(".pz");
-    pz.addEventListener("paste", (e) => { e.preventDefault(); const it = [...(e.clipboardData || {}).items || []].filter((x) => x.kind === "file").map((x) => x.getAsFile()); sumar(k, it); pz.innerHTML = ""; });
-    pz.addEventListener("input", () => (pz.innerHTML = ""));   // no se escribe texto ahí
+  Object.entries(eqs).forEach(([k, el]) => {
+    const z = el.querySelector(".pega"), pz = z.querySelector(".pz");
+    pz.addEventListener("paste", (e) => { e.preventDefault(); const it = [...(e.clipboardData || {}).items || []].filter((x) => x.kind === "file").map((x) => x.getAsFile());
+      if (it.length) sumar(k, it); else { const t = (e.clipboardData || window.clipboardData).getData("text"); if (t) { const tx = el.querySelector(".a-tx"); tx.value = (tx.value ? tx.value + "\n" : "") + t; aviso("Era texto: lo pasé al cuadro de titulares y suplentes"); } } pz.innerHTML = ""; });
+    pz.addEventListener("input", () => (pz.innerHTML = ""));
     z.addEventListener("dragover", (e) => { e.preventDefault(); z.classList.add("sobre"); });
     z.addEventListener("dragleave", () => z.classList.remove("sobre"));
     z.addEventListener("drop", (e) => { e.preventDefault(); z.classList.remove("sobre"); sumar(k, e.dataTransfer.files); });
     z.querySelector("input[type=file]").onchange = (e) => { sumar(k, e.target.files); e.target.value = ""; };
   });
-  let partidoA = null;
-  const contar = () => (cnt.textContent = `${fl.files.length} del local · ${fv.files.length} del visitante`);
   contar();
+  let partidoA = null;
   if (!manual) partidosUruguayos(2).then((L) => {   // el partido de hoy (o el más cercano) para los nombres y el plantel
     const ahora = Date.now(); partidoA = L.sort((a, b) => Math.abs(new Date(a.fecha + "T" + a.hora) - ahora) - Math.abs(new Date(b.fecha + "T" + b.hora) - ahora))[0] || null;
     if (partidoA) { if (!nl.value) nl.value = partidoA.local; if (!nv.value) nv.value = partidoA.visitante; }
@@ -1069,24 +1094,41 @@ VISTAS.partido = (m) => {
     im.onload = () => { const k = Math.min(1, 1568 / Math.max(im.width, im.height)), c = document.createElement("canvas"); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
       c.getContext("2d").drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(u); ok({ tipo: "image/jpeg", base64: c.toDataURL("image/jpeg", 0.85).split(",")[1] }); };
     im.onerror = () => mal(new Error("No pude abrir " + f.name)); im.src = u; });
-  const plantel = async (id) => { if (!partidoA || !id) return ""; try { const j = await (await fetch("https://site.api.espn.com/apis/site/v2/sports/soccer/" + partidoA.liga + "/teams/" + id + "/roster")).json();
-    return (j.athletes || []).filter((a) => a.jersey).map((a) => a.jersey + " " + (a.displayName || a.fullName)).join("; "); } catch (e) { return ""; } };
-  GA.querySelector("#a-ia").onclick = async (ev) => {
-    const b = ev.target; if (!fl.files.length && !fv.files.length) { aviso("Adjuntá al menos una imagen", true); return; }
-    if ((fl.files.length && !nl.value.trim()) || (fv.files.length && !nv.value.trim())) { aviso("Poné el nombre del equipo", true); return; }
-    b.disabled = true; const t0 = b.textContent; b.textContent = "Leyendo las imágenes…";
+  // plantel de ESPN (por si Transfermarkt no tiene al equipo): del partido del Uruguayo de hoy o buscando el equipo en las ligas
+  const plantelDe = async (nombre, k) => {
     try {
-      const mismoA = partidoA && sinT(partidoA.local) === sinT(nl.value.trim()), mismoV = partidoA && sinT(partidoA.visitante) === sinT(nv.value.trim());
-      const d = { local: nl.value.trim(), visitante: nv.value.trim(), imgLocal: await Promise.all([...fl.files].slice(0, 6).map(achicar)), imgVisitante: await Promise.all([...fv.files].slice(0, 6).map(achicar)),
-        plantelLocal: mismoA ? await plantel(partidoA.ids[0]) : "", plantelVisitante: mismoV ? await plantel(partidoA.ids[1]) : "" };
-      const r = await srv("armarAlineacion", d);
+      let liga = null, id = null;
+      if (partidoA && sinT(partidoA[k === "l" ? "local" : "visitante"]) === sinT(nombre)) { liga = partidoA.liga; id = partidoA.ids[k === "l" ? 0 : 1]; }
+      if (!id) for (const lg of ["uru.1", "uefa.champions", "conmebol.libertadores", "conmebol.sudamericana", "esp.1", "eng.1", "arg.1", "bra.1", "ita.1"]) {
+        const j = await (await fetch("https://site.api.espn.com/apis/site/v2/sports/soccer/" + lg + "/teams")).json();
+        const t = ((j.sports || [])[0].leagues[0].teams || []).map((x) => x.team).find((t) => sinT(t.displayName) === sinT(nombre) || sinT(t.displayName).includes(sinT(nombre)) || sinT(nombre).includes(sinT(t.shortDisplayName || "~")));
+        if (t) { liga = lg; id = t.id; break; }
+      }
+      if (!id) return "";
+      const j = await (await fetch("https://site.api.espn.com/apis/site/v2/sports/soccer/" + liga + "/teams/" + id + "/roster")).json();
+      return (j.athletes || []).filter((a) => a.jersey).map((a) => a.jersey + " " + (a.displayName || a.fullName) + " (" + ((a.position || {}).displayName || "") + ")").join("; ");
+    } catch (e) { return ""; }
+  };
+  GA.querySelector("#a-ia").onclick = async (ev) => {
+    const b = ev.target, datos = {};
+    for (const k of ["l", "v"]) {
+      const nom = eqs[k].querySelector(".a-nom").value.trim(), tx = eqs[k].querySelector(".a-tx").value.trim();
+      if ((tx || imgs[k].length) && !nom) { aviso("Poné el nombre del " + (k === "l" ? "local" : "visitante"), true); return; }
+      datos[k === "l" ? "local" : "visitante"] = { nombre: nom, texto: tx, formacion: forma[k], imgs: [], plantel: "" };
+    }
+    if (!datos.local.texto && !datos.visitante.texto && !imgs.l.length && !imgs.v.length) { aviso("Pegá el texto o las imágenes de al menos un equipo", true); return; }
+    b.disabled = true; const t0 = b.textContent; b.textContent = "Armando…";
+    try {
+      for (const k of ["l", "v"]) { const d = datos[k === "l" ? "local" : "visitante"]; if (!d.nombre) continue;
+        d.imgs = await Promise.all(imgs[k].map(achicar)); d.plantel = await plantelDe(d.nombre, k); }
+      const r = await srv("armarEquipos", datos);
       const eqDe = (l) => sinT(String(l).split(/[:(]/)[0].trim());
-      const nuevas = r.map((x) => x.linea), quedan = aTxt.value.split("\n").filter((l) => l.trim() && !nuevas.some((n) => eqDe(n) === eqDe(l)));
+      const nuevas = r.map((x) => x.linea), quedan = aTxt.value.split("\n").filter((l) => l.trim() && esLinea(l) && !nuevas.some((n) => eqDe(n) === eqDe(l)));
       aTxt.value = quedan.concat(nuevas).join("\n");
-      // la nota dice qué imagen se tomó como base (placa del club > Flashscore > plantel) y si hubo diferencias entre fuentes
-      const notas = r.map((x) => (x.lado === "local" ? d.local : d.visitante) + ": " + (x.n < 11 ? x.n + " titulares. " : "") + (x.nota || "sin observaciones"));
-      const ojo = r.some((x) => x.n < 11 || /difer|no coincid|duda|distint/i.test(x.nota || ""));
-      aviso((ojo ? "Revisá antes de guardar · " : "Listo ✓ Revisala y tocá «Guardar alineación» · ") + notas.join(" · "), ojo);
+      const notas = r.map((x) => datos[x.lado].nombre + ": " + (x.n < 11 ? x.n + " titulares. " : "") + (x.nota || "sin observaciones"));
+      const ojo = r.some((x) => x.n < 11 || /difer|no coincid|duda|distint|no está/i.test(x.nota || ""));
+      aviso((ojo ? "Revisá antes de guardar · " : "Listo ✓ Revisalo y tocá «Guardar alineación» · ") + notas.join(" · "), ojo);
+      aTxt.scrollIntoView({ behavior: "smooth", block: "center" });
     } catch (e) { aviso(e.message || String(e), true); }
     b.disabled = false; b.textContent = t0;
   };
