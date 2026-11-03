@@ -326,11 +326,11 @@
       const tit = m[3].split(",").map((j) => j.trim()).filter(Boolean).map((j) => { const q = j.match(/^(\d{1,2})\.?\s*(.*)$/); return q ? { num: q[1], nombre: q[2] || pl[q[1]] || "" } : { num: "", nombre: j }; });
       if (tit.length) p.alin.push({ id, formacion: (m[2] || "").trim(), titulares: tit.slice(0, 11), entraron: [], fuente: (m[4] || "").trim() });
     });
-    // número sin nombre en el plantel de ESPN → el nombre de la alineación cargada
+    // jerarquía para pasar un número a nombre: la alineación cargada (placa del club > Flashscore) manda sobre Transfermarkt y ESPN
     const porNum = (eqId, lado, n) => { const a = n && p.alin.find((y) => y.id === String(eqId)); const j = a && a.titulares.concat(a.entraron || []).find((y) => y.num === n); return j ? j.nombre : ""; };
     p.inc.forEach((i) => { const eq = i.lado === "V" || (!p.manual && String(i.equipo) === String(p.v.id)) ? p.v : p.l;
-      if (/^N\.º/.test(i.nombre)) i.nombre = porNum(eq.id, i.lado, i.num) || i.nombre;
-      if (i.sale && /^N\.º/.test(i.sale)) i.sale = porNum(eq.id, i.lado, i.saleNum) || i.sale; });
+      if (i.num) i.nombre = porNum(eq.id, i.lado, i.num) || i.nombre;
+      if (i.saleNum) i.sale = porNum(eq.id, i.lado, i.saleNum) || i.sale; });
   }
   // cancha: filas según la formación (arquero + líneas); sin formación válida, 4-4-2
   function canchaHTML(p) {

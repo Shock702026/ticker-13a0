@@ -362,7 +362,7 @@ function csv(t) {
   return filas;
 }
 const cab = (t) => (t && t[0] || []).map((x) => String(x).trim().toLowerCase());
-function aviso(txt, error) { const t = document.getElementById("toast"); t.textContent = txt; t.className = "on" + (error ? " error" : ""); clearTimeout(aviso.t); aviso.t = setTimeout(() => (t.className = ""), error ? 6000 : 2600); }
+function aviso(txt, error) { const t = document.getElementById("toast"); t.textContent = txt; t.className = "on" + (error ? " error" : ""); clearTimeout(aviso.t); aviso.t = setTimeout(() => (t.className = ""), Math.max(error ? 6000 : 2600, String(txt).length * 55)); }   // los avisos largos quedan más tiempo
 async function guardar(fn, ...args) {
   try { const r = await srv(fn, ...args); aviso("Guardado ✓ · OBS lo toma en unos segundos"); return r; }
   catch (e) { aviso(e.message || String(e), true); throw e; }
@@ -1062,8 +1062,10 @@ VISTAS.partido = (m) => {
       const eqDe = (l) => sinT(String(l).split(/[:(]/)[0].trim());
       const nuevas = r.map((x) => x.linea), quedan = aTxt.value.split("\n").filter((l) => l.trim() && !nuevas.some((n) => eqDe(n) === eqDe(l)));
       aTxt.value = quedan.concat(nuevas).join("\n");
-      const dudas = r.filter((x) => x.nota || x.n < 11).map((x) => (x.lado === "local" ? d.local : d.visitante) + ": " + (x.n < 11 ? x.n + " titulares. " : "") + (x.nota || ""));
-      aviso(dudas.length ? "Revisá antes de guardar · " + dudas.join(" · ") : "Listo ✓ Revisala y tocá «Guardar alineación»", !!dudas.length);
+      // la nota dice qué imagen se tomó como base (placa del club > Flashscore > plantel) y si hubo diferencias entre fuentes
+      const notas = r.map((x) => (x.lado === "local" ? d.local : d.visitante) + ": " + (x.n < 11 ? x.n + " titulares. " : "") + (x.nota || "sin observaciones"));
+      const ojo = r.some((x) => x.n < 11 || /difer|no coincid|duda|distint/i.test(x.nota || ""));
+      aviso((ojo ? "Revisá antes de guardar · " : "Listo ✓ Revisala y tocá «Guardar alineación» · ") + notas.join(" · "), ojo);
     } catch (e) { aviso(e.message || String(e), true); }
     b.disabled = false; b.textContent = t0;
   };
