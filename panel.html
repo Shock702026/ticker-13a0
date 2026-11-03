@@ -938,7 +938,7 @@ VISTAS.partido = (m) => {
   }, 700);
   F.innerHTML = `<h2><i style="background:var(--celeste)"></i>¿Qué partido mostramos?</h2>`;
   const manual = /auf|manual/i.test(st.competencia || "");
-  const G1 = h(`<div class="grupo"><b>Competencia</b><div class="chips">${[["", "Automático"], ["uruguay", "Uruguay"], ["libertadores", "Libertadores"], ["sudamericana", "Sudamericana"], ["seleccion", "Selección"], ["copa auf", "Copa AUF (a mano)"]].map(([k, t]) => `<button class="chip${sinT(st.competencia || "") === k ? " on" : ""}" data-k="${k}">${t}</button>`).join("")}</div></div>`);
+  const G1 = h(`<div class="grupo"><b>Competencia</b><div class="chips">${[["", "Automático"], ["uruguay", "Uruguay"], ["libertadores", "Libertadores"], ["sudamericana", "Sudamericana"], ["seleccion", "Selección"], ["copa auf", "Copa AUF (a mano)"], ["simular champions", "Simulación (Champions)"]].map(([k, t]) => `<button class="chip${sinT(st.competencia || "") === k ? " on" : ""}" data-k="${k}">${t}</button>`).join("")}</div></div>`);
   G1.querySelectorAll(".chip").forEach((b) => (b.onclick = () => { set("competencia", b.dataset.k); D.partido = conValores(D.partido, st); VISTAS.partido(m); Object.assign(cambiosPend, cambios); }));
   F.appendChild(G1);
   if (!manual) {

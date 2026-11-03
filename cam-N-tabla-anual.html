@@ -274,7 +274,8 @@
     const r = { alin: [], ev: [], plantel: {} };
     if (p.manual) return r;
     let s = null;
-    try { s = await json(API + p.liga + "/summary?event=" + p.id, p.estado === "in" ? 40 : 300); } catch (e) {}
+    try { s = await json(API + (p.ligaReal || p.liga) + "/summary?event=" + p.id, p.estado === "in" ? 40 : 300); } catch (e) {}
+    if (p.ligaReal && s) s = { rosters: (s.rosters || []).map((t) => ({ team: t.team, roster: (t.roster || []).map((x) => Object.assign({}, x, { starter: false, subbedIn: false })) })) };   // simulación: como en el Uruguayo, sin alineaciones ni tarjetas de ESPN (quedan los goles)
     (s && s.rosters || []).forEach((t) => {
       const id = String((t.team || {}).id || ""); const pl = (r.plantel[id] = r.plantel[id] || {});
       const tit = [], ent = [];
@@ -299,7 +300,7 @@
     // plantel con números para las tarjetas a mano (el Uruguayo no trae alineaciones)
     for (const e of [p.l, p.v]) {
       const id = String(e.id || ""); if (!id || (r.plantel[id] && Object.keys(r.plantel[id]).length)) continue;
-      try { const d = await json(API + p.liga + "/teams/" + id + "/roster", 21600); const pl = (r.plantel[id] = {}); (d.athletes || []).forEach((a) => { if (a.jersey) pl[a.jersey] = a.displayName || a.fullName || ""; }); } catch (e2) {}
+      try { const d = await json(API + (p.ligaReal || p.liga) + "/teams/" + id + "/roster", 21600); const pl = (r.plantel[id] = {}); (d.athletes || []).forEach((a) => { if (a.jersey) pl[a.jersey] = a.displayName || a.fullName || ""; }); } catch (e2) {}
     }
     return r;
   }
@@ -417,11 +418,13 @@
     if (/auf|manual/.test(comp)) return manual();
     const base = hv("fecha") ? new Date(hv("fecha").replace(/(\d{4})(\d\d)(\d\d)/, "$1-$2-$3") + "T12:00:00") : new Date();
     const desde = dias(-1, base), hasta = dias(1, base);
-    const ligas = /libert/.test(comp) ? [LIB] : /sudam/.test(comp) ? [SUD] : /selec|elimin|celeste/.test(comp) ? SEL : /urug|primera/.test(comp) ? [URU] : [URU, LIB, SUD, ELI, AMI];
+    // simulación: un partido de Champions se muestra como si fuera del Clausura (para probar la pestaña con un partido en vivo)
+    const sim = /simul/.test(comp);
+    const ligas = sim ? ["uefa.champions"] : /libert/.test(comp) ? [LIB] : /sudam/.test(comp) ? [SUD] : /selec|elimin|celeste/.test(comp) ? SEL : /urug|primera/.test(comp) ? [URU] : [URU, LIB, SUD, ELI, AMI];
     let todos = [];
     for (const l of ligas) { try { todos = todos.concat(await partidos(l, desde, hasta)); } catch (e) {} }
     const equipo = hv("equipo");
-    let cand = todos.filter(sirve);
+    let cand = sim ? todos.map((p) => Object.assign(p, { ligaReal: p.liga, liga: URU })) : todos.filter(sirve);
     if (equipo) cand = cand.filter((p) => mismo(p.l.nombre, equipo) || mismo(p.v.nombre, equipo) || mismo(p.l.largo, equipo) || mismo(p.v.largo, equipo));
     const ahora = Date.now(), dist = (p) => Math.abs(new Date(p.fecha) - ahora);
     const enJuego = cand.filter((p) => p.estado === "in").sort((a, b) => ligas.indexOf(a.liga) - ligas.indexOf(b.liga));
