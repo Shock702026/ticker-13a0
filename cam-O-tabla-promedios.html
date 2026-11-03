@@ -75,6 +75,22 @@
   .alin li.salio { opacity:.55; } .alin li i { font-style:normal; font-size:15px; color:var(--celeste); font-weight:800; }
   .alin .entraron { margin-top:8px; font:700 16px/1.3 var(--grotesca); color:var(--gris); white-space:normal; }
   .incid.chico li { font-size:23px; gap:10px; } .incid.chico { gap:0 24px; }
+  /* alineación fija abajo del marcador (cuando hay): marcador más bajo y los 11 de cada uno con sus goles, tarjetas y cambios */
+  .marcador.bajo .eq { gap:10px; } .marcador.bajo .eq img { width:120px; height:120px; } .marcador.bajo .eq b { font-size:34px; }
+  .marcador.bajo .res { gap:8px; } .marcador.bajo .res .min { font-size:34px; padding:10px 20px; } .marcador.bajo .res .goles { font-size:120px; } .marcador.bajo .res .goles.previa { font-size:70px; }
+  .marcador.bajo .res .goles i { width:34px; height:12px; }
+  .alf { position:absolute; background:var(--azul); color:#fff; display:grid; grid-template-columns:1fr 1fr; gap:0 34px; padding:16px 30px; overflow:hidden; }
+  .alf h4 { display:flex; align-items:baseline; gap:10px; font:900 22px/1 var(--grotesca); color:var(--amarillo); letter-spacing:.04em; text-transform:uppercase; margin-bottom:8px; white-space:nowrap; overflow:hidden; }
+  .alf h4 small { font-weight:700; font-size:17px; color:#fff; opacity:.7; text-transform:none; letter-spacing:0; }
+  .alf ol { list-style:none; display:flex; flex-direction:column; gap:3px; }
+  .alf li { display:flex; align-items:center; gap:9px; font:700 20px/1.25 var(--grotesca); white-space:nowrap; overflow:hidden; min-width:0; }
+  .alf li b { flex:none; width:28px; text-align:right; font-weight:900; color:var(--amarillo); }
+  .alf li .nm { overflow:hidden; text-overflow:ellipsis; } .alf li.salio .nm { opacity:.55; }
+  .alf .ev { flex:none; display:inline-flex; align-items:center; gap:4px; font:800 15px/1 var(--grotesca); }
+  .alf .ev i { display:inline-block; } .alf .ev .g { background:var(--amarillo); color:var(--azul); font-style:normal; font-size:12px; letter-spacing:.06em; padding:3px 5px; }
+  .alf .ev .am { width:12px; height:16px; background:#FFE14D; } .alf .ev .ro { width:12px; height:16px; background:var(--rojo); }
+  .alf .ev .sa { color:var(--celeste); font-style:normal; }
+  .alf .mas { margin-top:6px; font:700 16px/1.3 var(--grotesca); color:#fff; opacity:.8; white-space:normal; }
 
   /* panel que rota */
   .panel-cab { position:absolute; display:flex; align-items:center; justify-content:space-between; padding:0 24px; color:#fff; font:800 28px/1 var(--slab); letter-spacing:.05em; text-transform:uppercase; white-space:nowrap; }
@@ -274,6 +290,23 @@
       const tit = m[3].split(",").map((j) => j.trim()).filter(Boolean).map((j) => { const q = j.match(/^(\d{1,2})\.?\s*(.*)$/); return q ? { num: q[1], nombre: q[2] || pl[q[1]] || "" } : { num: "", nombre: j }; });
       if (tit.length) p.alin.push({ id, formacion: (m[2] || "").trim(), titulares: tit.slice(0, 11), entraron: [], fuente: (m[4] || "").trim() });
     });
+  }
+  // alineación fija: cada jugador con sus goles, tarjetas y si salió; lo que no se pudo asociar va abajo
+  function alinFija(p) {
+    const ult = (n) => sinT(n).split(" ").filter(Boolean).pop() || "";
+    const col = (e, lado) => {
+      const a = p.alin.find((x) => x.id === String(e.id)); if (!a) return `<div><h4>${esc(e.nombre)}</h4><div class="mas">Sin alineación</div></div>`;
+      const evs = p.inc.filter((x) => p.manual ? x.lado === lado : String(x.equipo) === String(e.id));
+      const usados = new Set();
+      const de = (j) => evs.filter((x, k) => { const ok = x.tipo !== "cambio" && (mismo(x.nombre, j.nombre) || (ult(x.nombre) && ult(x.nombre) === ult(j.nombre)) || (/^N\.º\s*(\d+)/.test(x.nombre) && x.nombre.replace(/\D/g, "") === j.num)); if (ok) usados.add(k); return ok; });
+      const tag = (x) => `<span class="ev">${x.tipo === "gol" ? '<i class="g">GOL</i>' : x.tipo === "amarilla" ? '<i class="am"></i>' : '<i class="ro"></i>'}${esc(String(x.min || "").replace(/'$/, ""))}'</span>`;
+      const filas = a.titulares.map((j) => `<li class="${j.salio ? "salio" : ""}"><b>${esc(j.num)}</b><span class="nm">${esc(j.nombre)}</span>${de(j).map(tag).join("")}${j.salio ? `<span class="ev"><i class="sa">↓</i>${esc(String(j.min || "").replace(/'$/, ""))}'</span>` : ""}</li>`).join("");
+      const sueltos = evs.filter((x, k) => !usados.has(k) && x.tipo !== "cambio").map((x) => `${esc(x.min)} ${x.tipo === "gol" ? "gol" : x.tipo} ${esc(x.nombre)}`);
+      const entraron = (a.entraron || []).map((t) => esc((t.num ? t.num + " " : "") + t.nombre + (t.min ? " " + t.min : "")));
+      return `<div><h4>${esc(e.nombre)}${a.formacion ? `<small>${esc(a.formacion)}</small>` : ""}${a.fuente ? `<small>· ${esc(a.fuente)}</small>` : ""}</h4><ol>${filas}</ol>` +
+        (entraron.length ? `<div class="mas">Entraron: ${entraron.join(" · ")}</div>` : "") + (sueltos.length ? `<div class="mas">${sueltos.join(" · ")}</div>` : "") + `</div>`;
+    };
+    return col(p.l, "L") + col(p.v, "V");
   }
   function alinHTML(p) {
     const col = (e) => {
@@ -535,12 +568,14 @@
     const goles = p.estado === "pre" || p.l.goles == null ? `<div class="goles previa">vs</div>` : `<div class="goles">${p.l.goles}<i></i>${p.v.goles}</div>`;
     const porLado = (l) => p.inc.filter((x) => p.manual ? x.lado === l : String(x.equipo) === String(l === "L" ? p.l.id : p.v.id)).length;
     const muchas = Math.max(porLado("L"), porLado("V")) > 5;
+    const fija = p.alin && p.alin.length ? alinFija(p) : "";
     const html = `<div class="estadio ce" style="left:152px;top:118px;width:${ancho}px;height:60px"><span>${esc(p.estadio)}</span><span>${esc(tiempoTxt(p))}</span></div>` +
-      `<div class="marcador${conPanel ? "" : " ancho"}" style="left:152px;top:194px;width:${ancho}px;height:440px">` +
+      `<div class="marcador${fija ? " bajo" : conPanel ? "" : " ancho"}" style="left:152px;top:194px;width:${ancho}px;height:${fija ? 290 : 440}px">` +
         `<div class="eq">${img(p.l.escudo)}<b>${esc(p.l.nombre)}</b></div>` +
         `<div class="res"><div class="min${mc}">${esc(m)}</div>${goles}${serie}${pen}</div>` +
         `<div class="eq">${img(p.v.escudo)}<b>${esc(p.v.nombre)}</b></div></div>` +
-      `<div class="incid${muchas ? " chico" : ""}" style="left:152px;top:650px;width:${ancho}px;height:264px"><ul>${incHTML(p, "L")}</ul><ul class="der">${incHTML(p, "V")}</ul></div>`;
+      (fija ? `<div class="alf" style="left:152px;top:500px;width:${ancho}px;height:414px">${fija}</div>` :
+      `<div class="incid${muchas ? " chico" : ""}" style="left:152px;top:650px;width:${ancho}px;height:264px"><ul>${incHTML(p, "L")}</ul><ul class="der">${incHTML(p, "V")}</ul></div>`);
     if (html !== ultimo) { elPartido.innerHTML = html; ultimo = html; }
   }
   function dibujarEspera() {
@@ -605,7 +640,6 @@
           if (p.liga === URU) try { const d = await standings(URU, null, null, 600); torneoActual = ((d.children || [])[0] || {}).name || ""; torneoActual = torneoActual.replace(/\s+\d{4}$/, ""); } catch (e) {}
           if (!T.demo) { try { sumarExtras(p, await extras(p)); } catch (e) { console.warn("extras:", e.message); } }
           const pn = T.demo ? [] : await paneles(p);
-          if (p.alin && p.alin.length) pn.splice(Math.min(1, pn.length), 0, ["Alineaciones", alinHTML(p), "am"]);
           const con = pn.length > 0;
           armarLado(con);
           dibujarPartido(p, con);
