@@ -450,7 +450,7 @@ function interruptor(texto, on, sub, onChange) {
   return el;
 }
 // versión de las pantallas: va en cada link, así el navegador no muestra copias viejas guardadas
-const VER = "20261102";
+const VER = "20261104";
 const conVer = (src) => src + (src.includes("?") ? "&" : "?") + "v=" + VER;
 function vistaPrevia(src, cls = "") {
   const pv = h(`<div class="pv ${cls}"><iframe src="${conVer(src)}"></iframe></div>`);
@@ -593,6 +593,18 @@ VISTAS.noticias = (m) => {
       const bAp = h(`<button class="btn ok chico">✓ Aprobar</button>`);
       bAp.onclick = async (e) => { e.stopPropagation(); bAp.disabled = true; try { await guardar("aprobarNoticia", n.fila); await recargar(); } catch (x) { bAp.disabled = false; } };
       acc.appendChild(bAp);
+      const bEl = h(`<button class="btn ro chico">✕ Eliminar</button>`); let armado = 0;   // pide un segundo clic para no borrar sin querer
+      bEl.onclick = async (e) => {
+        e.stopPropagation();
+        if (!armado) { bEl.textContent = "¿Seguro?"; armado = setTimeout(() => { armado = 0; bEl.textContent = "✕ Eliminar"; }, 4000); return; }
+        clearTimeout(armado); bEl.disabled = bAp.disabled = true;
+        try {
+          await guardar("eliminarNoticia", n.fila, n.titular);
+          if (elegidaN) elegidaN = elegidaN.fila === n.fila ? null : elegidaN.fila > n.fila ? { fila: elegidaN.fila - 1 } : elegidaN;   // las filas de abajo suben una
+          await recargar();
+        } catch (x) { armado = 0; bEl.textContent = "✕ Eliminar"; bEl.disabled = bAp.disabled = false; }
+      };
+      acc.appendChild(bEl);
     } else if (puede("noticias")) acc.appendChild(interruptor("", esSi(n.mostrar), "", async (on) => {
       try { await guardar("guardarNoticia", n.fila, { mostrar: on ? "SI" : "NO" }); await recargar(); } catch (e) { ir("noticias"); }
     }));
