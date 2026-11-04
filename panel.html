@@ -780,7 +780,7 @@ function editorNoticia(E, V, n, todas) {
 /* Encuadre de la foto: el recuadro amarillo es lo que sale en la tanda (vertical, 504 × 920) */
 function encuadrador(onCambio) {
   const RAZON = 504 / 920, SAL_W = 1008, SAL_H = 1840;
-  const el = h(`<div class="encuadre"><div class="escena sin">Arrastrá una foto acá o tocá «Subir foto»</div><div class="zoom" style="display:none"><span>−</span><input type="range" min="1" max="4" step="0.01" value="1"><span>+</span></div><div class="pie"><label class="btn az chico" style="flex-direction:row">📷 Sacar foto<input type="file" accept="image/*" capture="environment" hidden></label><label class="btn sec chico" style="flex-direction:row">🖼 Elegir foto<input type="file" accept="image/*" hidden></label><span class="ayuda" style="color:var(--gris);font-size:12px;font-weight:600">Se guarda sola en Drive al tocar Guardar</span></div>
+  const el = h(`<div class="encuadre"><div class="escena sin" tabindex="0">Pegá la imagen (⌘V / Ctrl+V), arrastrala acá o elegí una foto</div><div class="zoom" style="display:none"><span>−</span><input type="range" min="1" max="4" step="0.01" value="1"><span>+</span></div><div class="pie"><label class="btn az chico" style="flex-direction:row">📷 Sacar foto<input type="file" accept="image/*" capture="environment" hidden></label><label class="btn sec chico" style="flex-direction:row">🖼 Elegir foto<input type="file" accept="image/*" hidden></label><span class="ayuda" style="color:var(--gris);font-size:12px;font-weight:600">Se guarda sola en Drive al tocar Guardar</span></div>
     <div class="desde-drive"><input type="text" placeholder="…o pegá el link de una foto de Drive"><button type="button" class="btn sec chico">Traer de Drive</button></div></div>`);
   const esc_ = el.querySelector(".escena"), zoom = el.querySelector(".zoom"), rango = zoom.querySelector("input"), files = el.querySelectorAll("input[type=file]");
   let im = null, base = 1, x = 0, y = 0, mw = 0, mx = 0;
@@ -801,6 +801,13 @@ function encuadrador(onCambio) {
     r.onload = () => cargar(r.result);
     r.readAsDataURL(f);
   }
+  // pegar una imagen con ⌘V / Ctrl+V en cualquier lugar del editor abierto; un texto pegado sigue yendo a su campo
+  const pegar = (e) => {
+    if (!el.isConnected) { document.removeEventListener("paste", pegar); return; }
+    const f = [...((e.clipboardData || {}).items || [])].filter((x) => x.kind === "file" && /^image\//.test(x.type)).map((x) => x.getAsFile())[0];
+    if (f) { e.preventDefault(); abrir(f); aviso("Imagen pegada ✓ Encuadrala y guardá"); }
+  };
+  document.addEventListener("paste", pegar);
   // link de Drive: el servidor trae la foto (con los permisos de Trece A Cero) y se encuadra igual que una subida
   const dd = el.querySelector(".desde-drive"), ddIn = dd.querySelector("input"), ddB = dd.querySelector("button");
   ddB.onclick = async () => {
