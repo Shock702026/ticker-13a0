@@ -569,6 +569,33 @@ let filtroN = "aire", elegidaN = null, subNot = "obs";
 // pestañas internas de Noticias: las del OBS y los titulares de radio
 const subNoticias = () => `<div class="subtabs" style="margin-top:-6px">${[["obs", "Noticias del OBS"], ["titulares", "Titulares de radio"], ["fotos", "Archivo de fotos"]].map(([k, t]) => `<button class="chip${k === subNot ? " on" : ""}" data-sn="${k}">${t}</button>`).join("")}</div>`;
 const enlazarSubNoticias = (m) => m.querySelectorAll("[data-sn]").forEach((b) => (b.onclick = () => { subNot = b.dataset.sn; ir("noticias"); }));
+// aprobar, eliminar, prender y ordenar responden al instante: la pantalla cambia ya y el servidor se entera atrás, de a uno y en orden
+const colaN = []; let corriendoN = false, cambiosN = 0;
+const ponerN = (fila, k, v) => { D.noticias[fila - 1][cab(D.noticias).indexOf(k)] = v; };
+function rapido(fn, args, local) {
+  local(); cambiosN++;
+  const L = document.getElementById("lista"), y = L ? L.scrollTop : 0, yp = window.scrollY;
+  ir("noticias");
+  const L2 = document.getElementById("lista"); if (L2) L2.scrollTop = y; window.scrollTo(0, yp);
+  colaN.push([fn, args]); aviso("Guardando…"); correrColaN();
+}
+async function correrColaN() {
+  if (corriendoN) return; corriendoN = true;
+  while (colaN.length) {
+    const [fn, args] = colaN[0];
+    try { await srv(fn, ...args); colaN.shift(); }
+    catch (e) {   // lo que seguía en la cola contaba con este cambio: se descarta y se vuelve a lo que dice la planilla
+      const n = colaN.length - 1; colaN.length = 0; corriendoN = false;
+      aviso((e.message || String(e)) + (n ? ` · no se guardaron ${n} cambios más` : ""), true);
+      try { await recargar(); } catch (x) {}
+      return;
+    }
+  }
+  corriendoN = false; aviso("Guardado ✓ · OBS lo toma en unos segundos");
+  if (!ENAS) return;
+  const v = cambiosN; try { const d = await srv("leer"); if (v === cambiosN && !corriendoN) D = d; } catch (e) {}   // pone al día los datos sin tocar la pantalla
+}
+window.addEventListener("beforeunload", (e) => { if (colaN.length) e.preventDefault(); });
 VISTAS.noticias = (m) => {
   if (subNot === "titulares") return vistaTitulares(m);
   if (subNot === "fotos") return vistaFotos(m);
@@ -591,26 +618,25 @@ VISTAS.noticias = (m) => {
     const acc = it.querySelector(".acc");
     if (pend(n) && puede("noticias")) {
       const bAp = h(`<button class="btn ok chico">✓ Aprobar</button>`);
-      bAp.onclick = async (e) => { e.stopPropagation(); bAp.disabled = true; try { await guardar("aprobarNoticia", n.fila); await recargar(); } catch (x) { bAp.disabled = false; } };
+      bAp.onclick = (e) => { e.stopPropagation(); rapido("aprobarNoticia", [n.fila, n.titular], () => ponerN(n.fila, "mostrar", "SI")); };
       acc.appendChild(bAp);
       const bEl = h(`<button class="btn ro chico">✕ Eliminar</button>`); let armado = 0;   // pide un segundo clic para no borrar sin querer
-      bEl.onclick = async (e) => {
+      bEl.onclick = (e) => {
         e.stopPropagation();
         if (!armado) { bEl.textContent = "¿Seguro?"; armado = setTimeout(() => { armado = 0; bEl.textContent = "✕ Eliminar"; }, 4000); return; }
-        clearTimeout(armado); bEl.disabled = bAp.disabled = true;
-        try {
-          await guardar("eliminarNoticia", n.fila, n.titular);
+        clearTimeout(armado);
+        rapido("eliminarNoticia", [n.fila, n.titular], () => {
+          D.noticias.splice(n.fila - 1, 1);
           if (elegidaN) elegidaN = elegidaN.fila === n.fila ? null : elegidaN.fila > n.fila ? { fila: elegidaN.fila - 1 } : elegidaN;   // las filas de abajo suben una
-          await recargar();
-        } catch (x) { armado = 0; bEl.textContent = "✕ Eliminar"; bEl.disabled = bAp.disabled = false; }
+        });
       };
       acc.appendChild(bEl);
-    } else if (puede("noticias")) acc.appendChild(interruptor("", esSi(n.mostrar), "", async (on) => {
-      try { await guardar("guardarNoticia", n.fila, { mostrar: on ? "SI" : "NO" }); await recargar(); } catch (e) { ir("noticias"); }
-    }));
+    } else if (puede("noticias")) acc.appendChild(interruptor("", esSi(n.mostrar), "", (on) => rapido("guardarNoticia", [n.fila, { mostrar: on ? "SI" : "NO" }], () => ponerN(n.fila, "mostrar", on ? "SI" : "NO"))));
     if (filtroN === "aire" && puede("noticias")) {
       const mv = h(`<div class="mov"><button title="Subir">▲</button><button title="Bajar">▼</button></div>`);
-      const mover = async (d) => { const otra = lista[i + d]; if (!otra) return; try { await guardar("moverNoticia", n.fila, otra.fila); if (elegidaN && elegidaN.fila === n.fila) elegidaN = { fila: otra.fila }; await recargar(); } catch (e) {} };
+      const mover = (d) => { const otra = lista[i + d]; if (!otra) return; rapido("moverNoticia", [n.fila, otra.fila], () => {
+        const t = D.noticias, a = n.fila - 1, b = otra.fila - 1; [t[a], t[b]] = [t[b], t[a]]; if (elegidaN && elegidaN.fila === n.fila) elegidaN = { fila: otra.fila };
+      }); };
       mv.children[0].onclick = (e) => { e.stopPropagation(); mover(-1); };
       mv.children[1].onclick = (e) => { e.stopPropagation(); mover(1); };
       acc.appendChild(mv);
@@ -778,13 +804,14 @@ function editorNoticia(E, V, n, todas) {
   bG.onclick = async () => {
     bG.disabled = true; bG.textContent = "Guardando…";
     try {
+      while (corriendoN) await new Promise((r) => setTimeout(r, 200));   // primero lo que quedó en la cola: puede correr las filas
       if (fotoNueva) { bG.textContent = "Subiendo la foto…"; st.imagen = await srv("subirFoto", fotoNueva.split(",")[1], "noticia-" + Date.now() + ".jpg"); }
       const datos = {}; COLS_N.forEach((k) => (datos[k] = st[k] || ""));
       const fila = await guardar("guardarNoticia", st.fila, datos);
       elegidaN = { fila }; await recargar();
     } catch (e) { aviso(e.message || String(e), true); bG.disabled = false; bG.textContent = "Guardar"; }
   };
-  if (bA) bA.onclick = async () => { st.mostrar = esSi(st.mostrar) ? "NO" : "SI"; if (!st.fila) { bA.textContent = esSi(st.mostrar) ? "Sacar del aire" : "Poner al aire"; return; } try { await guardar("guardarNoticia", st.fila, { mostrar: st.mostrar }); await recargar(); } catch (e) {} };
+  if (bA) bA.onclick = async () => { st.mostrar = esSi(st.mostrar) ? "NO" : "SI"; if (!st.fila) { bA.textContent = esSi(st.mostrar) ? "Sacar del aire" : "Poner al aire"; return; } const v = st.mostrar; rapido("guardarNoticia", [st.fila, { mostrar: v }], () => ponerN(st.fila, "mostrar", v)); };
   E.appendChild(pie);
   if (!ENAS) E.appendChild(h(`<div class="aviso">Modo prueba: se puede editar y ver la vista previa, pero no guardar.</div>`));
 }
