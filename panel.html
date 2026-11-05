@@ -24,6 +24,7 @@
   .usuario a { color:#fff; display:block; margin-top:8px; font-weight:700; }
   /* contenido */
   .main { padding:24px 28px 40px; display:flex; flex-direction:column; gap:18px; min-width:0; }
+  .hoja { display:flex; flex-direction:column; gap:18px; min-width:0; } .hoja[hidden] { display:none; }
   .cab { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
   .cab h1 { font:800 30px/1 var(--slab); }
   .estado { margin-left:auto; display:flex; align-items:center; gap:8px; font-weight:700; color:var(--verde); font-size:14px; }
@@ -125,7 +126,7 @@
   .tira { flex:none; width:160px; cursor:pointer; background:none; border:0; text-align:left; color:var(--azul); }
   .tira .mini { width:160px; height:90px; position:relative; overflow:hidden; background:#7a7a7a; outline:3px solid transparent; outline-offset:-3px; }
   .tira.on .mini { outline-color:var(--amarillo); }
-  .tira .mini iframe { position:absolute; left:0; top:0; width:1920px; height:1080px; border:0; transform:scale(.08333); transform-origin:0 0; pointer-events:none; }
+  .tira .mini img { width:100%; height:100%; display:block; object-fit:cover; }
   .tira span { display:block; font-weight:800; font-size:13px; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .tira span em { font-style:normal; color:var(--gris); font-weight:600; }
   /* partido */
@@ -296,7 +297,7 @@
     .tabbar button { border:0; background:none; display:flex; flex-direction:column; align-items:center; gap:3px; font:800 11px var(--f); color:var(--gris); padding:2px 0; }
     .tabbar button i { width:30px; height:28px; display:flex; align-items:center; justify-content:center; font-style:normal; font-size:16px; }
     .tabbar button.on { color:var(--azul); } .tabbar button.on i { background:var(--amarillo); }
-    .main { padding:14px 12px 24px; gap:14px; }
+    .main { padding:14px 12px 24px; gap:14px; } .hoja { gap:14px; }
     .cab h1 { font-size:24px; } .cab .estado { display:none; }
     .cuerpo, .cuerpo.n, .cuerpo.tit-radio { grid-template-columns:1fr; gap:14px; }
     .cuerpo.tit-radio > .vista { position:static; order:0; } .hoja-tit { padding:18px; max-height:none; }
@@ -311,7 +312,7 @@
     .pie .btn { flex:1; }
     .botonera .btn { padding:18px 8px; }
     .escena { height:300px; }
-    .tiras { gap:8px; } .tira { width:120px; } .tira .mini { width:120px; height:67.5px; } .tira .mini iframe { transform:scale(.0625); }
+    .tiras { gap:8px; } .tira { width:120px; } .tira .mini { width:120px; height:67.5px; }
     table.ed { font-size:13px; } .cuerpo[style] { grid-template-columns:1fr !important; }
     #toast { left:12px; right:12px; bottom:calc(84px + env(safe-area-inset-bottom, 0px)); }
   }
@@ -404,7 +405,7 @@ function img(u) {
 const h = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; };
 const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 function escalar(pv) { const f = pv.querySelector("iframe"); if (f) f.style.transform = "scale(" + (pv.clientWidth / 1920) + ")"; }
-addEventListener("resize", () => document.querySelectorAll(".pv").forEach(escalar));
+addEventListener("resize", () => document.querySelectorAll(".hoja:not([hidden]) .pv").forEach(escalar));
 
 /* Editor con palabras en rojo: se marca la palabra y se toca "Rojo" (en la planilla queda **así**) */
 function editorRojo(valor, opc = {}) {
@@ -450,7 +451,7 @@ function interruptor(texto, on, sub, onChange) {
   return el;
 }
 // versión de las pantallas: va en cada link, así el navegador no muestra copias viejas guardadas
-const VER = "20261104";
+const VER = "20261105";
 const conVer = (src) => src + (src.includes("?") ? "&" : "?") + "v=" + VER;
 function vistaPrevia(src, cls = "") {
   const pv = h(`<div class="pv ${cls}"><iframe src="${conVer(src)}"></iframe></div>`);
@@ -471,7 +472,7 @@ const visible = (s) => (s === "relevamiento" ? puede("noticias") : false) || ["i
 function nav() {
   const alAire = noticias().filter((n) => esSi(n.mostrar)).length;
   document.getElementById("nav").innerHTML = SECC.filter(([k]) => visible(k)).map(([k, t, c]) => `<button data-s="${k}" class="${k === seccion ? "on" : ""}"><i style="background:${c}"></i>${t}${k === "noticias" ? `<small>${alAire} al aire</small>` : ""}</button>`).join("");
-  document.querySelectorAll("#nav button").forEach((b) => (b.onclick = () => ir(b.dataset.s)));
+  document.querySelectorAll("#nav button").forEach((b) => (b.onclick = () => abrir(b.dataset.s)));
   document.getElementById("usuario").innerHTML = `<b style="color:#fff">${esc(D.nombre || "")}</b><br>` + esc(D.yo) + (D.url ? `<a href="${esc(D.url)}" target="_blank">Abrir la planilla ↗</a>` : "") + (API ? `<a href="#" onclick="salir();return false">Salir</a>` : "");
 }
 const TABS = [["inicio", "Inicio", "⌂"], ["noticias", "Noticias", "▤"], ["camaras", "Cámaras", "▣"], ["partido", "Partido", "⚽"], ["mas", "Más", "⋯"]];
@@ -486,30 +487,51 @@ function tabbar() {
   const t = document.getElementById("tabbar");
   const activa = ["relevamiento", "ticker", "correcciones", "escudos", "convocatorias", "producciones", "perfil", "historial", "equipo", "accesos", "mas"].includes(seccion) ? "mas" : seccion;
   t.innerHTML = TABS.filter(([k]) => visible(k)).map(([k, n, i]) => `<button data-s="${k}" class="${k === activa ? "on" : ""}"><i>${i}</i>${n}</button>`).join("");
-  t.querySelectorAll("button").forEach((b) => (b.onclick = () => ir(b.dataset.s)));
+  t.querySelectorAll("button").forEach((b) => (b.onclick = () => abrir(b.dataset.s)));
   document.getElementById("movtit").textContent = ((SECC.find((x) => x[0] === seccion) || [0, "Panel"])[1]).replace(" y zócalos", "").replace(" en vivo", "");
   document.getElementById("movest").textContent = ENAS ? "● conectado" : "modo prueba";
 }
+// una hoja por sección: al volver a una pestaña se muestra tal cual estaba, sin recargar sus vistas previas
+const hojas = {};
+const DATOS_SEC = { noticias: ["noticias"], camaras: ["camaras"], partido: ["partido"], inicio: ["noticias", "camaras", "historial"], correcciones: ["correcciones"], escudos: ["escudos"], historial: ["historial"], accesos: ["accesos"] };
+const SIN_HOJA = ["ticker"], CONSERVA = ["noticias", "camaras", "partido"], DEL_SERVIDOR = ["convocatorias", "producciones", "equipo", "relevamiento", "perfil"];   // SIN_HOJA: se borra al salir (anima y consume). CONSERVA: se actualiza por partes, sin tocar la vista previa
+const firma = (s) => JSON.stringify((DATOS_SEC[s] || []).map((k) => D[k]));
+const sellar = (s = seccion) => { const x = hojas[s]; if (x) { x.firma = firma(s); x.cuando = Date.now(); } };
+function hojaDe(s) { if (!hojas[s]) { const el = document.createElement("div"); el.className = "hoja"; document.getElementById("main").appendChild(el); hojas[s] = { el, firma: "", cuando: 0, y: 0 }; } return hojas[s]; }
+function mostrarHoja(s) { Object.keys(hojas).forEach((k) => (hojas[k].el.hidden = k !== s)); }
+function salirDe(s) { const x = hojas[s]; if (!x) return; x.y = window.scrollY; if (SIN_HOJA.includes(s)) { x.el.remove(); delete hojas[s]; } }
+function normalS(s) { if (s === "fotos" || s === "titulares") { subNot = s; s = "noticias"; } return visible(s) ? s : "inicio"; }   // links directos (?seccion=fotos, el mail de los lunes)
+// cambiar de pestaña: la selección cambia ya y, si la hoja sigue al día, aparece sin redibujar nada
+function abrir(s) {
+  s = normalS(s); if (s === seccion) return;
+  salirDe(seccion); seccion = s; nav(); tabbar();
+  const x = hojas[s], vigente = x && x.el.childElementCount && x.firma === firma(s) && (!DEL_SERVIDOR.includes(s) || Date.now() - x.cuando < 120000);
+  if (vigente) { mostrarHoja(s); x.el.querySelectorAll(".pv").forEach(escalar); window.scrollTo(0, x.y); return; }
+  mostrarHoja(null); window.scrollTo(0, 0);
+  setTimeout(() => { if (seccion === s) ir(s); }, 30);   // primero se pinta la selección, después se arma la vista
+}
+// redibuja una sección con los datos actuales
 function ir(s) {
-  if (s === "fotos" || s === "titulares") { subNot = s; s = "noticias"; }   // links directos (?seccion=fotos, el mail de los lunes)
-  if (!visible(s)) s = "inicio";
+  s = normalS(s); const cambia = s !== seccion;
+  if (cambia) salirDe(seccion);
   seccion = s; nav(); tabbar();
-  const m = document.getElementById("main"); m.innerHTML = ""; m.classList.remove("solo-ver");
+  const x = hojaDe(s), m = x.el; if (!CONSERVA.includes(s)) m.innerHTML = ""; m.classList.remove("solo-ver");
+  mostrarHoja(s); sellar(s);
   (VISTAS[s] || VISTAS.inicio)(m);
   // solo mirar: se ve todo pero no se puede cambiar nada
   if (PERM(s) === "ver" && s !== "convocatorias") {
     m.classList.add("solo-ver");
     m.querySelectorAll("[contenteditable]").forEach((x) => x.setAttribute("contenteditable", "false"));
-    const cab = m.querySelector(".cab"); if (cab) cab.insertAdjacentElement("afterend", h(`<div class="banda-ver">👁 Solo podés mirar esta sección. Para cambiarla, pedíselo a Trece A Cero.</div>`));
+    const cab = m.querySelector(".cab"); if (cab && !m.querySelector(".banda-ver")) cab.insertAdjacentElement("afterend", h(`<div class="banda-ver">👁 Solo podés mirar esta sección. Para cambiarla, pedíselo a Trece A Cero.</div>`));
   }
-  scrollTo(0, 0);
+  if (cambia) scrollTo(0, 0);
 }
 const titulo = (t, extra = "") => `<div class="cab"><h1>${t}</h1>${extra}<span class="estado${ENAS ? "" : " lectura"}"><i></i>${ENAS ? "Conectado a la planilla" : "Modo prueba: solo lectura"}</span></div>`;
 
 const VISTAS = {};
 
 /* ---------- Inicio ---------- */
-VISTAS.mas = (m) => { m.innerHTML = titulo("Más") + `<div class="inicio">` + SECC.filter(([k]) => !TABS.some((t) => t[0] === k) && visible(k)).map(([k, t, c]) => `<div class="card" data-s="${k}"><i style="background:${c === "#fff" ? "var(--azul)" : c}"></i><b>${t}</b></div>`).join("") + (API ? `<div class="card" data-salir="1"><i style="background:var(--gris)"></i><b>Salir (${esc(D.yo)})</b></div>` : "") + `</div>`; m.querySelectorAll(".card").forEach((c) => (c.onclick = () => (c.dataset.salir ? salir() : ir(c.dataset.s)))); };
+VISTAS.mas = (m) => { m.innerHTML = titulo("Más") + `<div class="inicio">` + SECC.filter(([k]) => !TABS.some((t) => t[0] === k) && visible(k)).map(([k, t, c]) => `<div class="card" data-s="${k}"><i style="background:${c === "#fff" ? "var(--azul)" : c}"></i><b>${t}</b></div>`).join("") + (API ? `<div class="card" data-salir="1"><i style="background:var(--gris)"></i><b>Salir (${esc(D.yo)})</b></div>` : "") + `</div>`; m.querySelectorAll(".card").forEach((c) => (c.onclick = () => (c.dataset.salir ? salir() : abrir(c.dataset.s)))); };
 // zócalos y cuadros que entran y salen (clave ".mostrar" de la pestaña camaras)
 const PIEZAS = [["a", "A · Una cámara", "a.nombre"], ["c", "C · Tres cámaras", "c.nombre"], ["g", "G · Zócalo bloques", "g.nombre"], ["h", "H · Charla", "h.texto"],
   ["f.tema", "F · Cuadro de tema", "f.tema.texto"], ["f.dato", "F · Cuadro de dato", "f.dato.etiqueta"], ["f.zocalo", "F · Zócalo suelto", "f.zocalo.nombre"]];
@@ -525,9 +547,7 @@ VISTAS.inicio = (m) => {
   PIEZAS.forEach(([k, nom, txt]) => {
     if (!((k + ".mostrar") in v)) return;
     const on = esSi(v[k + ".mostrar"]);
-    const sw = interruptor(nom, on, (v[txt] || "").replace(/\*\*/g, "") || "—", async (x) => {
-      try { await guardar("guardarClaves", "camaras", { [k + ".mostrar"]: x ? "SI" : "NO" }); await cargar(); } catch (e) { ir("inicio"); }
-    });
+    const sw = interruptor(nom, on, (v[txt] || "").replace(/\*\*/g, "") || "—", (x) => { const c = { [k + ".mostrar"]: x ? "SI" : "NO" }; D.camaras = conClaves(D.camaras, c); enCola("guardarClaves", ["camaras", c]); sellar(); });
     if (!puede("camaras")) { sw.style.pointerEvents = "none"; sw.style.opacity = ".6"; }
     A.appendChild(sw);
   });
@@ -539,8 +559,8 @@ VISTAS.inicio = (m) => {
   };
   const U = m.querySelector("#ult"); if (U) histLista(U, D.historial.slice(0, 5), false);
   const bN = m.querySelector('[data-a="nueva"]'); if (bN) bN.onclick = () => { elegidaN = "nueva"; ir("noticias"); };
-  const bP = m.querySelector('[data-a="partido"]'); if (bP) bP.onclick = () => ir("partido");
-  const bR = m.querySelector('[data-a="relev"]'); if (bR) bR.onclick = () => ir("relevamiento");
+  const bP = m.querySelector('[data-a="partido"]'); if (bP) bP.onclick = () => abrir("partido");
+  const bR = m.querySelector('[data-a="relev"]'); if (bR) bR.onclick = () => abrir("relevamiento");
   m.querySelector("#todo").innerHTML = SECC.slice(1).filter(([k]) => visible(k)).map(([k, t, c]) => `<div class="card" data-s="${k}"><i style="background:${c === "#fff" ? "var(--azul)" : c}"></i><b>${t}</b><span>${{
     noticias: "Cargar, ordenar y poner al aire las noticias de la tanda y TITULARES. Foto con encuadre.",
     camaras: "Nombres de los zócalos, temas de charla y cuadros de cada pantalla de cámaras.",
@@ -555,7 +575,7 @@ VISTAS.inicio = (m) => {
     equipo: "Perfiles del equipo y sus roles (Relato, Producción, etc.).",
     historial: "Quién cambió qué y cuándo. Cada cambio se puede deshacer.",
     accesos: "Dar y quitar acceso a otras cuentas de Google, sección por sección." }[k]}${k === "noticias" ? ` · <b style="font-size:inherit;font-family:inherit">${nA} al aire</b>` : ""}</span></div>`).join("");
-  m.querySelectorAll("#todo .card").forEach((c) => (c.onclick = () => ir(c.dataset.s)));
+  m.querySelectorAll("#todo .card").forEach((c) => (c.onclick = () => abrir(c.dataset.s)));
 };
 
 /* ---------- Noticias ---------- */
@@ -573,12 +593,9 @@ const enlazarSubNoticias = (m) => m.querySelectorAll("[data-sn]").forEach((b) =>
 const colaN = []; let corriendoN = false, cambiosN = 0;
 const ponerN = (fila, k, v) => { D.noticias[fila - 1][cab(D.noticias).indexOf(k)] = v; };
 function rapido(fn, args, local) {
-  local(); cambiosN++;
-  const L = document.getElementById("lista"), y = L ? L.scrollTop : 0, yp = window.scrollY;
-  ir("noticias");
-  const L2 = document.getElementById("lista"); if (L2) L2.scrollTop = y; window.scrollTo(0, yp);
-  colaN.push([fn, args]); aviso("Guardando…"); correrColaN();
+  local(); ir("noticias"); enCola(fn, args);
 }
+function enCola(fn, args) { cambiosN++; colaN.push([fn, args]); aviso("Guardando…"); correrColaN(); }
 async function correrColaN() {
   if (corriendoN) return; corriendoN = true;
   while (colaN.length) {
@@ -591,9 +608,11 @@ async function correrColaN() {
       return;
     }
   }
-  corriendoN = false; aviso("Guardado ✓ · OBS lo toma en unos segundos");
+  corriendoN = false; aviso("Guardado ✓ · OBS lo toma en unos segundos"); ponerAlDia();
+}
+async function ponerAlDia() {   // pone al día los datos sin tocar la pantalla
   if (!ENAS) return;
-  const v = cambiosN; try { const d = await srv("leer"); if (v === cambiosN && !corriendoN) D = d; } catch (e) {}   // pone al día los datos sin tocar la pantalla
+  const v = cambiosN; try { const d = await srv("leer"); if (v === cambiosN && !corriendoN) { D = d; sellar(); } } catch (e) {}
 }
 window.addEventListener("beforeunload", (e) => { if (colaN.length) e.preventDefault(); });
 VISTAS.noticias = (m) => {
@@ -604,11 +623,11 @@ VISTAS.noticias = (m) => {
   const lista = todas.filter((n) => filtroN === "todas" || (filtroN === "aire" ? esSi(n.mostrar) : filtroN === "pendientes" ? pend(n) : !esSi(n.mostrar) && !pend(n)));
   if (filtroN !== "aire") lista.reverse();   // guardadas, pendientes y todas: las más nuevas arriba
   const nP = todas.filter(pend).length;
-  m.innerHTML = titulo("Noticias", puede("noticias", "cargar") ? `<button class="btn am" id="nueva">+ Nueva noticia</button>` : "") +
+  if (!m.querySelector("#vn")) m.innerHTML = titulo("Noticias", puede("noticias", "cargar") ? `<button class="btn am" id="nueva">+ Nueva noticia</button>` : "") +
     subNoticias() + (PERM("noticias") === "cargar" ? `<div class="aviso">Lo que cargues queda <b>pendiente</b> hasta que alguien con permiso lo apruebe. No sale al aire solo.</div>` : "") + `<div class="cuerpo n"><div class="card lista" id="lista"></div><div class="card form" id="ed"></div><div class="card vista" id="vn"></div></div>`;
   enlazarSubNoticias(m);
   const bNu = m.querySelector("#nueva"); if (bNu) bNu.onclick = () => { elegidaN = "nueva"; ir("noticias"); };
-  const L = m.querySelector("#lista");
+  const L = m.querySelector("#lista"), yL = L.scrollTop; L.innerHTML = "";
   const nA = todas.filter((n) => esSi(n.mostrar)).length;
   L.appendChild(h(`<div class="filtros">${[["aire", "Al aire (" + nA + ")"], ["pendientes", "Pendientes" + (nP ? " (" + nP + ")" : "")], ["guardadas", "Guardadas"], ["todas", "Todas"]].map(([k, t]) => `<button class="chip${k === filtroN ? " on" : ""}" data-f="${k}">${t}</button>`).join("")}</div>`));
   L.querySelectorAll(".chip").forEach((b) => (b.onclick = () => { filtroN = b.dataset.f; ir("noticias"); }));
@@ -644,6 +663,7 @@ VISTAS.noticias = (m) => {
     it.onclick = () => { elegidaN = { fila: n.fila }; ir("noticias"); };
     L.appendChild(it);
   });
+  L.scrollTop = yL;
   const n = elegidaN === "nueva" ? { fila: null, mostrar: "SI", titular: "", parrafo_1: "", parrafo_2: "", imagen: "", credito_foto: "", categoria: "" }
     : elegidaN ? todas.find((x) => x.fila === elegidaN.fila) : lista[0];
   if (!n) { m.querySelector("#ed").innerHTML = `<div class="vacio">Elegí una noticia de la lista o creá una nueva.</div>`; return; }
@@ -733,15 +753,19 @@ function editorNoticia(E, V, n, todas) {
   E.innerHTML = `<h2><i style="background:var(--amarillo)"></i>${n.fila ? "Editando noticia" : "Noticia nueva"}</h2>`;
   const st = Object.assign({}, n); let fotoNueva = null;   // fotoNueva = dataURL encuadrado, se sube al guardar
   // vista previa (tanda y TITULARES) con la noticia que se está editando
-  V.innerHTML = `<div class="tit"><span class="et">VISTA PREVIA</span><span>Así sale en la tanda</span></div>`;
-  const pvT = vistaPrevia(WEB + "tanda.html?previa", "negro"); V.appendChild(pvT);
-  V.appendChild(h(`<div class="tit"><span class="et az">TITULARES</span><span>Así sale en la pantalla E</span></div>`));
-  const pvE = vistaPrevia(WEB + "cam-E-titulares.html?previa&png"); V.appendChild(pvE);
+  let pvT = V.querySelector(".pv.negro"), pvE = V.querySelector(".pv:not(.negro)"); const nuevas = !pvT;   // las vistas previas siguen entre noticia y noticia: se les manda la que se elige
+  if (nuevas) {
+    V.innerHTML = `<div class="tit"><span class="et">VISTA PREVIA</span><span>Así sale en la tanda</span></div>`;
+    pvT = vistaPrevia(WEB + "tanda.html?previa", "negro"); V.appendChild(pvT);
+    V.appendChild(h(`<div class="tit"><span class="et az">TITULARES</span><span>Así sale en la pantalla E</span></div>`));
+    pvE = vistaPrevia(WEB + "cam-E-titulares.html?previa&png"); V.appendChild(pvE);
+  }
   const mandar = debounce(() => {
     const msj = { panel13a0: true, noticia: { tit: st.titular || " ", cat: st.categoria, parrafos: [st.parrafo_1, st.parrafo_2].filter((x) => (x || "").trim()), img: fotoNueva || img(st.imagen).replace("sz=w600", "sz=w1600"), credito: st.credito_foto } };
     [pvT, pvE].forEach((pv) => { try { pv.querySelector("iframe").contentWindow.postMessage(msj, "*"); } catch (e) {} });
   }, 250);
-  [pvT, pvE].forEach((pv) => pv.querySelector("iframe").addEventListener("load", () => setTimeout(mandar, 1500)));
+  V.mandarN = mandar;
+  if (nuevas) [pvT, pvE].forEach((pv) => pv.querySelector("iframe").addEventListener("load", () => setTimeout(() => V.mandarN(), 1500))); else mandar();
 
   const campo = (k, titulo, max, parrafo) => {
     const w = h(`<div class="lbl"><div class="lbl-fila"><span>${titulo}</span><span class="contador"></span></div></div>`);
@@ -807,8 +831,10 @@ function editorNoticia(E, V, n, todas) {
       while (corriendoN) await new Promise((r) => setTimeout(r, 200));   // primero lo que quedó en la cola: puede correr las filas
       if (fotoNueva) { bG.textContent = "Subiendo la foto…"; st.imagen = await srv("subirFoto", fotoNueva.split(",")[1], "noticia-" + Date.now() + ".jpg"); }
       const datos = {}; COLS_N.forEach((k) => (datos[k] = st[k] || ""));
-      const fila = await guardar("guardarNoticia", st.fila, datos);
-      elegidaN = { fila }; await recargar();
+      const nueva = !st.fila, fila = await guardar("guardarNoticia", st.fila, datos);
+      const t = D.noticias, c = cab(t); while (t.length < fila) t.push(c.map(() => ""));
+      COLS_N.forEach((k) => (t[fila - 1][c.indexOf(k)] = datos[k])); if (PERM("noticias") === "cargar") ponerN(fila, "mostrar", "PENDIENTE"); else if (nueva && !datos.mostrar) ponerN(fila, "mostrar", "SI");
+      elegidaN = { fila }; ir("noticias"); ponerAlDia();
     } catch (e) { aviso(e.message || String(e), true); bG.disabled = false; bG.textContent = "Guardar"; }
   };
   if (bA) bA.onclick = async () => { st.mostrar = esSi(st.mostrar) ? "NO" : "SI"; if (!st.fila) { bA.textContent = esSi(st.mostrar) ? "Sacar del aire" : "Poner al aire"; return; } const v = st.mostrar; rapido("guardarNoticia", [st.fila, { mostrar: v }], () => ponerN(st.fila, "mostrar", v)); };
@@ -925,21 +951,30 @@ function filasClave(t) {
   return (t || []).slice(1).map((f) => ({ que: f[iq] || "", valor: f[iv] || "", ayuda: ia >= 0 ? f[ia] || "" : "", clave: (f[ik] || "").trim().toLowerCase() }));
 }
 const valoresDe = (t) => Object.fromEntries(filasClave(t).filter((r) => r.clave).map((r) => [r.clave, r.valor]));
+const miniCam = (l) => conVer(WEB + "mini-" + l + ".jpg");
 VISTAS.camaras = (m) => {
-  const vals = valoresDe(D.camaras);
-  m.innerHTML = titulo("Cámaras y zócalos") + `<div class="tiras" id="tiras"></div><div class="cuerpo"><div class="card form" id="fc"></div><div class="card vista" id="vc"></div></div>`;
-  const T = m.querySelector("#tiras");
-  PANT.forEach(([l, n, f]) => {
-    const b = h(`<button class="tira${l === pantalla ? " on" : ""}"><div class="mini"><iframe src="${conVer(WEB + f + ".html?png")}"></iframe></div><span>${l} · <em>${n}</em></span></button>`);
-    b.onclick = () => { pantalla = l; ir("camaras"); };
-    T.appendChild(b);
-  });
+  if (!m.querySelector("#tiras")) {   // la tira queda fija: elegir una cámara no la redibuja ni la mueve
+    m.innerHTML = titulo("Cámaras y zócalos") + `<div class="tiras" id="tiras"></div><div class="cuerpo"><div class="card form" id="fc"></div><div class="card vista" id="vc"></div></div>`;
+    const T = m.querySelector("#tiras");
+    PANT.forEach(([l, n]) => {
+      const b = h(`<button class="tira${l === pantalla ? " on" : ""}"><div class="mini"><img src="${miniCam(l)}" alt="" decoding="async"></div><span>${l} · <em>${n}</em></span></button>`);
+      b.onclick = () => { if (l === pantalla) return; pantalla = l; T.querySelectorAll(".tira").forEach((x) => x.classList.toggle("on", x === b)); pintarCam(m); };
+      T.appendChild(b);
+    });
+  }
+  pintarCam(m);
+};
+function pintarCam(m) {
   const [l, nombre, archivo] = PANT.find((p) => p[0] === pantalla);
   const F = m.querySelector("#fc"), V = m.querySelector("#vc");
   F.innerHTML = `<h2><i style="background:var(--rojo)"></i>${l} · ${esc(nombre)}</h2>`;
-  V.innerHTML = `<div class="tit"><span class="et">VISTA PREVIA</span><span>Así se ve en OBS (lo gris es la cámara)</span><span>1920 × 1080</span></div>`;
-  const pv = vistaPrevia(WEB + archivo + ".html?png"); V.appendChild(pv);
-  V.appendChild(h(`<div class="aviso">Lo que cambiás se ve acá al instante. Recién al tocar <b>Guardar</b> va a la planilla y sale al aire.</div>`));
+  const nueva = V.dataset.p !== l; let pv = V.querySelector(".pv");
+  if (nueva) {   // mientras carga se ve la miniatura, así el cambio es inmediato
+    V.dataset.p = l;
+    V.innerHTML = `<div class="tit"><span class="et">VISTA PREVIA</span><span>Así se ve en OBS (lo gris es la cámara)</span><span>1920 × 1080</span></div>`;
+    pv = vistaPrevia(WEB + archivo + ".html?png"); pv.style.background = `#7a7a7a url("${miniCam(l)}") center/cover`; V.appendChild(pv);
+    V.appendChild(h(`<div class="aviso">Lo que cambiás se ve acá al instante. Recién al tocar <b>Guardar</b> va a la planilla y sale al aire.</div>`));
+  }
   // filas de esta pantalla: claves que empiezan con la letra (a.nombre, b1.rol, f.tema.texto…)
   const filas = filasClave(D.camaras).filter((r) => r.clave && r.clave.split(".")[0].replace(/\d+$/, "") === l.toLowerCase());
   // el cuadro de tema (H y F) se puede poner arriba a la izquierda o abajo al centro; la fila se crea al guardar
@@ -948,7 +983,8 @@ VISTAS.camaras = (m) => {
   const st = {}; filas.forEach((r) => (st[r.clave] = r.valor));
   const cambios = {};
   const mandar = debounce(() => { try { pv.querySelector("iframe").contentWindow.postMessage({ panel13a0: true, valores: st }, "*"); } catch (e) {} }, 150);
-  pv.querySelector("iframe").addEventListener("load", () => setTimeout(mandar, 1200));
+  V.mandarC = mandar;
+  if (nueva) pv.querySelector("iframe").addEventListener("load", () => setTimeout(() => { pv.style.backgroundImage = "none"; V.mandarC(); }, 1200)); else mandar();
   const set = (k, v) => { st[k] = v; cambios[k] = v; mandar(); };
   if (!filas.length) F.appendChild(h(`<div class="aviso">${"MNO".includes(l) ? "Se arma sola con ESPN y se actualiza en vivo: si se está jugando, suma el resultado parcial (cuadradito rojo = está jugando; flechas = sube o baja). Los ajustes de puntos y cuántos descienden se cambian en <b>Partido en vivo</b>." : l === "E" ? "TITULARES no tiene textos propios: muestra las noticias que están al aire (se cargan en <b>Noticias</b>)." : "Esta pantalla no tiene textos para cambiar."}</div>`));
   // agrupar: f.tema / f.dato / f.zocalo / b1 / b2 …
@@ -981,11 +1017,11 @@ VISTAS.camaras = (m) => {
   if (filas.length) {
     const pie = h(`<div class="pie"><button class="btn am">Guardar y mandar al aire</button><button class="btn sec">Deshacer</button></div>`);
     const [bG, bD] = pie.querySelectorAll("button");
-    bG.onclick = async () => { if (!Object.keys(cambios).length) { aviso("No hay cambios"); return; } bG.disabled = true; try { await guardar("guardarClaves", "camaras", cambios); await recargar(); } catch (e) { bG.disabled = false; } };
-    bD.onclick = () => ir("camaras");
+    bG.onclick = () => { if (!Object.keys(cambios).length) { aviso("No hay cambios"); return; } const c = Object.assign({}, cambios); Object.keys(cambios).forEach((k) => delete cambios[k]); D.camaras = conClaves(D.camaras, c); enCola("guardarClaves", ["camaras", c]); sellar(); };
+    bD.onclick = () => pintarCam(m);
     F.appendChild(pie);
   }
-};
+}
 
 /* ---------- Partido en vivo (pestaña "partido_vivo") ---------- */
 const EQUIPOS = ["Albion", "Boston River", "Central Español", "Cerro", "Cerro Largo", "Danubio", "Defensor Sporting", "Deportivo Maldonado", "Juventud", "Liverpool", "Montevideo City Torque", "Montevideo Wanderers", "Nacional", "Peñarol", "Progreso", "Racing"];
@@ -993,15 +1029,19 @@ VISTAS.partido = (m) => {
   const v = valoresDe(D.partido);
   const st = Object.assign({}, v), cambios = {};
   const set = (k, x) => { st[k] = x; cambios[k] = x; refrescar(); };
-  m.innerHTML = titulo("Partido en vivo") + `<div class="cuerpo"><div class="card form" id="fp"></div><div class="card vista" id="vp"></div></div>`;
+  if (!m.querySelector("#vp")) m.innerHTML = titulo("Partido en vivo") + `<div class="cuerpo"><div class="card form" id="fp"></div><div class="card vista" id="vp"></div></div>`;
   const F = m.querySelector("#fp"), V = m.querySelector("#vp");
-  V.innerHTML = `<div class="tit"><span class="et">VISTA PREVIA</span><span>Así se ve en OBS</span></div>`;
-  const pv = vistaPrevia(WEB + "partido.html", "gris"); V.appendChild(pv);
-  V.appendChild(h(`<div class="aviso">La vista previa usa lo que tenés en pantalla (aunque no lo hayas guardado). Los datos del partido salen de ESPN y se actualizan cada 30 segundos.</div>`));
+  let pv = V.querySelector(".pv"); const reusa = !!pv;   // la vista previa no se rearma con cada cambio
+  if (!reusa) {
+    V.innerHTML = `<div class="tit"><span class="et">VISTA PREVIA</span><span>Así se ve en OBS</span></div>`;
+    pv = vistaPrevia(WEB + "partido.html", "gris"); V.appendChild(pv);
+    V.appendChild(h(`<div class="aviso">La vista previa usa lo que tenés en pantalla (aunque no lo hayas guardado). Los datos del partido salen de ESPN y se actualizan cada 30 segundos.</div>`));
+  }
   const refrescar = debounce(() => {
     const q = new URLSearchParams(); Object.entries(st).forEach(([k, x]) => q.set(k, x || "")); q.set("_", Date.now());
     pv.querySelector("iframe").src = conVer(WEB + "partido.html?" + q.toString());
   }, 700);
+  if (reusa) refrescar();
   F.innerHTML = `<h2><i style="background:var(--celeste)"></i>¿Qué partido mostramos?</h2>`;
   const manual = /auf|manual/i.test(st.competencia || "");
   const G1 = h(`<div class="grupo"><b>Competencia</b><div class="chips">${[["", "Automático"], ["uruguay", "Uruguay"], ["libertadores", "Libertadores"], ["sudamericana", "Sudamericana"], ["seleccion", "Selección"], ["copa auf", "Copa AUF (a mano)"], ["simular champions", "Simulación (Champions)"]].map(([k, t]) => `<button class="chip${sinT(st.competencia || "") === k ? " on" : ""}" data-k="${k}">${t}</button>`).join("")}</div></div>`);
@@ -1031,7 +1071,7 @@ VISTAS.partido = (m) => {
     ta.oninput = () => set("incidencias", ta.value);
     const ahora = () => new Date().toTimeString().slice(0, 5);
     const minuto = () => { const mm = (st.inicio_tiempo || "").match(/(\d+):(\d+)/); if (!mm) return ""; const d = new Date(); d.setHours(+mm[1], +mm[2], 0, 0); let x = Math.max(1, Math.floor((Date.now() - d) / 60000) + 1); if (/2/.test(st.estado || "")) x += 45; return String(x); };
-    const vivo = async (c) => { ultimoPartido = Object.fromEntries(Object.keys(c).map((k) => [k, st[k] || ""])); Object.assign(cambios, c); Object.assign(st, c); try { await guardar("guardarClaves", "partido_vivo", c); await recargar(); } catch (e) { VISTAS.partido(m); } };
+    const vivo = async (c) => { ultimoPartido = Object.fromEntries(Object.keys(c).map((k) => [k, st[k] || ""])); Object.assign(st, c); D.partido = conClaves(D.partido, c); enCola("guardarClaves", ["partido_vivo", c]); sellar(); VISTAS.partido(m); };
     G2.querySelectorAll("[data-e]").forEach((b) => (b.onclick = () => vivo(Object.assign({ estado: b.dataset.e }, /T$/.test(b.dataset.e) ? { inicio_tiempo: ahora() } : {}, b.dataset.e === "1T" && st.goles_local === "" ? { goles_local: "0", goles_visitante: "0" } : {}))));
     const agregar = (lado, roja) => {
       // se pregunta en pantalla quién fue (se puede dejar vacío)
@@ -1049,7 +1089,7 @@ VISTAS.partido = (m) => {
     G2.querySelectorAll("[data-g]").forEach((b) => (b.onclick = () => agregar(b.dataset.g, false)));
     G2.querySelectorAll("[data-r]").forEach((b) => (b.onclick = () => agregar(b.dataset.r, true)));
     const bDes = G2.querySelector("#deshacer");
-    if (bDes) bDes.onclick = async () => { const c = ultimoPartido; ultimoPartido = null; Object.assign(st, c); try { await guardar("guardarClaves", "partido_vivo", c); await recargar(); } catch (e) {} };
+    if (bDes) bDes.onclick = async () => { const c = ultimoPartido; ultimoPartido = null; Object.assign(st, c); D.partido = conClaves(D.partido, c); enCola("guardarClaves", ["partido_vivo", c]); sellar(); VISTAS.partido(m); };
     F.appendChild(G2);
   }
   // tarjetas a mano: número de camiseta + minuto; la pantalla le pone el nombre con el plantel de ESPN
@@ -1280,11 +1320,17 @@ VISTAS.partido = (m) => {
   };
   F.appendChild(GA);
   const pie = h(`<div class="pie"><button class="btn am">Guardar y mandar al aire</button></div>`);
-  pie.querySelector("button").onclick = async (e) => { const c = Object.assign({}, cambiosPend, cambios); if (!Object.keys(c).length) { aviso("No hay cambios"); return; } e.target.disabled = true; try { await guardar("guardarClaves", "partido_vivo", c); cambiosPend = {}; await recargar(); } catch (x) { e.target.disabled = false; } };
+  pie.querySelector("button").onclick = async (e) => { const c = Object.assign({}, cambiosPend, cambios); if (!Object.keys(c).length) { aviso("No hay cambios"); return; } cambiosPend = {}; D.partido = conClaves(D.partido, c); enCola("guardarClaves", ["partido_vivo", c]); sellar(); VISTAS.partido(m); };
   F.appendChild(pie);
   refrescar();
 };
 let cambiosPend = {}, ultimoPartido = null;   // ultimoPartido: valores de antes del último botón (para Deshacer)
+// como conValores, pero suma las claves que todavía no tienen fila
+function conClaves(t, c) {
+  const o = conValores(t, c), ca = cab(t), ik = ca.indexOf("clave"), iv = ca.indexOf("valor"), hay = new Set(o.slice(1).map((f) => (f[ik] || "").trim().toLowerCase()));
+  Object.keys(c).forEach((k) => { if (!hay.has(k)) { const f = ca.map(() => ""); f[ik] = k; f[iv] = c[k]; o.push(f); } });
+  return o;
+}
 function conValores(t, st) { const c = cab(t), iv = c.indexOf("valor"), ik = c.indexOf("clave"); return t.map((f, i) => { if (!i) return f; const k = (f[ik] || "").trim().toLowerCase(); if (k in st) { f = f.slice(); f[iv] = st[k]; } return f; }); }
 
 /* ---------- Tablas sueltas: Ticker (ajustes + programa), Correcciones, Escudos ---------- */
