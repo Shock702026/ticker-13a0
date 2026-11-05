@@ -353,6 +353,7 @@ let D = null, seccion = "inicio";
 let pedidoN = 0; const pedidos = {};
 addEventListener("message", (e) => { const d = e.data || {}; const p = pedidos[d.panelRespuesta]; if (!p) return; delete pedidos[d.panelRespuesta]; "error" in d ? p.mal(new Error(d.error)) : p.ok(d.ok); });
 function srv(fn, ...args) {
+  if (/^(guardarPerfil|subirArchivoPerfil|guardarAusencia|borrarAusencia)$/.test(fn)) delete PRE.miPerfil;
   if (PUENTE) return new Promise((ok, mal) => { const id = ++pedidoN; pedidos[id] = { ok, mal }; parent.postMessage({ panelPide: true, id, fn, args }, "*"); });
   if (API) return fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ fn, args, ses: guardado("panel13a0.ses") }) })
     .then((r) => r.json()).then((r) => {
@@ -362,6 +363,28 @@ function srv(fn, ...args) {
   if (!ENAS && DEMO[fn]) return Promise.resolve(DEMO[fn](...args));   // modo prueba: datos de ejemplo
   if (!ENAS) return Promise.reject(new Error("Modo prueba: abrí el panel desde su link para poder guardar."));
   return new Promise((ok, mal) => google.script.run.withSuccessHandler(ok).withFailureHandler(mal)[fn](...args));
+}
+// Convocatorias, Mi perfil, Producciones y Equipo se piden al entrar, por detrás. Quedan solo en memoria (son datos personales):
+// al abrir la pestaña se ven al instante y, si pasaron unos segundos, se actualizan sin que se note
+const PRE = {};
+function pedirPre(fn) {
+  const x = PRE[fn] || (PRE[fn] = {}); if (x.p) return x.p;
+  return (x.p = srv(fn).then((d) => { x.d = d; x.t = Date.now(); x.p = null; return d; }, (e) => { x.p = null; throw e; }));
+}
+function leerVista(s, fn, m) {
+  const x = PRE[fn]; if (!x || x.d === undefined) return pedirPre(fn);
+  if (!x.p && Date.now() - x.t > 15000) {
+    const antes = JSON.stringify(x.d), ocupado = () => m.contains(document.activeElement) || (s === "convocatorias" && subConv === "generar") || (s === "producciones" && prEdit);
+    pedirPre(fn).then((d) => { if (JSON.stringify(d) !== antes && seccion === s && !ocupado()) ir(s); }).catch(() => {});
+  }
+  return Promise.resolve(x.d);
+}
+// lo que volvió de un guardado reemplaza a lo precargado (lo que recién se leyó, no: puede haber llegado algo más nuevo)
+const LEIDO = {};
+function sincroPre(fn, d) { if (PRE[fn] && d !== LEIDO[fn]) PRE[fn].d = d; LEIDO[fn] = d; }
+async function precargar() {
+  const fns = ["leerConvocatorias", "miPerfil"].concat(PERM("producciones") ? ["leerProducciones"] : [], D.madre ? ["equipo"] : []);
+  for (const fn of fns) { await new Promise((r) => setTimeout(r, 300)); try { await pedirPre(fn); } catch (e) {} }
 }
 async function cargar() {
   if (ENAS) D = await srv("leer");
@@ -1563,7 +1586,7 @@ function archivoBotones(cont, a, nombre) {
 
 VISTAS.perfil = async (m) => {
   m.innerHTML = titulo("Mi perfil") + `<div class="aviso">Cargando tu perfil…</div>`;
-  let R; try { R = await srv("miPerfil"); } catch (e) { m.querySelector(".aviso").textContent = e.message || String(e); return; }
+  let R; try { R = await leerVista("perfil", "miPerfil", m); } catch (e) { m.querySelector(".aviso").textContent = e.message || String(e); return; }
   if (seccion !== "perfil") return;
   const P = R.perfil, roles = P.roles ? P.roles.split("|") : [];
   m.innerHTML = titulo("Mi perfil") + `<div class="eq-grid"><div class="card form" id="datos"></div><div style="display:flex;flex-direction:column;gap:20px"><div class="card form" id="roles"></div><div class="card form" id="aus"></div></div></div>`;
@@ -1636,7 +1659,7 @@ VISTAS.perfil = async (m) => {
 
 VISTAS.equipo = async (m) => {
   m.innerHTML = titulo("Equipo", `<span class="madre">SOLO LA CUENTA MADRE</span>`) + `<div class="aviso">Cargando el equipo…</div>`;
-  let E; try { E = await srv("equipo"); } catch (e) { m.querySelector(".aviso").textContent = e.message || String(e); return; }
+  let E; try { E = await leerVista("equipo", "equipo", m); } catch (e) { m.querySelector(".aviso").textContent = e.message || String(e); return; }
   if (seccion !== "equipo") return;
   const hoy = hoyISO();
   m.innerHTML = titulo("Equipo", `<span class="madre">SOLO LA CUENTA MADRE</span>`) + `<div class="card form"><h2><i style="background:var(--verde)"></i>Perfiles y roles</h2>
@@ -1776,12 +1799,13 @@ const OTRAS_LIGAS = [["arg.1", "Liga Argentina"], ["bra.1", "Brasileirão"], ["e
 
 VISTAS.producciones = async (m) => {
   m.innerHTML = titulo("Producciones") + `<div class="aviso">Cargando producciones…</div>`;
-  try { PR = await srv("leerProducciones"); } catch (e) { m.querySelector(".aviso").textContent = e.message || String(e); return; }
+  try { PR = LEIDO.leerProducciones = await leerVista("producciones", "leerProducciones", m); } catch (e) { m.querySelector(".aviso").textContent = e.message || String(e); return; }
   if (seccion !== "producciones") return;
   if (soloProntas === null) soloProntas = !PR.puede;   // el conductor arranca viendo solo lo que está pronto
   pintarPr(m);
 };
 function pintarPr(m) {
+  sincroPre("leerProducciones", PR);
   const tabs = [["partidos", "Partidos y producciones"]].concat(PR.puede ? [["agregar", "Agregar partido"]] : []);
   if (!tabs.find((t) => t[0] === subPr)) subPr = "partidos";
   m.innerHTML = titulo("Producciones") + `<div class="subtabs">${tabs.map(([k, t]) => `<button class="chip${k === subPr ? " on" : ""}" data-t="${k}">${t}</button>`).join("")}</div><div id="pr"></div>`;
@@ -1917,11 +1941,12 @@ function prAgregar(cont, m) {
 
 VISTAS.convocatorias = async (m) => {
   m.innerHTML = titulo("Convocatorias") + `<div class="aviso">Cargando convocatorias…</div>`;
-  try { CV = await srv("leerConvocatorias"); } catch (e) { m.querySelector(".aviso").textContent = e.message || String(e); return; }
+  try { CV = LEIDO.leerConvocatorias = await leerVista("convocatorias", "leerConvocatorias", m); } catch (e) { m.querySelector(".aviso").textContent = e.message || String(e); return; }
   if (seccion !== "convocatorias") return;
   pintarConv(m);
 };
 function pintarConv(m) {
+  sincroPre("leerConvocatorias", CV);
   const tabs = [["calendario", "Calendario convocatorias"], ["mias", "Mis convocatorias"]].concat(CV.puedeConvocar ? [["generar", "Generar convocatoria"]] : []);
   if (!tabs.find((t) => t[0] === subConv)) subConv = "calendario";
   const mias = CV.convocatorias.filter((c) => c.estado !== "cancelada" && c.fecha >= hoyISO() && c.gente.some((g) => g.email === D.yo && g.respuesta === "pendiente")).length;
@@ -2175,7 +2200,7 @@ function ingresar() {
 }
 function salir() { if (API) { srv("salir").catch(() => {}); guardado("panel13a0.ses", null); location.reload(); } }
 (async () => {
-  try { if (API && !guardado("panel13a0.ses")) await ingresar(); await cargar(); document.getElementById("cargando").remove(); ir(new URLSearchParams(location.search).get("seccion") || "inicio"); }
+  try { if (API && !guardado("panel13a0.ses")) await ingresar(); await cargar(); document.getElementById("cargando").remove(); ir(new URLSearchParams(location.search).get("seccion") || "inicio"); precargar(); }
   catch (e) { document.getElementById("cargando").innerHTML = `<div style="max-width:560px;text-align:center;padding:20px">${esc(e.message || e)}</div>`; }
 })();
 </script>
