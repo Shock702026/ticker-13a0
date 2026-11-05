@@ -24,6 +24,7 @@
   .usuario a { color:#fff; display:block; margin-top:8px; font-weight:700; }
   /* contenido */
   .main { padding:24px 28px 40px; display:flex; flex-direction:column; gap:18px; min-width:0; }
+  .actualizando .main { pointer-events:none; }
   .hoja { display:flex; flex-direction:column; gap:18px; min-width:0; } .hoja[hidden] { display:none; }
   .cab { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
   .cab h1 { font:800 30px/1 var(--slab); }
@@ -386,8 +387,34 @@ async function precargar() {
   const fns = ["leerConvocatorias", "miPerfil"].concat(PERM("producciones") ? ["leerProducciones"] : [], D.madre ? ["equipo"] : []);
   for (const fn of fns) { await new Promise((r) => setTimeout(r, 300)); try { await pedirPre(fn); } catch (e) {} }
 }
+// copia de lo último que se vio (sin accesos ni historial): Inicio aparece al instante y enseguida se reemplaza por lo que dice el servidor.
+// Hasta que llega, la pantalla no recibe clics: con datos viejos, un cambio podría caer en la fila equivocada
+const COPIA = "panel13a0.copia";
+function guardarCopia() {
+  if (!API) return;
+  const c = { ses: guardado("panel13a0.ses"), d: {} };
+  ["yo", "nombre", "madre", "permisos", "noticias", "camaras", "partido", "ajustes", "programa", "correcciones", "escudos"].forEach((k) => (c.d[k] = D[k]));
+  guardado(COPIA, JSON.stringify(c));
+}
+function leerCopia() {
+  if (!API) return null;
+  try { const c = JSON.parse(guardado(COPIA) || "null"); return c && c.ses === guardado("panel13a0.ses") ? Object.assign(c.d, { accesos: {}, historial: [], url: "" }) : null; } catch (e) { return null; }
+}
+const ocupadoAca = () => { const x = hojas[seccion]; return !!x && x.el.contains(document.activeElement); };
+async function aplicarFresco(d) {
+  d.historial = D.historial; const antes = firma(seccion); D = d; guardarCopia(); nav();
+  if (firma(seccion) !== antes && !ocupadoAca()) ir(seccion); else sellar();
+}
+async function fresco() {
+  try { await aplicarFresco(await srv("leer")); document.body.classList.remove("actualizando"); }
+  catch (e) { aviso("No se pudo actualizar, reintentando: " + (e.message || e), true); setTimeout(fresco, 5000); }
+}
+async function traerHistorial() {
+  if (!ENAS || !D.madre) return;
+  try { D.historial = await srv("leerHistorial"); if (["inicio", "historial"].includes(seccion) && !ocupadoAca()) ir(seccion); else if (seccion === "inicio") sellar(); } catch (e) {}
+}
 async function cargar() {
-  if (ENAS) D = await srv("leer");
+  if (ENAS) { const h = D && D.historial; D = await srv("leer"); D.historial = D.historial || h || []; guardarCopia(); traerHistorial(); }
   else {   // modo prueba: lee la planilla publicada (solo lectura)
     const ID = new URLSearchParams(location.search).get("planilla") || "1RWYJrnosHmqeEXJoR9lqTS8V6bsuwzusLhwZLm2D1Hc";
     const hoja = async (n) => { try { const r = await fetch("https://docs.google.com/spreadsheets/d/" + ID + "/gviz/tq?tqx=out:csv&headers=1&sheet=" + n); return csv(await r.text()); } catch (e) { return null; } };
@@ -635,7 +662,7 @@ async function correrColaN() {
 }
 async function ponerAlDia() {   // pone al día los datos sin tocar la pantalla
   if (!ENAS) return;
-  const v = cambiosN; try { const d = await srv("leer"); if (v === cambiosN && !corriendoN) { D = d; sellar(); } } catch (e) {}
+  const v = cambiosN; try { const d = await srv("leer"); if (v === cambiosN && !corriendoN) { d.historial = D.historial; D = d; guardarCopia(); sellar(); traerHistorial(); } } catch (e) {}
 }
 window.addEventListener("beforeunload", (e) => { if (colaN.length) e.preventDefault(); });
 VISTAS.noticias = (m) => {
@@ -2198,9 +2225,13 @@ function ingresar() {
     };
   });
 }
-function salir() { if (API) { srv("salir").catch(() => {}); guardado("panel13a0.ses", null); location.reload(); } }
+function salir() { if (API) { srv("salir").catch(() => {}); guardado("panel13a0.ses", null); guardado(COPIA, null); location.reload(); } }
 (async () => {
-  try { if (API && !guardado("panel13a0.ses")) await ingresar(); await cargar(); document.getElementById("cargando").remove(); ir(new URLSearchParams(location.search).get("seccion") || "inicio"); precargar(); }
+  try { if (API && !guardado("panel13a0.ses")) await ingresar(); 
+    const copia = leerCopia(), sec = new URLSearchParams(location.search).get("seccion") || "inicio";
+    if (copia) { D = copia; document.body.classList.add("actualizando"); document.getElementById("cargando").remove(); ir(sec); await fresco(); traerHistorial(); }
+    else { await cargar(); document.getElementById("cargando").remove(); ir(sec); }
+    precargar(); }
   catch (e) { document.getElementById("cargando").innerHTML = `<div style="max-width:560px;text-align:center;padding:20px">${esc(e.message || e)}</div>`; }
 })();
 </script>
