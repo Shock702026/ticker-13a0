@@ -71,6 +71,21 @@
   .pieza.on > *:nth-child(2) { transition-delay:.1s; } .pieza.on > *:nth-child(3) { transition-delay:.2s; }
 
   /* Zócalo de nombre */
+  /* Q · estadísticas */
+  .estad { position:absolute; display:flex; flex-direction:column; gap:10px; }
+  .e-cab { background:var(--azul); color:#fff; padding:20px 24px; } .e-tit { font:800 24px/1 var(--slab); letter-spacing:.05em; text-transform:uppercase; color:var(--amarillo); }
+  .e-eq { display:flex; justify-content:space-between; gap:20px; margin-top:16px; font-weight:900; font-size:36px; line-height:1.05; letter-spacing:-.02em; } .e-eq span:last-child { text-align:right; }
+  .e-fila { background:var(--blanco); flex:1; display:grid; grid-template-columns:96px 1fr 96px; align-items:center; padding:12px 24px 18px; position:relative; min-height:0; }
+  .e-fila .n { font-weight:900; font-size:46px; letter-spacing:-.02em; } .e-fila .n.v { text-align:right; } .e-fila .et { text-align:center; font-weight:800; font-size:25px; color:var(--gris); }
+  .e-fila .barra { position:absolute; left:24px; right:24px; bottom:10px; height:10px; display:flex; gap:4px; } .e-fila .barra i { display:block; height:100%; background:var(--rojo); } .e-fila .barra i + i { background:var(--celeste); }
+  /* R · mensajes de la audiencia */
+  .msj { position:absolute; display:flex; flex-direction:column; }
+  .m-cab { display:flex; align-items:stretch; align-self:flex-start; } .m-cab span { background:var(--celeste); color:#fff; font:800 22px/1 var(--slab); letter-spacing:.05em; text-transform:uppercase; padding:14px 20px; } .m-cab b { background:var(--azul); color:#fff; font-weight:900; font-size:28px; line-height:1; padding:12px 22px; }
+  .m-tx { background:var(--blanco); color:var(--azul); font-weight:800; font-size:38px; line-height:1.15; padding:20px 26px; border-left:22px solid var(--rojo); display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+  /* S · sponsor */
+  .spons { position:absolute; display:flex; flex-direction:column; }
+  .s-et { align-self:flex-end; background:var(--azul); color:#fff; font:800 20px/1 var(--slab); letter-spacing:.05em; text-transform:uppercase; padding:12px 18px; }
+  .s-cu { background:var(--blanco); border-right:22px solid var(--amarillo); flex:1; display:flex; align-items:center; gap:22px; padding:14px 22px; min-height:0; } .s-cu img { max-width:220px; max-height:100%; object-fit:contain; } .s-cu span { font-weight:900; font-size:32px; line-height:1.05; letter-spacing:-.02em; color:var(--azul); }
   .zoc { position:absolute; display:flex; height:118px; }
   .zoc .tira { width:22px; background:var(--rojo); }
   .zoc .txt { background:var(--blanco); padding:14px 30px 0 26px; }
@@ -145,7 +160,7 @@
 (function () {
   const T = window.Ticker, C = T.config, CC = C.camaras || {};
   // la pantalla sale de ?p=… o del nombre del archivo (cam-A-….html, cam-B-….html…), así en OBS alcanza con "Archivo local"
-  const porNombre = (decodeURIComponent(location.pathname).match(/cam-([a-l])[-.]/i) || [])[1];
+  const porNombre = (decodeURIComponent(location.pathname).match(/cam-([a-lp-t])[-.]/i) || [])[1];
   const P = (T.params.get("p") || porNombre || "a").toLowerCase();
   const PNG = T.params.has("png");   // imagen fija: sin animaciones ni titulares que rotan
   if (PNG) document.documentElement.classList.add("png");
@@ -155,7 +170,9 @@
   const SEG_NOT = (CC.segundosPorTitular || 20) * 1000;
 
   // escala: pensado para 1920 x 1080
-  function medir() { const w = innerWidth || document.documentElement.clientWidth, h = innerHeight || document.documentElement.clientHeight; if (w && h) pant.style.transform = "scale(" + Math.min(w / 1920, h / 1080) + ")"; }
+  const VERT = P === "t", ANCHO = VERT ? 1080 : 1920, ALTO = VERT ? 1920 : 1080;   // T es vertical (9:16), para Reels y Shorts
+  if (VERT) { pant.style.width = ANCHO + "px"; pant.style.height = ALTO + "px"; }
+  function medir() { const w = innerWidth || document.documentElement.clientWidth, h = innerHeight || document.documentElement.clientHeight; if (w && h) { const s = Math.min(w / ANCHO, h / ALTO); pant.style.transform = (VERT ? "translateX(" + (w - ANCHO * s) / 2 + "px) " : "") + "scale(" + s + ")"; } }
   medir(); addEventListener("resize", medir);
   // adentro de un cuadro (panel) la página puede arrancar con ancho 0: se vuelve a medir cuando toma su tamaño
   if (window.ResizeObserver) new ResizeObserver(() => medir()).observe(document.documentElement);
@@ -180,8 +197,23 @@
   const k = (clave, tag = "span", cls = "") => `<${tag} class="${cls}" data-k="${clave}"></${tag}>`;
   const zoc = (id, l, t, chico, w) => `<div class="zoc pieza${chico ? " chico" : ""}" data-m="${id}" style="left:${l}px;top:${t}px"><div class="tira"></div><div class="txt"${w ? ` style="width:${w}px"` : ""}>${k(id + ".nombre", "div", "nom")}${k(id + ".rol", "div", "rol")}</div>${chico ? "" : '<div class="cola"></div>'}</div>`;
 
+  const filaEst = (n) => `<div class="e-fila" data-est="q.s${n}">${k(`q.s${n}.local`, "span", "n")}${k(`q.s${n}.etiqueta`, "span", "et")}${k(`q.s${n}.visitante`, "span", "n v")}<div class="barra"><i></i><i></i></div></div>`;
   /* ---- Las pantallas (posiciones en px de 1920 x 1080; las cámaras van en los huecos) ---- */
   const PANTALLAS = {
+    // P · invitado remoto: el estudio entero y la videollamada en un recuadro
+    p: () => logo("left:64px;top:40px;width:244px;height:96px") +
+         negro(1224, 40, 656, 16) + negro(1224, 408, 656, 16) + negro(1224, 56, 16, 352) + negro(1864, 56, 16, 352) + b("am", 1880, 40, 24, 384) +
+         `<div class="pest ro" style="left:1224px;top:424px">${k("p.remoto")}</div>` + zoc("p", 64, 836),
+    // Q · cámara y estadísticas al costado (se cargan a mano: ESPN no las trae del fútbol uruguayo)
+    q: () => negro(1240, 0, 680, 1010) + `<div class="estad" style="left:1256px;top:16px;width:648px;height:978px"><div class="e-cab">${k("q.titulo", "div", "e-tit")}<div class="e-eq">${k("q.local")}${k("q.visitante")}</div></div>${[1, 2, 3, 4, 5, 6].map(filaEst).join("")}</div>` + zoc("q", 64, 836),
+    // R · mensaje de la audiencia
+    r: () => logo("left:1652px;top:24px;width:244px;height:96px") + `<div class="msj pieza" data-m="r" style="left:64px;top:740px;width:1320px"><div class="m-cab"><span data-k="r.etiqueta"></span><b data-k="r.nombre"></b></div><div class="m-tx" data-k="r.texto"></div></div>`,
+    // S · placa de sponsor
+    s: () => logo("left:1652px;top:24px;width:244px;height:96px") + `<div class="spons pieza derecha" data-m="s" style="left:1260px;top:770px;width:596px;height:190px"><div class="s-et" data-k="s.etiqueta"></div><div class="s-cu"><img data-img="s.imagen" alt=""><span data-k="s.texto"></span></div></div>`,
+    // T · vertical 9:16 (1080 x 1920)
+    t: () => logo("left:40px;top:64px;width:260px;height:96px") +
+         `<div class="tema2 pieza" data-m="t" style="left:40px;top:1320px;max-width:1000px"><div class="et" data-k="t.etiqueta"></div><div class="tx" data-k="t.texto" data-rojo></div></div>` +
+         zoc("t.z", 40, 1560, false, 720) + b("am", 0, 1900, 410, 20) + b("bl", 416, 1900, 248, 20) + b("ce", 670, 1900, 410, 20),
     // A · una cámara
     a: () => redes("left:1236px;top:24px;width:360px;height:64px", true, "chica") + negro(1596, 24, 16, 64) +
          logo("left:1612px;top:24px;width:196px;height:64px;padding:8px 14px") + negro(1808, 24, 16, 64) +
@@ -268,9 +300,15 @@ l: () => negro(0, 0, 1920, 1010).replace('class="negro"', 'class="negro" data-fo
     "h.etiqueta": "Charla", "h.texto": "Tema de la charla", "h.color": "rojo",
     "j.nombre1": "", "j.nombre2": "", "j.nombre3": "", "j.nombre4": "", "j.llamada": "",
     "k.nombre1": "", "k.nombre2": "", "k.nombre3": "", "k.nombre4": "", "k.llamada": "",
-    "l.nombre1": "", "l.nombre2": "", "l.nombre3": ""
+    "l.nombre1": "", "l.nombre2": "", "l.nombre3": "",
+    "p.nombre": "Conductor", "p.rol": "13a0", "p.remoto": "Invitado remoto",
+    "q.titulo": "Estadísticas", "q.local": "Local", "q.visitante": "Visitante", "q.nombre": "Conductor", "q.rol": "13a0",
+    "q.s1.etiqueta": "Posesión", "q.s2.etiqueta": "Tiros", "q.s3.etiqueta": "Al arco", "q.s4.etiqueta": "Córners", "q.s5.etiqueta": "Faltas", "q.s6.etiqueta": "Tarjetas",
+    "r.etiqueta": "Mensaje", "r.nombre": "Nombre", "r.texto": "El mensaje de la audiencia",
+    "s.etiqueta": "Presenta", "s.texto": "Nombre del sponsor", "s.imagen": "",
+    "t.etiqueta": "13a0", "t.texto": "Título del clip", "t.z.nombre": "Nombre Apellido", "t.z.rol": "Rol o cargo"
   };
-  if (!PANTALLAS[P]) { pant.innerHTML = '<div class="tit-vacio" style="width:1920px;height:300px">Pantalla "' + esc(P) + '" no existe: usá ?p=a … ?p=l</div>'; return; }
+  if (!PANTALLAS[P]) { pant.innerHTML = '<div class="tit-vacio" style="width:1920px;height:300px">Pantalla "' + esc(P) + '" no existe: usá ?p=a … ?p=t</div>'; return; }
   pant.innerHTML = PANTALLAS[P]();
   // en la D el fondo negro va solo donde hay marco: se recortan los huecos de las cámaras
   const fondoD = pant.querySelector("[data-fondo]");
@@ -294,6 +332,12 @@ l: () => negro(0, 0, 1920, 1010).replace('class="negro"', 'class="negro" data-fo
       if (el.hasAttribute("data-rojo")) el.innerHTML = "<span>" + rojo(v) + "</span>"; else el.textContent = v;
       if (el.closest(".pest")) el.closest(".pest").style.display = v ? "" : "none";
     });
+    pant.querySelectorAll("[data-est]").forEach((el) => {   // Q: la barra se reparte según los dos números
+      const c = el.dataset.est, n = (x) => parseFloat(String(V[c + x] || "").replace(",", ".")) || 0, a = n(".local"), z = n(".visitante"), t = a + z;
+      el.style.display = V[c + ".etiqueta"] ? "" : "none";
+      const [i1, i2] = el.querySelectorAll(".barra i"); i1.style.width = (t ? a / t * 100 : 50) + "%"; i2.style.width = (t ? z / t * 100 : 50) + "%";
+    });
+    pant.querySelectorAll("[data-img]").forEach((el) => { const u = V[el.dataset.img]; el.style.display = u ? "" : "none"; if (u) { const x = T.urlImagen ? T.urlImagen(u) : u; if (el.getAttribute("src") !== x) el.src = x; } });
     pant.querySelectorAll("[data-color]").forEach((el) => {
       const c = T.sinTildes ? T.sinTildes(V[el.dataset.color] || "") : String(V[el.dataset.color] || "").toLowerCase();
       el.classList.toggle("azul", /azul/.test(c)); el.classList.toggle("celeste", /celeste/.test(c));

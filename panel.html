@@ -24,7 +24,7 @@
   .usuario a { color:#fff; display:block; margin-top:8px; font-weight:700; }
   /* contenido */
   .main { padding:24px 28px 40px; display:flex; flex-direction:column; gap:18px; min-width:0; }
-  .actualizando .main { pointer-events:none; }
+  .actualizando .main .sw, .actualizando .main .emergencia, .actualizando .main .pie, .actualizando .main .acc { pointer-events:none; opacity:.65; }
   .hoja { display:flex; flex-direction:column; gap:18px; min-width:0; } .hoja[hidden] { display:none; }
   .cab { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
   .cab h1 { font:800 30px/1 var(--slab); }
@@ -71,7 +71,9 @@
   #cargando { position:fixed; inset:0; background:var(--fondo); display:flex; align-items:center; justify-content:center; font:800 22px var(--slab); z-index:10; }
   .ingreso { width:min(400px, calc(100vw - 32px)); background:#fff; outline:1px solid var(--linea); padding:26px 24px; display:flex; flex-direction:column; gap:14px; font:600 15px var(--f); }
   .ingreso label { display:flex; flex-direction:column; gap:6px; font-weight:700; font-size:13px; }
-  .ingreso input { font:600 18px var(--f); color:var(--azul); border:2px solid var(--linea); padding:12px; }
+  .ingreso input, .ingreso select, .ingreso textarea { font:600 18px var(--f); color:var(--azul); border:2px solid var(--linea); padding:12px; background:#fff; width:100%; }
+  .ingreso .enlace { background:none; border:0; padding:4px 0; color:var(--celeste); font:800 14px var(--f); text-align:left; cursor:pointer; }
+  .solic { display:grid; grid-template-columns:1fr auto; gap:10px; align-items:center; padding:10px 0; border-top:2px solid var(--linea); } .solic small { display:block; color:var(--gris); font-weight:600; } .solic .acciones { display:flex; gap:6px; flex-wrap:wrap; }
   .ingreso input:focus { border-color:var(--celeste); outline:none; }
   .ingreso [hidden] { display:none; }
   .ingreso small { font-size:13px; color:var(--gris); min-height:1em; }
@@ -385,7 +387,7 @@ const LEIDO = {};
 function sincroPre(fn, d) { if (PRE[fn] && d !== LEIDO[fn]) PRE[fn].d = d; LEIDO[fn] = d; }
 async function precargar() {
   const fns = ["leerConvocatorias", "miPerfil"].concat(PERM("producciones") ? ["leerProducciones"] : [], D.madre ? ["equipo"] : []);
-  for (const fn of fns) { await new Promise((r) => setTimeout(r, 300)); try { await pedirPre(fn); } catch (e) {} }
+  fns.forEach((fn) => pedirPre(fn).catch(() => {}));
 }
 // copia de lo último que se vio (sin accesos ni historial): Inicio aparece al instante y enseguida se reemplaza por lo que dice el servidor.
 // Hasta que llega, la pantalla no recibe clics: con datos viejos, un cambio podría caer en la fila equivocada
@@ -401,6 +403,7 @@ function leerCopia() {
   try { const c = JSON.parse(guardado(COPIA) || "null"); return c && c.ses === guardado("panel13a0.ses") ? Object.assign(c.d, { accesos: {}, historial: [], url: "" }) : null; } catch (e) { return null; }
 }
 const ocupadoAca = () => { const x = hojas[seccion]; return !!x && x.el.contains(document.activeElement); };
+const caduca = (s) => { if (hojas[s]) hojas[s].cuando = 0; };   // se salió antes de que llegaran los datos: esa hoja quedó a medio armar
 async function aplicarFresco(d) {
   d.historial = D.historial; const antes = firma(seccion); D = d; guardarCopia(); nav();
   if (firma(seccion) !== antes && !ocupadoAca()) ir(seccion); else sellar();
@@ -501,7 +504,7 @@ function interruptor(texto, on, sub, onChange) {
   return el;
 }
 // versión de las pantallas: va en cada link, así el navegador no muestra copias viejas guardadas
-const VER = "20261105";
+const VER = "20261106";
 const conVer = (src) => src + (src.includes("?") ? "&" : "?") + "v=" + VER;
 function vistaPrevia(src, cls = "") {
   const pv = h(`<div class="pv ${cls}"><iframe src="${conVer(src)}"></iframe></div>`);
@@ -994,7 +997,8 @@ function encuadrador(onCambio) {
 const PANT = [["A", "Una cámara", "cam-A-una-camara"], ["B", "Mano a mano", "cam-B-mano-a-mano"], ["C", "Tres cámaras", "cam-C-tres-camaras"], ["D", "Mesa de cuatro", "cam-D-mesa-de-cuatro"],
   ["E", "TITULARES", "cam-E-titulares"], ["F", "Cuadros sueltos", "cam-F-cuadros-sueltos"], ["G", "Zócalo bloques", "cam-G-zocalo-bloques"], ["H", "Charla", "cam-H-charla"],
   ["I", "Solo logo", "cam-I-logo"], ["J", "Cinco vertical", "cam-J-cinco-vertical"], ["K", "Cinco horizontal", "cam-K-cinco-horizontal"],
-  ["L", "Tres vertical", "cam-L-tres-vertical"], ["M", "Tabla del torneo", "cam-M-tabla-torneo"], ["N", "Tabla anual", "cam-N-tabla-anual"], ["O", "Promedios", "cam-O-tabla-promedios"]];
+  ["L", "Tres vertical", "cam-L-tres-vertical"], ["M", "Tabla del torneo", "cam-M-tabla-torneo"], ["N", "Tabla anual", "cam-N-tabla-anual"], ["O", "Promedios", "cam-O-tabla-promedios"],
+  ["P", "Invitado remoto", "cam-P-invitado-remoto"], ["Q", "Con estadísticas", "cam-Q-estadisticas"], ["R", "Mensajes", "cam-R-mensajes"], ["S", "Sponsor", "cam-S-sponsor"], ["T", "Vertical 9:16", "cam-T-vertical"]];
 let pantalla = "A";
 function filasClave(t) {
   const c = cab(t), iq = c.indexOf("qué cambia") >= 0 ? c.indexOf("qué cambia") : 0, iv = c.indexOf("valor"), ia = c.indexOf("ayuda"), ik = c.indexOf("clave");
@@ -1040,7 +1044,7 @@ function pintarCam(m) {
   // agrupar: f.tema / f.dato / f.zocalo / b1 / b2 …
   const grupos = {};
   filas.forEach((r) => { const p = r.clave.split("."); const g = p.length > 2 ? p[1] : /\d$/.test(p[0]) ? p[0] : "_"; (grupos[g] = grupos[g] || []).push(r); });
-  const NOMG = { tema: "Cuadro de tema", dato: "Cuadro de dato", zocalo: "Zócalo suelto", b1: "Cámara izquierda", b2: "Cámara derecha", _: "" };
+  const NOMG = { tema: "Cuadro de tema", dato: "Cuadro de dato", zocalo: "Zócalo suelto", b1: "Cámara izquierda", b2: "Cámara derecha", _: "", z: "Zócalo", s1: "Estadística 1", s2: "Estadística 2", s3: "Estadística 3", s4: "Estadística 4", s5: "Estadística 5", s6: "Estadística 6" };
   Object.entries(grupos).forEach(([g, rs]) => {
     const G = h(`<div class="grupo">${NOMG[g] !== undefined ? (NOMG[g] ? `<b>${NOMG[g]}</b>` : "") : `<b>${esc(g)}</b>`}</div>`);
     rs.forEach((r) => {
@@ -1502,9 +1506,20 @@ function invitacion(nombre, secs, email) {
   const lista = SECS_ACC.filter(([k]) => secs[k]).map(([k, t]) => t + " (" + TXTN[secs[k]].toLowerCase() + ")").join(", ");
   return `Hola ${nombre || ""}! Te di acceso al Panel 13a0${lista ? " para: " + lista : ""}.\n\n1. Abrí este link: ${link}\n2. Escribí tu Gmail (${email || ""}) y tocá «Mandame el código». Te llega un mail con 6 números: ponelos y listo. Queda guardado por 60 días.\n3. En el celular, guardalo en la pantalla de inicio (⋮ → «Agregar a la pantalla principal»).`;
 }
+async function pintarSolicitudes(m) {
+  const S = m.querySelector("#solic"); let lista = []; try { lista = (await srv("leerSolicitudes")) || []; } catch (e) { return; }
+  S.hidden = !lista.length; if (!lista.length) return;
+  S.innerHTML = `<h2><i style="background:var(--amarillo)"></i>Solicitudes de acceso (${lista.length})</h2><span class="ayuda">Al aprobar, la persona entra sin ninguna sección: después elegí qué puede usar en la lista de abajo.</span>`;
+  lista.forEach((x) => {
+    const f = h(`<div class="solic"><div><b>${esc(x.nombre)}</b><small>${esc(x.email)}${x.rol ? " · " + esc(x.rol) : ""} · ${esc(x.fecha)}</small>${x.nota ? `<small>${esc(x.nota)}</small>` : ""}</div><div class="acciones"><button class="btn ok chico">Aprobar</button><button class="btn sec chico">Rechazar</button></div></div>`);
+    const [si, no] = f.querySelectorAll("button"), resolver = async (ok) => { si.disabled = no.disabled = true; try { const r = await guardar("resolverSolicitud", x.id, ok); D.accesos = r.accesos; ir("accesos"); } catch (e) { si.disabled = no.disabled = false; } };
+    si.onclick = () => resolver(true); no.onclick = () => resolver(false); S.appendChild(f);
+  });
+}
 VISTAS.accesos = (m) => {
   const A = D.accesos || {};
-  m.innerHTML = titulo("Accesos", `<span class="madre">SOLO LA CUENTA MADRE</span>`) + `<div class="acc-grid"><div class="card form" id="lis"></div><div class="card form" id="nue"></div></div>`;
+  m.innerHTML = titulo("Accesos", `<span class="madre">SOLO LA CUENTA MADRE</span>`) + `<div class="card form" id="solic" hidden></div><div class="acc-grid"><div class="card form" id="lis"></div><div class="card form" id="nue"></div></div>`;
+  pintarSolicitudes(m);
   const L = m.querySelector("#lis");
   L.innerHTML = `<h2><i style="background:var(--verde)"></i>Quién puede entrar al panel</h2>
     <div class="leyenda"><span><i style="background:#dff1fa;outline:2px solid var(--celeste)"></i>Ver: mira sin cambiar</span><span><i style="background:#FFF6CC;outline:2px solid var(--amarillo)"></i>Cargar: noticias que esperan aprobación</span><span><i style="background:var(--azul)"></i>Editar: cambia y sale al aire</span></div>`;
@@ -1613,8 +1628,8 @@ function archivoBotones(cont, a, nombre) {
 
 VISTAS.perfil = async (m) => {
   m.innerHTML = titulo("Mi perfil") + `<div class="aviso">Cargando tu perfil…</div>`;
-  let R; try { R = await leerVista("perfil", "miPerfil", m); } catch (e) { m.querySelector(".aviso").textContent = e.message || String(e); return; }
-  if (seccion !== "perfil") return;
+  let R; try { R = await leerVista("perfil", "miPerfil", m); } catch (e) { caduca(seccion); m.querySelector(".aviso").textContent = e.message || String(e); return; }
+  if (seccion !== "perfil") { caduca("perfil"); return; }
   const P = R.perfil, roles = P.roles ? P.roles.split("|") : [];
   m.innerHTML = titulo("Mi perfil") + `<div class="eq-grid"><div class="card form" id="datos"></div><div style="display:flex;flex-direction:column;gap:20px"><div class="card form" id="roles"></div><div class="card form" id="aus"></div></div></div>`;
   const F = m.querySelector("#datos");
@@ -1686,8 +1701,8 @@ VISTAS.perfil = async (m) => {
 
 VISTAS.equipo = async (m) => {
   m.innerHTML = titulo("Equipo", `<span class="madre">SOLO LA CUENTA MADRE</span>`) + `<div class="aviso">Cargando el equipo…</div>`;
-  let E; try { E = await leerVista("equipo", "equipo", m); } catch (e) { m.querySelector(".aviso").textContent = e.message || String(e); return; }
-  if (seccion !== "equipo") return;
+  let E; try { E = await leerVista("equipo", "equipo", m); } catch (e) { caduca(seccion); m.querySelector(".aviso").textContent = e.message || String(e); return; }
+  if (seccion !== "equipo") { caduca("equipo"); return; }
   const hoy = hoyISO();
   m.innerHTML = titulo("Equipo", `<span class="madre">SOLO LA CUENTA MADRE</span>`) + `<div class="card form"><h2><i style="background:var(--verde)"></i>Perfiles y roles</h2>
     <div class="aviso">Tocá un rol para darlo o sacarlo (puede tener varios). Aparecen todas las cuentas con acceso al panel; los datos los carga cada uno en «Mi perfil».</div><div id="lp"></div></div>`;
@@ -1826,8 +1841,8 @@ const OTRAS_LIGAS = [["arg.1", "Liga Argentina"], ["bra.1", "Brasileirão"], ["e
 
 VISTAS.producciones = async (m) => {
   m.innerHTML = titulo("Producciones") + `<div class="aviso">Cargando producciones…</div>`;
-  try { PR = LEIDO.leerProducciones = await leerVista("producciones", "leerProducciones", m); } catch (e) { m.querySelector(".aviso").textContent = e.message || String(e); return; }
-  if (seccion !== "producciones") return;
+  try { PR = LEIDO.leerProducciones = await leerVista("producciones", "leerProducciones", m); } catch (e) { caduca(seccion); m.querySelector(".aviso").textContent = e.message || String(e); return; }
+  if (seccion !== "producciones") { caduca("producciones"); return; }
   if (soloProntas === null) soloProntas = !PR.puede;   // el conductor arranca viendo solo lo que está pronto
   pintarPr(m);
 };
@@ -1968,8 +1983,8 @@ function prAgregar(cont, m) {
 
 VISTAS.convocatorias = async (m) => {
   m.innerHTML = titulo("Convocatorias") + `<div class="aviso">Cargando convocatorias…</div>`;
-  try { CV = LEIDO.leerConvocatorias = await leerVista("convocatorias", "leerConvocatorias", m); } catch (e) { m.querySelector(".aviso").textContent = e.message || String(e); return; }
-  if (seccion !== "convocatorias") return;
+  try { CV = LEIDO.leerConvocatorias = await leerVista("convocatorias", "leerConvocatorias", m); } catch (e) { caduca(seccion); m.querySelector(".aviso").textContent = e.message || String(e); return; }
+  if (seccion !== "convocatorias") { caduca("convocatorias"); return; }
   pintarConv(m);
 };
 function pintarConv(m) {
@@ -2143,7 +2158,7 @@ let relevFecha = null;
 VISTAS.relevamiento = async (m) => {
   m.innerHTML = titulo("Noticias del día") + `<div class="aviso">Cargando la lista…</div>`;
   let R; try { R = await srv("leerRelevamiento", relevFecha); } catch (e) { m.querySelector(".aviso").textContent = e.message || String(e); return; }
-  if (seccion !== "relevamiento") return;
+  if (seccion !== "relevamiento") { caduca("relevamiento"); return; }
   const X = R.actual;
   if (!X || !X.lista) { m.innerHTML = titulo("Noticias del día") + `<div class="card form"><b>Todavía no hay ninguna lista.</b><span style="color:var(--gris);font-weight:600">La búsqueda corre sola todos los días a las 18:00 y te avisa por mail.</span></div>`; return; }
   const L = X.lista, E = X.eleccion || {}, el = Object.assign({}, E.items || {});
@@ -2201,11 +2216,13 @@ async function recargar() { await cargar(); ir(seccion); }
 function ingresar() {
   return new Promise((listo) => {
     const C = document.getElementById("cargando");
+    const login = () => {
     const pedir = (fn, x) => fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(Object.assign({ fn }, x)) }).then((r) => r.json()).then((r) => { if ("error" in r) throw new Error(r.error); return r.ok; });
     C.innerHTML = `<form class="ingreso"><div class="marca-ing"><b>13<i>a</i>0</b><span>Panel</span></div>
       <label>Tu cuenta de Gmail<input type="email" name="email" autocomplete="email" required placeholder="nombre@gmail.com"></label>
       <label hidden>Código que te llegó por mail<input name="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456"></label>
-      <button class="btn">Mandame el código</button><small></small></form>`;
+      <button class="btn">Mandame el código</button><small></small><button type="button" class="enlace" id="pedir-acc">¿Sos nuevo? Solicitá tu acceso</button></form>`;
+    C.querySelector("#pedir-acc").onclick = () => solicitud(pedir);
     const F = C.querySelector("form"), M = F.email, K = F.codigo, B = F.querySelector("button"), T = F.querySelector("small");
     M.value = guardado("panel13a0.email") || "";
     F.onsubmit = async (e) => {
@@ -2223,13 +2240,31 @@ function ingresar() {
       } catch (x) { T.style.color = "var(--rojo)"; T.textContent = x.message || String(x); }
       B.disabled = false;
     };
+    };
+    const solicitud = (pedir) => {
+      C.innerHTML = `<form class="ingreso"><div class="marca-ing"><b>13<i>a</i>0</b><span>Solicitar acceso</span></div>
+        <label>Nombre y apellido<input name="nombre" autocomplete="name" required maxlength="80"></label>
+        <label>Tu cuenta de Gmail<input type="email" name="email" autocomplete="email" required placeholder="nombre@gmail.com"></label>
+        <label>Tu rol en 13a0<select name="rol"><option value="">Elegí…</option>${ROLES_EQ.map((r) => `<option>${r}</option>`).join("")}</select></label>
+        <label>Nota (opcional)<textarea name="nota" rows="2" maxlength="300"></textarea></label>
+        <button class="btn">Enviar solicitud</button><small></small><button type="button" class="enlace">← Volver al ingreso</button></form>`;
+      const F = C.querySelector("form"), B = F.querySelector(".btn"), T = F.querySelector("small");
+      F.querySelector(".enlace").onclick = login;
+      F.onsubmit = async (e) => {
+        e.preventDefault(); B.disabled = true; T.style.color = "";
+        try { await pedir("solicitarAcceso", { email: F.email.value, nombre: F.nombre.value, rol: F.rol.value, nota: F.nota.value });
+          F.querySelectorAll("label").forEach((l) => (l.hidden = true)); B.hidden = true; T.textContent = "Solicitud recibida. Cuando te aprueben, te llega un mail y entrás con ese correo."; }
+        catch (x) { T.style.color = "var(--rojo)"; T.textContent = x.message || String(x); B.disabled = false; }
+      };
+    };
+    login();
   });
 }
 function salir() { if (API) { srv("salir").catch(() => {}); guardado("panel13a0.ses", null); guardado(COPIA, null); location.reload(); } }
 (async () => {
   try { if (API && !guardado("panel13a0.ses")) await ingresar(); 
     const copia = leerCopia(), sec = new URLSearchParams(location.search).get("seccion") || "inicio";
-    if (copia) { D = copia; document.body.classList.add("actualizando"); document.getElementById("cargando").remove(); ir(sec); await fresco(); traerHistorial(); }
+    if (copia) { D = copia; document.body.classList.add("actualizando"); document.getElementById("cargando").remove(); ir(sec); fresco().then(traerHistorial); }
     else { await cargar(); document.getElementById("cargando").remove(); ir(sec); }
     precargar(); }
   catch (e) { document.getElementById("cargando").innerHTML = `<div style="max-width:560px;text-align:center;padding:20px">${esc(e.message || e)}</div>`; }
