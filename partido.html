@@ -465,7 +465,7 @@
         min = (per === 2 ? Math.min(x, tope) + 45 : Math.min(x, tope)) + "'" + (x > tope ? "+" + (x - tope) + "'" : "");
       }
     }
-    const eq = (n, g) => ({ id: null, nombre: n, largo: n, goles: g === "" ? null : +g, escudo: T.escudo(null, [n], "") });
+    const eq = (n, g, lado) => ({ id: lado, nombre: n, largo: n, goles: g === "" ? null : +g, escudo: T.escudo(null, [n], "") });   // id L / V: así cada alineación encuentra su equipo
     const inc = hv("incidencias").split(/[;\n]/).map((s) => s.trim()).filter(Boolean).map((s) => {
       const m = s.match(/^([LV])\s*(\d+(?:\+\d+)?)'?\s*(.*)$/i); if (!m) return null;
       const roja = /\broja\b/i.test(m[3]);
@@ -473,7 +473,7 @@
     }).filter(Boolean);
     return { manual: true, liga: "manual", estado: est, reloj: min || "", periodo: per, fase: "", estadio: hv("estadio"),
       torneo: hv("torneo") || "Copa AUF Uruguay", faseTxt: hv("fase"),
-      l: eq(hv("local"), hv("goles_local")), v: eq(hv("visitante"), hv("goles_visitante")), inc, fecha: new Date().toISOString() };
+      l: eq(hv("local"), hv("goles_local"), "L"), v: eq(hv("visitante"), hv("goles_visitante"), "V"), inc, fecha: new Date().toISOString() };
   }
 
   /* ---- Tablas (ESPN), en vivo ---- */
@@ -627,7 +627,7 @@
     `<div id="partido"></div><div id="lado"></div><div id="canchaz"></div>` +
     `<div class="redes" style="left:152px;top:930px;width:1616px;height:64px"><div class="lst">${REDES}</div></div>`;
   // toma de tabla sola: el nombre del archivo (cam-M-tabla-torneo, cam-N-tabla-anual, cam-O-tabla-promedios) o ?tabla=
-  const TABLA = (T.params.get("tabla") || (location.pathname.match(/tabla-(torneo|anual|promedios)/) || [])[1] || "").toLowerCase();
+  const TABLA = (T.params.get("tabla") || ((window.__ARCHIVO || location.pathname).match(/tabla-(torneo|anual|promedios)/) || [])[1] || "").toLowerCase();
   pant.innerHTML = TABLA ? `<div class="solo-tabla"><div class="cola" style="left:1166px;top:64px;width:14px;height:72px"></div><div class="panel-cab az" style="left:1180px;top:64px;width:676px;height:72px"><span id="ptit"></span></div>` +
     `<div class="panel" style="left:1180px;top:136px;width:676px;height:820px"><div class="hoja" id="thoja"></div></div></div><div id="logo" hidden></div>` : MARCO;
   const elPartido = document.getElementById("partido") || T.el("div"), elLado = document.getElementById("lado") || T.el("div");
@@ -653,7 +653,7 @@
   }
   let ultimo = "";
   function dibujarPartido(p, conPanel, tres) {
-    const ancho = tres ? 640 : conPanel ? 984 : 1616, x0 = tres ? 628 : 152;   // con la cancha, el resultado va al centro
+    const ancho = tres ? (conPanel ? 640 : 1140) : conPanel ? 984 : 1616, x0 = tres ? 628 : 152;   // con la cancha, el resultado va al centro; sin tablas (Copa AUF a mano) ocupa también la derecha
     const torneo = p.manual ? p.torneo : p.liga === URU ? (CP.nombreUruguay || "Liga AUF Uruguaya") : p.liga === LIB ? "CONMEBOL Libertadores" : p.liga === ELI ? "Eliminatorias Sudamericanas" : p.liga === AMI ? "Amistoso internacional" : "CONMEBOL Sudamericana";
     const fase = p.manual ? p.faseTxt : p.liga === URU ? (hv("fase") || torneoActual || "") : SEL.includes(p.liga) ? (hv("fase") || "") : faseTxt(p.fase) + (p.vuelta ? " · vuelta" : p.ida ? " · ida" : "");
     document.getElementById("torneo").innerHTML = esc(torneo) + (fase ? `<span>· ${esc(fase)}</span>` : "");
@@ -669,11 +669,11 @@
     const porLado = (l) => p.inc.filter((x) => p.manual ? x.lado === l : String(x.equipo) === String(l === "L" ? p.l.id : p.v.id)).length;
     const muchas = Math.max(porLado("L"), porLado("V")) > 5;
     const html = `<div class="estadio ce" style="left:${x0}px;top:118px;width:${ancho}px;height:60px"><span>${esc(p.estadio)}</span><span>${esc(tiempoTxt(p))}</span></div>` +
-      `<div class="marcador${tres ? " medio" : conPanel ? "" : " ancho"}" style="left:${x0}px;top:194px;width:${ancho}px;height:440px">` +
+      `<div class="marcador${tres && conPanel ? " medio" : conPanel || tres ? "" : " ancho"}" style="left:${x0}px;top:194px;width:${ancho}px;height:440px">` +
         `<div class="eq">${img(p.l.escudo)}<b>${esc(p.l.nombre)}</b></div>` +
         `<div class="res"><div class="min${mc}">${esc(m)}</div>${goles}${serie}${pen}</div>` +
         `<div class="eq">${img(p.v.escudo)}<b>${esc(p.v.nombre)}</b></div></div>` +
-      `<div class="incid${tres ? " tres" : muchas ? " chico" : ""}" style="left:${x0}px;top:650px;width:${ancho}px;height:264px"><ul>${incHTML(p, "L")}</ul><ul class="der">${incHTML(p, "V")}</ul></div>`;
+      `<div class="incid${tres && conPanel ? " tres" : muchas ? " chico" : ""}" style="left:${x0}px;top:650px;width:${ancho}px;height:264px"><ul>${incHTML(p, "L")}</ul><ul class="der">${incHTML(p, "V")}</ul></div>`;
     if (html !== ultimo) { elPartido.innerHTML = html; ultimo = html; }
   }
   function dibujarEspera() {
@@ -745,7 +745,7 @@
           const ch = tres ? canchaHTML(p) : ""; if (cz.dataset.h !== ch) { cz.innerHTML = ch; cz.dataset.h = ch; }
           const con = pn.length > 0;
           armarLado(con, tres);
-          dibujarPartido(p, con || tres, tres);
+          dibujarPartido(p, con, tres);
           lista = pn;
           if (con) { if (idx < 0 || idx >= lista.length) idx = 0; mostrarPanel(idx, !hojaActual); }
         }
