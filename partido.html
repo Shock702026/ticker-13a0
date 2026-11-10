@@ -91,9 +91,16 @@
   .cancha-cab .ce b { font:800 15px/1.05 var(--grotesca); letter-spacing:.02em; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }   /* nombre en hasta dos líneas */
   .cancha-cab .ce:last-child { text-align:right; } .cancha-cab .ce span { flex:none; color:var(--amarillo); }
   .not-lado { position:absolute; inset:0; display:flex; flex-direction:column; background:var(--blanco); color:var(--azul); }
-  .not-lado .nf { flex:1; min-height:0; background:var(--azul) center/cover no-repeat; }
-  .not-lado h4 { font:900 34px/1.05 var(--grotesca); letter-spacing:-.02em; padding:18px 22px 6px; } .not-lado h4 em { font-style:normal; color:var(--rojo); }
-  .not-lado p { font:600 21px/1.3 var(--grotesca); padding:0 22px 20px; color:var(--azul); }
+  .not-lado .ncab { flex:none; padding:18px 22px 12px; border-left:12px solid var(--rojo); }
+  .not-lado .ncu { flex:1; min-height:0; display:flex; gap:16px; padding:0 0 0 22px; }
+  /* la foto con el mismo encuadre vertical que la Tanda (504 x 920): se ve entera, sin recortes nuevos */
+  .not-lado .nf { flex:none; width:46%; aspect-ratio:504/920; align-self:flex-start; background:var(--azul) center/cover no-repeat; position:relative; }
+  .not-lado .nf::after { content:""; position:absolute; left:0; right:0; bottom:0; height:12px; background:var(--amarillo); }
+  .not-lado .nt { flex:1; min-width:0; min-height:0; overflow:hidden; position:relative; }
+  .not-lado .nt::after { content:""; position:absolute; left:0; right:0; bottom:0; height:22px; background:linear-gradient(transparent, var(--blanco)); }
+  .not-lado .nti { padding:0 22px 26px 0; will-change:transform; }
+  .not-lado h4 { font:900 36px/1.05 var(--grotesca); letter-spacing:-.02em; } .not-lado h4 em { font-style:normal; color:var(--rojo); }
+  .not-lado p { font:600 24px/1.3 var(--grotesca); color:var(--azul); } .not-lado p + p { margin-top:14px; }
   .lc .jug .nom { max-width:96px; background:rgba(8,6,40,.72); color:#fff; font:800 15px/1 var(--grotesca); padding:3px 6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .lc .jug.salio .cir { opacity:.6; }
   .lc .ic { position:absolute; display:flex; align-items:center; gap:2px; font:800 13px/1 var(--grotesca); color:#fff; }
@@ -195,7 +202,7 @@
 (function () {
   const T = window.Ticker, C = T.config, CP = C.partido || {};
   const pant = document.getElementById("pant");
-  const SEG_PANEL = (CP.segundosPorPanel || 15) * 1000;
+  const SEG_PANEL = (CP.segundosPorPanel || 15) * 1000, SEG_NOTICIA = Math.max(SEG_PANEL, 22000);   // las noticias quedan más tiempo: se leen título y dos párrafos
   const SEG_LEER = (CP.leerCadaSegundos || 30) * 1000;
   const API = "https://site.api.espn.com/apis/site/v2/sports/soccer/";
   const API_T = "https://site.api.espn.com/apis/v2/sports/soccer/";
@@ -715,7 +722,7 @@
     let f = []; try { f = (await T.leerHoja("noticias")) || []; } catch (e) {}
     const rojoN = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, "<em>$1</em>");
     return f.filter((n) => T.esSi(n.mostrar) && String(n.titular || "").trim()).slice(0, 10)
-      .map((n) => ["Noticias", `<div class="not-lado">${n.imagen ? `<div class="nf" style="background-image:url('${esc(T.urlImagen(n.imagen))}')"></div>` : ""}<h4>${rojoN(n.titular)}</h4><p>${esc(n.parrafo_1 || "")}</p></div>`, "ro"]);
+      .map((n) => ["Noticias", `<div class="not-lado"><div class="ncab"><h4>${rojoN(n.titular)}</h4></div><div class="ncu">${n.imagen ? `<div class="nf" style="background-image:url('${esc(T.urlImagen(n.imagen))}')"></div>` : ""}<div class="nt"><div class="nti">${[n.parrafo_1, n.parrafo_2].filter((x) => String(x || "").trim()).map((x) => `<p>${esc(x)}</p>`).join("")}</div></div></div></div>`, "ro", SEG_NOTICIA]);
   }
   /* ---- Panel que rota ---- */
   let lista = [], idx = -1, hojaActual = null, claveLado = "";
@@ -739,11 +746,18 @@
     const h = T.el("div", "hoja" + (animar ? " entra" : "")); h.innerHTML = html; pn.appendChild(h);
     if (animar) { void h.offsetWidth; h.classList.remove("entra"); }
     if (hojaActual) { const v = hojaActual; v.classList.add("sale"); setTimeout(() => v.remove(), 800); }
-    hojaActual = h;
+    hojaActual = h; moverTexto(h, lista[i][3] || SEG_PANEL);
+  }
+  // si el título y los dos párrafos no entran, el texto sube despacio: quieto al principio, sube parejo y queda quieto al final
+  function moverTexto(h, dur) {
+    const caja = h.querySelector(".nt"), txt = h.querySelector(".nti"); if (!caja || !txt) return;
+    requestAnimationFrame(() => { const sobra = txt.scrollHeight - caja.clientHeight; if (sobra <= 4 || !txt.animate) return;
+      txt.animate([{ transform: "translateY(0)", offset: 0 }, { transform: "translateY(0)", offset: 0.2 }, { transform: `translateY(-${sobra}px)`, offset: 0.85 }, { transform: `translateY(-${sobra}px)`, offset: 1 }],
+        { duration: dur - 900, easing: "linear", fill: "forwards" }); });
   }
   function rotar() {
     if (lista.length) { idx = (idx + 1) % lista.length; mostrarPanel(idx, true); }
-    setTimeout(rotar, SEG_PANEL);
+    setTimeout(rotar, (lista[idx] && lista[idx][3]) || SEG_PANEL);
   }
 
   /* ---- Ciclo ---- */
