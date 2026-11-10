@@ -55,7 +55,11 @@
   .res .pen { background:var(--celeste); color:#fff; font:800 24px/1 var(--grotesca); padding:8px 14px; }
   .marcador.ancho .eq img { width:240px; height:240px; } .marcador.ancho .eq b { font-size:52px; } .marcador.ancho .res .goles { font-size:220px; }
   .incid { position:absolute; background:var(--azul); color:#fff; display:grid; grid-template-columns:1fr 1fr; gap:0 40px; padding:24px 40px; overflow:hidden; }
-  .incid ul { list-style:none; display:flex; flex-direction:column; gap:12px; min-width:0; }
+  .incid { grid-template-rows:minmax(0,1fr); } .incid .col { min-width:0; min-height:0; overflow:hidden; }
+  .incid ul { list-style:none; display:flex; flex-direction:column; gap:12px; min-width:0; will-change:transform; }
+  .incid li .nn, .incid li .cb2 { min-width:0; overflow:hidden; text-overflow:ellipsis; }
+  .incid li .cb2 { display:flex; flex-direction:column; gap:3px; line-height:1; } .incid li .cb2 .en::before { content:"▲ "; color:#3fd27a; font-size:.7em; } .incid li .cb2 .sa { font-size:.72em; font-weight:600; opacity:.75; } .incid li .cb2 .sa::before { content:"▼ "; color:#ff6b6b; }
+  .incid ul.der li .cb2 { align-items:flex-end; }
   .incid ul.der { align-items:flex-end; }
   .incid li { display:flex; align-items:center; gap:14px; font:700 28px/1 var(--grotesca); white-space:nowrap; }
   .incid li .t { font-weight:900; min-width:64px; } .incid ul.der li .t { text-align:right; }
@@ -111,7 +115,7 @@
   .lc .ic .cb { width:20px; height:20px; border-radius:50%; background:var(--celeste); display:flex; align-items:center; justify-content:center; font-size:13px; }
   .lc .ic small { background:rgba(8,6,40,.8); padding:2px 3px; font-size:12px; }
   .incid.tres { padding:18px 22px; gap:0 18px; } .incid.tres ul { gap:8px; } .incid.tres li { font-size:19px; gap:7px; } .incid.tres li .t { min-width:40px; }
-  .incid.tres li .tag { font-size:13px; padding:5px 6px; } .incid.tres li .amarilla, .incid.tres li .tag.roja.carta { width:14px; height:20px; padding:0; } .incid.tres li .sale { display:none; }
+  .incid.tres li .tag { font-size:13px; padding:5px 6px; } .incid.tres li .amarilla, .incid.tres li .tag.roja.carta { width:14px; height:20px; padding:0; } .incid.tres li .sale { display:none; } .incid.tres ul { gap:7px; } .incid.tres li { font-size:17px; }
   .marcador.medio { padding:0 24px; } .marcador.medio .eq img { width:130px; height:130px; } .marcador.medio .eq b { font-size:30px; }
   .marcador.medio .res { padding:0 10px; } .marcador.medio .res .min { font-size:38px; padding:12px 20px; } .marcador.medio .res .goles { font-size:140px; gap:14px; } .marcador.medio .res .goles.previa { font-size:76px; }
   .marcador.medio .res .goles i { width:36px; height:13px; }
@@ -682,12 +686,14 @@
     return [p.reloj || "En vivo", ""];
   }
   function incHTML(p, lado) {
-    let lst = p.inc.filter((x) => p.manual ? x.lado === lado : String(x.equipo) === String(lado === "L" ? p.l.id : p.v.id));
-    if (lst.length > 9) lst = lst.slice(-9);   // si no entran, las últimas
+    const lst = p.inc.filter((x) => p.manual ? x.lado === lado : String(x.equipo) === String(lado === "L" ? p.l.id : p.v.id));   // todas: si no entran, el recuadro corre
+    // solo el apellido (sin el nombre de pila), para que se lean enteros
+    const ape = (n) => { n = String(n || "").trim(); if (/^N\.º/.test(n)) return n; const w = n.split(/\s+/); return w.length < 2 ? n : w.slice(1).join(" ").length <= 14 ? w.slice(1).join(" ") : w[w.length - 1]; };
     return lst.map((x) => {
       const tag = x.tipo === "amarilla" ? `<span class="tag amarilla"></span>` : x.tipo === "cambio" ? `<span class="tag cambio">⇄</span>` :
         x.tipo === "roja" ? `<span class="tag roja carta"></span>` : `<span class="tag gol">GOL</span>`;
-      const n = x.tipo === "cambio" ? esc(x.nombre) + (x.sale ? ` <span class="sale">por ${esc(x.sale)}</span>` : "") : esc(x.nombre + (x.ec ? " (en contra)" : x.pen ? " (penal)" : ""));
+      // cambio: el que entra arriba y el que sale abajo, más chico
+      const n = x.tipo === "cambio" ? `<span class="cb2"><span class="en">${esc(ape(x.nombre))}</span>${x.sale ? `<span class="sa">${esc(ape(x.sale))}</span>` : ""}</span>` : `<span class="nn">${esc(ape(x.nombre) + (x.ec ? " (e/c)" : x.pen ? " (p)" : ""))}</span>`;
       return lado === "L" ? `<li><span class="t">${esc(x.min)}</span>${tag}${n}</li>` : `<li>${n}${tag}<span class="t">${esc(x.min)}</span></li>`;
     }).join("");
   }
@@ -713,8 +719,15 @@
         `<div class="eq">${img(p.l.escudo)}<b>${esc(p.l.nombre)}</b></div>` +
         `<div class="res"><div class="min${mc}">${esc(m)}</div>${goles}${serie}${pen}</div>` +
         `<div class="eq">${img(p.v.escudo)}<b>${esc(p.v.nombre)}</b></div></div>` +
-      `<div class="incid${tres && conPanel ? " tres" : muchas ? " chico" : ""}" style="left:${x0}px;top:650px;width:${ancho}px;height:264px"><ul>${incHTML(p, "L")}</ul><ul class="der">${incHTML(p, "V")}</ul></div>`;
-    if (html !== ultimo) { elPartido.innerHTML = html; ultimo = html; }
+      `<div class="incid${tres && conPanel ? " tres" : muchas ? " chico" : ""}" style="left:${x0}px;top:650px;width:${ancho}px;height:264px"><div class="col"><ul>${incHTML(p, "L")}</ul></div><div class="col"><ul class="der">${incHTML(p, "V")}</ul></div></div>`;
+    if (html !== ultimo) { elPartido.innerHTML = html; ultimo = html; moverIncid(); }
+  }
+  // si los sucesos no entran en el recuadro, la lista sube despacio hasta el último y vuelve (quieta unos segundos en cada punta)
+  function moverIncid() {
+    requestAnimationFrame(() => document.querySelectorAll(".incid .col").forEach((c) => { const u = c.firstElementChild, sobra = u.scrollHeight - c.clientHeight; if (sobra <= 2 || !u.animate) return;
+      const viaje = Math.max(2500, sobra * 45), quieto = 3500, tot = 2 * (viaje + quieto);
+      u.animate([{ transform: "translateY(0)", offset: 0 }, { transform: "translateY(0)", offset: quieto / tot }, { transform: `translateY(-${sobra}px)`, offset: (quieto + viaje) / tot },
+        { transform: `translateY(-${sobra}px)`, offset: (2 * quieto + viaje) / tot }, { transform: "translateY(0)", offset: 1 }], { duration: tot, iterations: Infinity, easing: "ease-in-out" }); }));
   }
   function dibujarEspera() {
     document.getElementById("torneo").innerHTML = "13a0";
