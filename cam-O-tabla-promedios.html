@@ -76,19 +76,22 @@
   .alin .entraron { margin-top:8px; font:700 16px/1.3 var(--grotesca); color:var(--gris); white-space:normal; }
   .incid.chico li { font-size:23px; gap:10px; } .incid.chico { gap:0 24px; }
   /* cancha con las formaciones (columna derecha, fija): visitante arriba, local abajo */
-  .cancha-cab { position:absolute; display:flex; align-items:center; justify-content:space-between; padding:0 22px; color:#fff; font:800 26px/1 var(--slab); letter-spacing:.05em; text-transform:uppercase; white-space:nowrap; }
+  .cancha-cab { position:absolute; display:flex; align-items:center; justify-content:space-between; padding:0 12px; gap:8px; color:#fff; font:800 26px/1 var(--slab); letter-spacing:.05em; text-transform:uppercase; white-space:nowrap; }
   .cancha-cab span { font:800 22px/1 var(--grotesca); letter-spacing:.04em; }
   .cancha { position:absolute; background:#17345a; overflow:hidden; }
   .lc .ln { position:absolute; border:3px solid rgba(255,255,255,.28); }
   .lc .jug { position:absolute; width:96px; margin-left:-48px; display:flex; flex-direction:column; align-items:center; gap:3px; }
   .lc .jug .cir { position:relative; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font:900 20px/1 var(--grotesca); box-shadow:0 2px 0 rgba(0,0,0,.25); }
   .lc .jug.L .cir { background:var(--amarillo); color:var(--azul); } .lc .jug.V .cir { background:#fff; color:var(--azul); }
+  .cancha-cab .ce { display:flex; align-items:center; gap:7px; min-width:0; max-width:49%; } .cancha-cab .ce img { width:30px; height:30px; object-fit:contain; flex:none; }
+  .cancha-cab .ce b { font:800 15px/1.05 var(--grotesca); letter-spacing:.02em; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }   /* nombre en hasta dos líneas */
+  .cancha-cab .ce:last-child { text-align:right; } .cancha-cab .ce span { flex:none; color:var(--amarillo); }
   .lc .jug .nom { max-width:96px; background:rgba(8,6,40,.72); color:#fff; font:800 15px/1 var(--grotesca); padding:3px 6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .lc .jug.salio .cir { opacity:.6; }
   .lc .ic { position:absolute; display:flex; align-items:center; gap:2px; font:800 13px/1 var(--grotesca); color:#fff; }
   .lc .ic.a { left:-18px; top:-6px; } .lc .ic.b { right:-22px; top:-6px; } .lc .ic.c { right:-24px; bottom:-6px; }
   .lc .ic .am { width:12px; height:17px; background:#FFE14D; } .lc .ic .ro { width:12px; height:17px; background:var(--rojo); }
-  .lc .ic .bal { width:17px; height:17px; border-radius:50%; background:#fff; border:3px solid var(--azul); }
+  .lc .ic .bal { width:20px; height:20px; border-radius:50%; background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='9.2' fill='%23fff' stroke='%23111' stroke-width='1.3'/%3E%3Cpath d='M10 6.1l3.3 2.4-1.3 3.9H8L6.7 8.5z' fill='%23111'/%3E%3Cpath d='M10 6.1V1.3M13.3 8.5l4.5-1.6M12 12.4l2.8 4M8 12.4l-2.8 4M6.7 8.5L2.2 6.9' stroke='%23111' stroke-width='1.2' fill='none'/%3E%3C/svg%3E") center/contain no-repeat; filter:drop-shadow(0 1px 1px rgba(0,0,0,.5)); }   /* pelota de fútbol */
   .lc .ic .cb { width:20px; height:20px; border-radius:50%; background:var(--celeste); display:flex; align-items:center; justify-content:center; font-size:13px; }
   .lc .ic small { background:rgba(8,6,40,.8); padding:2px 3px; font-size:12px; }
   .incid.tres { padding:18px 22px; gap:0 18px; } .incid.tres ul { gap:8px; } .incid.tres li { font-size:19px; gap:7px; } .incid.tres li .t { min-width:40px; }
@@ -254,12 +257,12 @@
     const agg = (id) => serie ? (serie.competitors.find((x) => x.id === id) || {}).aggregateScore : null;
     const ganaSerie = serie && serie.completed ? (serie.competitors.find((x) => x.winner) || {}).id : null;
     return {
-      id: e.id, liga, fecha: e.date, estado: ty.state, nombreEstado: ty.name || "", periodo: st.period, reloj: st.displayClock || "",
+      id: e.id, liga, fecha: e.date, estado: ty.state, nombreEstado: ty.name || "", periodo: st.period, reloj: minFmt(st.displayClock || ""),
       fase: (e.season && e.season.slug) || "", vuelta: c.leg && c.leg.value === 2, ida: c.leg && c.leg.value === 1,
       estadio: (c.venue && c.venue.fullName) || (e.venue && e.venue.displayName) || "",
       l: eq(loc), v: eq(vis), aggL: agg(loc.id), aggV: agg(vis.id), ganaSerie,
       inc: (c.details || []).filter((d) => d.scoringPlay || d.redCard).map((d) => ({
-        min: (d.clock && d.clock.displayValue) || "", equipo: d.team && d.team.id,
+        min: minFmt((d.clock && d.clock.displayValue) || ""), equipo: d.team && d.team.id,
         tipo: d.redCard ? "roja" : "gol", ec: !!d.ownGoal, pen: !!d.penaltyKick, shootout: !!d.shootout,
         nombre: ((d.athletesInvolved || [])[0] || {}).displayName || ""
       })).filter((d) => !d.shootout)
@@ -270,6 +273,8 @@
      ESPN (resumen del partido): en las copas trae alineaciones, amarillas, rojas y cambios; en el Uruguayo solo goles.
      Tarjetas a mano (pestaña partido_vivo, clave "tarjetas"): "L 10 23 amarilla; V 5 40 roja" = lado, número, minuto, tipo.
      El número se pasa al nombre con el plantel de ESPN de ese equipo. */
+  // minutos de descuento: "45+2'" y "90+1'" (ESPN los manda como 45'+2')
+  const minFmt = (m) => String(m || "").replace(/'\s*\+\s*(\d+)'?/, "+$1'");
   const minNum = (m) => { const x = String(m || "").match(/(\d+)(?:'?\s*\+\s*(\d+))?/); return x ? +x[1] + (x[2] ? +x[2] / 100 : 0) : 999; };
   let tmCache = null;
   async function extras(p) {
@@ -284,15 +289,15 @@
       (t.roster || []).forEach((x) => {
         const nom = (x.athlete || {}).displayName || ""; if (x.jersey) pl[x.jersey] = nom;
         const sale = ((x.plays || []).find((y) => y.substitution) || {}).clock;
-        if (x.starter) tit.push({ num: x.jersey || "", nombre: nom, salio: !!x.subbedOut, min: x.subbedOut && sale ? sale.displayValue : "", lugar: +x.formationPlace || 99 });
-        else if (x.subbedIn) ent.push({ num: x.jersey || "", nombre: nom, min: sale ? sale.displayValue : "" });
+        if (x.starter) tit.push({ num: x.jersey || "", nombre: nom, salio: !!x.subbedOut, min: x.subbedOut && sale ? minFmt(sale.displayValue) : "", lugar: +x.formationPlace || 99 });
+        else if (x.subbedIn) ent.push({ num: x.jersey || "", nombre: nom, min: sale ? minFmt(sale.displayValue) : "" });
       });
       if (tit.length) r.alin.push({ id, formacion: t.formation || "", titulares: tit.sort((a, b) => a.lugar - b.lugar), entraron: ent });
     });
     (s && s.keyEvents || []).forEach((k) => {
       const tt = (k.type || {}).text || "", par = (k.participants || []).map((x) => (x.athlete || {}).displayName || "");
       const tipo = /yellow/i.test(tt) ? "amarilla" : /red card/i.test(tt) ? "roja" : /substitution/i.test(tt) ? "cambio" : null;
-      if (tipo) r.ev.push({ min: (k.clock || {}).displayValue || "", equipo: String((k.team || {}).id || ""), tipo, nombre: par[0] || "", sale: tipo === "cambio" ? par[1] || "" : "" });
+      if (tipo) r.ev.push({ min: minFmt((k.clock || {}).displayValue || ""), equipo: String((k.team || {}).id || ""), tipo, nombre: par[0] || "", sale: tipo === "cambio" ? par[1] || "" : "" });
     });
     // planteles de Transfermarkt (pestaña "planteles", se actualiza los lunes): completan los números que no trae el partido y van antes que el plantel de ESPN
     try {
@@ -342,12 +347,22 @@
       if (i.saleNum) i.sale = porNum(eq.id, i.lado, i.saleNum) || i.sale; });
   }
   // cancha: filas según la formación (arquero + líneas); sin formación válida, 4-4-2
+  // colores de cada equipo en la cancha (fondo del círculo y número); los que no están usan amarillo (local) y blanco (visitante)
+  const COLORES_EQ = [["cerro largo", "#1F5FAD", "#FFFFFF"], ["nacional", "#FFFFFF", "#0B2A7A"], ["maldonado", "#0E7C3A", "#FFFFFF"], ["penarol", "#FFD100", "#111111"],
+    ["defensor", "#5B2D8E", "#FFFFFF"], ["danubio", "#FFFFFF", "#111111"], ["wanderers", "#111111", "#FFFFFF"], ["liverpool", "#111111", "#4A90E2"], ["racing", "#FFFFFF", "#0B7A3B"],
+    ["progreso", "#FFD200", "#C8102E"], ["boston river", "#0B7A3B", "#FFFFFF"], ["central espanol", "#C8102E", "#FFFFFF"], ["torque", "#6CACE4", "#0B2340"], ["cerro", "#7FC8F8", "#0B2A55"], ["uruguay", "#5CA5DB", "#FFFFFF"]];
+  const colorDe = (e) => { const n = sinT((e && (e.largo || e.nombre)) || ""); const c = COLORES_EQ.find(([k]) => n.includes(k)); return c ? { f: c[1], t: c[2] } : null; };
   function canchaHTML(p) {
     const X = 152, Y = 118, W = 460, CAB = 56, H = 560, top = Y + CAB, CB = 796 - CAB - H;
     const ult = (n) => sinT(n).split(" ").filter(Boolean).pop() || "";
     const corto = (n) => { const w = String(n || "").trim().split(/\s+/); if (w.length < 2) return w[0] || ""; const r = w.slice(1).join(" "); return r.length <= 13 ? r : w[w.length - 1]; };
     const filasDe = (f, n) => { let r = String(f || "").split(/[-–]/).map(Number).filter((x) => x > 0); if (r.reduce((a, b) => a + b, 0) !== n - 1) r = n === 11 ? [4, 4, 2] : [Math.max(0, n - 1)]; return [1].concat(r); };
     const evDe = (e, lado) => p.inc.filter((x) => p.manual ? x.lado === lado : String(x.equipo) === String(e.id));
+    // en la cancha: inicial del nombre y apellido ("N. Forastiero")
+    const enCancha = (n) => { const w = String(n || "").trim().split(/\s+/); if (w.length < 2) return w[0] || ""; const r = w.slice(1).join(" "); return w[0][0].toUpperCase() + ". " + (r.length <= 12 ? r : w[w.length - 1]); };
+    let cL = colorDe(p.l), cV = colorDe(p.v);
+    if (cL && cV && cL.f === cV.f) cV = { f: cV.t, t: cV.f };   // mismo color de fondo: el visitante va al revés
+    const colLado = { L: cL, V: cV };
     let jug = "", cam = { L: [], V: [] }, supl = {};
     [[p.l, "L"], [p.v, "V"]].forEach(([e, lado]) => {
       const a = p.alin.find((x) => x.id === String(e.id)); if (!a) return;
@@ -364,11 +379,12 @@
           const sale = evs.find((x) => x.tipo === "cambio" && ((x.saleNum && x.saleNum === j.num) || (x.sale && (mismo(x.sale, j.nombre) || ult(x.sale) === ult(j.nombre)))));
           const goles = mios.filter((x) => x.tipo === "gol"), tarj = mios.filter((x) => x.tipo === "amarilla" || x.tipo === "roja");
           const minSale = sale ? sale.min : j.salio ? j.min : "";
-          jug += `<div class="jug ${lado}${minSale ? " salio" : ""}" style="left:${xx}px;top:${yy}px"><div class="cir">${esc(j.num || "")}` +
+          const cc = colLado[lado];
+          jug += `<div class="jug ${lado}${minSale ? " salio" : ""}" style="left:${xx}px;top:${yy}px"><div class="cir"${cc ? ` style="background:${cc.f};color:${cc.t}"` : ""}>${esc(j.num || "")}` +
             (tarj.length ? `<span class="ic a">${tarj.map((x) => `<i class="${x.tipo === "roja" ? "ro" : "am"}"></i>`).join("")}</span>` : "") +
             (goles.length ? `<span class="ic b"><i class="bal"></i>${goles.length > 1 ? `<small>×${goles.length}</small>` : ""}</span>` : "") +
             (minSale ? `<span class="ic c"><i class="cb">⇄</i><small>${esc(String(minSale).replace(/'$/, ""))}'</small></span>` : "") +
-            `</div><div class="nom">${esc(corto(j.nombre))}</div></div>`;
+            `</div><div class="nom">${esc(enCancha(j.nombre))}</div></div>`;
         }
       });
       // cambios: ESPN (copas, Selección) o lo que se cargue; si no hay, los que entraron según la alineación
@@ -386,7 +402,9 @@
     const lineas = ln(14, 10, W - 28, H - 20) + ln(14, H / 2 - 1, W - 28, 0, "border-width:3px 0 0") + ln(W / 2 - 70, H / 2 - 70, 140, 140, "border-radius:50%") +
       ln(W / 2 - 130, 10, 260, 86) + ln(W / 2 - 130, H - 96, 260, 86);
     const fl = p.alin.find((x) => x.id === String(p.l.id)), fv = p.alin.find((x) => x.id === String(p.v.id));
-    return `<div class="cancha-cab az" style="left:${X}px;top:${Y}px;width:${W}px;height:${CAB}px"><span>${esc(fl && fl.formacion || "")}</span>Formaciones<span>${esc(fv && fv.formacion || "")}</span></div>` +
+    // arriba de la cancha, los dos equipos uno al lado del otro: escudo, nombre y formación
+    const ce = (e, f, der) => `<div class="ce">${der ? "" : img(e.escudo)}${der && f ? `<span>${esc(f)}</span>` : ""}<b>${esc(e.nombre)}</b>${!der && f ? `<span>${esc(f)}</span>` : ""}${der ? img(e.escudo) : ""}</div>`;
+    return `<div class="cancha-cab az" style="left:${X}px;top:${Y}px;width:${W}px;height:${CAB}px">${ce(p.l, fl && fl.formacion, false)}${ce(p.v, fv && fv.formacion, true)}</div>` +
       `<div class="cancha" style="left:${X}px;top:${top}px;width:${W}px;height:${H}px"></div><div class="lc">` + lineas + jug + `</div>` +
       `<div class="cambios" style="left:${X}px;top:${top + H}px;width:${W}px;height:${CB}px"><div><h5>${esc(p.l.nombre)}</h5>${cam.L.join("") || '<div class="sal">—</div>'}</div><div><h5>${esc(p.v.nombre)}</h5>${cam.V.join("") || '<div class="sal">—</div>'}</div></div>`;
   }
@@ -462,8 +480,8 @@
       else if (m) {
         const ini = new Date(); ini.setHours(+m[1], +m[2], 0, 0);
         let x = Math.max(1, Math.floor((Date.now() - ini) / 60000) + 1);
-        const tope = per === 2 ? 45 : 45;
-        min = (per === 2 ? Math.min(x, tope) + 45 : Math.min(x, tope)) + "'" + (x > tope ? "+" + (x - tope) + "'" : "");
+        const base = per === 2 ? 90 : 45, m2 = x + (per === 2 ? 45 : 0);   // pasado el 45 (o el 90), descuento: 45+1', 90+2'
+        min = m2 > base ? base + "+" + (m2 - base) + "'" : m2 + "'";
       }
     }
     const eq = (n, g, lado) => ({ id: lado, nombre: n, largo: n, goles: g === "" ? null : +g, escudo: T.escudo(null, [n], "") });   // id L / V: así cada alineación encuentra su equipo
