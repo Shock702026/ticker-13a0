@@ -358,7 +358,8 @@
         // centro del círculo: arquero visitante a 26 px del borde de arriba, local a 52 del de abajo (lleva el nombre debajo); 72 px libres en la mitad
         const paso = (H - 26 - 52 - 72) / (2 * Math.max(1, filas.length - 1)), cy = lado === "L" ? H - 52 - fi * paso : 26 + fi * paso, yy = top + cy - 20;
         for (let c = 0; c < cant && k < tit.length; c++, k++) {
-          const j = tit[k], xx = X + W * (c + 1) / (cant + 1);
+          // cada línea va de derecha a izquierda del equipo (el primero después del arquero es el lateral derecho): el local ataca hacia arriba, así que se espeja
+          const j = tit[k], xx = X + W * ((lado === "L" ? cant - 1 - c : c) + 1) / (cant + 1);
           const mios = evs.filter((x) => x.tipo !== "cambio" && ((x.num && x.num === j.num) || mismo(x.nombre, j.nombre) || (ult(x.nombre) && ult(x.nombre) === ult(j.nombre)) || (/^N\.º\s*(\d+)/.test(x.nombre) && x.nombre.replace(/\D/g, "") === j.num)));
           const sale = evs.find((x) => x.tipo === "cambio" && ((x.saleNum && x.saleNum === j.num) || (x.sale && (mismo(x.sale, j.nombre) || ult(x.sale) === ult(j.nombre)))));
           const goles = mios.filter((x) => x.tipo === "gol"), tarj = mios.filter((x) => x.tipo === "amarilla" || x.tipo === "roja");
