@@ -83,9 +83,17 @@
   .lc .jug { position:absolute; width:96px; margin-left:-48px; display:flex; flex-direction:column; align-items:center; gap:3px; }
   .lc .jug .cir { position:relative; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font:900 20px/1 var(--grotesca); box-shadow:0 2px 0 rgba(0,0,0,.25); }
   .lc .jug.L .cir { background:var(--amarillo); color:var(--azul); } .lc .jug.V .cir { background:#fff; color:var(--azul); }
+  .cancha-eq { position:absolute; display:flex; align-items:center; gap:10px; padding:0 14px; background:var(--azul); color:#fff; box-shadow:inset 0 -3px 0 rgba(0,0,0,.25); }
+  .cancha-eq img { width:32px; height:32px; object-fit:contain; flex:none; } .cancha-eq b { flex:1; min-width:0; font:900 20px/1 var(--grotesca); text-transform:uppercase; letter-spacing:.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cancha-eq.abajo { border-bottom:4px solid var(--azul); }
+  .cancha-eq span { flex:none; font:900 22px/1 var(--grotesca); padding:4px 10px; background:rgba(0,0,0,.18); }
   .cancha-cab .ce { display:flex; align-items:center; gap:7px; min-width:0; max-width:49%; } .cancha-cab .ce img { width:30px; height:30px; object-fit:contain; flex:none; }
   .cancha-cab .ce b { font:800 15px/1.05 var(--grotesca); letter-spacing:.02em; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }   /* nombre en hasta dos líneas */
   .cancha-cab .ce:last-child { text-align:right; } .cancha-cab .ce span { flex:none; color:var(--amarillo); }
+  .not-lado { position:absolute; inset:0; display:flex; flex-direction:column; background:var(--blanco); color:var(--azul); }
+  .not-lado .nf { flex:1; min-height:0; background:var(--azul) center/cover no-repeat; }
+  .not-lado h4 { font:900 34px/1.05 var(--grotesca); letter-spacing:-.02em; padding:18px 22px 6px; } .not-lado h4 em { font-style:normal; color:var(--rojo); }
+  .not-lado p { font:600 21px/1.3 var(--grotesca); padding:0 22px 20px; color:var(--azul); }
   .lc .jug .nom { max-width:96px; background:rgba(8,6,40,.72); color:#fff; font:800 15px/1 var(--grotesca); padding:3px 6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .lc .jug.salio .cir { opacity:.6; }
   .lc .ic { position:absolute; display:flex; align-items:center; gap:2px; font:800 13px/1 var(--grotesca); color:#fff; }
@@ -353,7 +361,7 @@
     ["progreso", "#FFD200", "#C8102E"], ["boston river", "#0B7A3B", "#FFFFFF"], ["central espanol", "#C8102E", "#FFFFFF"], ["torque", "#6CACE4", "#0B2340"], ["cerro", "#7FC8F8", "#0B2A55"], ["uruguay", "#5CA5DB", "#FFFFFF"]];
   const colorDe = (e) => { const n = sinT((e && (e.largo || e.nombre)) || ""); const c = COLORES_EQ.find(([k]) => n.includes(k)); return c ? { f: c[1], t: c[2] } : null; };
   function canchaHTML(p) {
-    const X = 152, Y = 118, W = 460, CAB = 56, H = 560, top = Y + CAB, CB = 796 - CAB - H;
+    const X = 152, Y = 118, W = 460, CAB = 56, PIE = 48, H = 512, top = Y + CAB, CB = 796 - CAB - H - PIE;   // local arriba (barra de arriba), visitante abajo (barra de abajo)
     const ult = (n) => sinT(n).split(" ").filter(Boolean).pop() || "";
     const corto = (n) => { const w = String(n || "").trim().split(/\s+/); if (w.length < 2) return w[0] || ""; const r = w.slice(1).join(" "); return r.length <= 13 ? r : w[w.length - 1]; };
     const filasDe = (f, n) => { let r = String(f || "").split(/[-–]/).map(Number).filter((x) => x > 0); if (r.reduce((a, b) => a + b, 0) !== n - 1) r = n === 11 ? [4, 4, 2] : [Math.max(0, n - 1)]; return [1].concat(r); };
@@ -369,12 +377,12 @@
       const tit = a.titulares.slice(0, 11), filas = filasDe(a.formacion, tit.length), evs = evDe(e, lado);
       let k = 0;
       filas.forEach((cant, fi) => {
-        // local: arquero abajo y sube; visitante: arquero arriba y baja
-        // centro del círculo: arquero visitante a 26 px del borde de arriba, local a 52 del de abajo (lleva el nombre debajo); 72 px libres en la mitad
-        const paso = (H - 26 - 52 - 72) / (2 * Math.max(1, filas.length - 1)), cy = lado === "L" ? H - 52 - fi * paso : 26 + fi * paso, yy = top + cy - 20;
+        // local: arquero arriba y baja; visitante: arquero abajo y sube
+        // centro del círculo: arquero de arriba a 26 px del borde, el de abajo a 52 (lleva el nombre debajo); 72 px libres en la mitad
+        const paso = (H - 26 - 52 - 72) / (2 * Math.max(1, filas.length - 1)), cy = lado === "L" ? 26 + fi * paso : H - 52 - fi * paso, yy = top + cy - 20;
         for (let c = 0; c < cant && k < tit.length; c++, k++) {
-          // cada línea va de derecha a izquierda del equipo (el primero después del arquero es el lateral derecho): el local ataca hacia arriba, así que se espeja
-          const j = tit[k], xx = X + W * ((lado === "L" ? cant - 1 - c : c) + 1) / (cant + 1);
+          // cada línea va de derecha a izquierda del equipo (el primero después del arquero es el lateral derecho): el visitante ataca hacia arriba, así que se espeja
+          const j = tit[k], xx = X + W * ((lado === "V" ? cant - 1 - c : c) + 1) / (cant + 1);
           const mios = evs.filter((x) => x.tipo !== "cambio" && ((x.num && x.num === j.num) || mismo(x.nombre, j.nombre) || (ult(x.nombre) && ult(x.nombre) === ult(j.nombre)) || (/^N\.º\s*(\d+)/.test(x.nombre) && x.nombre.replace(/\D/g, "") === j.num)));
           const sale = evs.find((x) => x.tipo === "cambio" && ((x.saleNum && x.saleNum === j.num) || (x.sale && (mismo(x.sale, j.nombre) || ult(x.sale) === ult(j.nombre)))));
           const goles = mios.filter((x) => x.tipo === "gol"), tarj = mios.filter((x) => x.tipo === "amarilla" || x.tipo === "roja");
@@ -402,11 +410,11 @@
     const lineas = ln(14, 10, W - 28, H - 20) + ln(14, H / 2 - 1, W - 28, 0, "border-width:3px 0 0") + ln(W / 2 - 70, H / 2 - 70, 140, 140, "border-radius:50%") +
       ln(W / 2 - 130, 10, 260, 86) + ln(W / 2 - 130, H - 96, 260, 86);
     const fl = p.alin.find((x) => x.id === String(p.l.id)), fv = p.alin.find((x) => x.id === String(p.v.id));
-    // arriba de la cancha, los dos equipos uno al lado del otro: escudo, nombre y formación
-    const ce = (e, f, der) => `<div class="ce">${der ? "" : img(e.escudo)}${der && f ? `<span>${esc(f)}</span>` : ""}<b>${esc(e.nombre)}</b>${!der && f ? `<span>${esc(f)}</span>` : ""}${der ? img(e.escudo) : ""}</div>`;
-    return `<div class="cancha-cab az" style="left:${X}px;top:${Y}px;width:${W}px;height:${CAB}px">${ce(p.l, fl && fl.formacion, false)}${ce(p.v, fv && fv.formacion, true)}</div>` +
+    // cada equipo en su lado de la cancha, con sus colores: el local en la barra de arriba, el visitante en la de abajo
+    const barra = (e, f, cc, y, h) => `<div class="cancha-eq" style="left:${X}px;top:${y}px;width:${W}px;height:${h}px;${cc ? `background:${cc.f};color:${cc.t}` : ""}">${img(e.escudo)}<b>${esc(e.nombre)}</b>${f ? `<span>${esc(f)}</span>` : ""}</div>`;
+    return barra(p.l, fl && fl.formacion, colLado.L, Y, CAB) + barra(p.v, fv && fv.formacion, colLado.V, top + H, PIE).replace('class="cancha-eq"', 'class="cancha-eq abajo"') +
       `<div class="cancha" style="left:${X}px;top:${top}px;width:${W}px;height:${H}px"></div><div class="lc">` + lineas + jug + `</div>` +
-      `<div class="cambios" style="left:${X}px;top:${top + H}px;width:${W}px;height:${CB}px"><div><h5>${esc(p.l.nombre)}</h5>${cam.L.join("") || '<div class="sal">—</div>'}</div><div><h5>${esc(p.v.nombre)}</h5>${cam.V.join("") || '<div class="sal">—</div>'}</div></div>`;
+      `<div class="cambios" style="left:${X}px;top:${top + H + PIE}px;width:${W}px;height:${CB}px"><div><h5>${esc(p.l.nombre)}</h5>${cam.L.join("") || '<div class="sal">—</div>'}</div><div><h5>${esc(p.v.nombre)}</h5>${cam.V.join("") || '<div class="sal">—</div>'}</div></div>`;
   }
   // alineación fija: cada jugador con sus goles, tarjetas y si salió; lo que no se pudo asociar va abajo
   function alinFija(p) {
@@ -702,6 +710,13 @@
     if (html !== ultimo) { elPartido.innerHTML = html; ultimo = html; elLado.innerHTML = ""; claveLado = ""; const cz = document.getElementById("canchaz"); cz.innerHTML = ""; cz.dataset.h = ""; }
   }
 
+  // noticias al aire para la parte derecha, una por hoja
+  async function panelNoticias() {
+    let f = []; try { f = (await T.leerHoja("noticias")) || []; } catch (e) {}
+    const rojoN = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, "<em>$1</em>");
+    return f.filter((n) => T.esSi(n.mostrar) && String(n.titular || "").trim()).slice(0, 10)
+      .map((n) => ["Noticias", `<div class="not-lado">${n.imagen ? `<div class="nf" style="background-image:url('${esc(T.urlImagen(n.imagen))}')"></div>` : ""}<h4>${rojoN(n.titular)}</h4><p>${esc(n.parrafo_1 || "")}</p></div>`, "ro"]);
+  }
   /* ---- Panel que rota ---- */
   let lista = [], idx = -1, hojaActual = null, claveLado = "";
   function armarLado(con, tres) {
@@ -758,7 +773,8 @@
         else {
           if (p.liga === URU) try { const d = await standings(URU, null, null, 600); torneoActual = ((d.children || [])[0] || {}).name || ""; torneoActual = torneoActual.replace(/\s+\d{4}$/, ""); } catch (e) {}
           if (!T.demo) { try { sumarExtras(p, await extras(p)); } catch (e) { console.warn("extras:", e.message); } }
-          const pn = T.demo ? [] : await paneles(p);
+          const modo = sinT(hv("lado") || "tablas");   // parte derecha: tablas, noticias o nada (se elige en el panel)
+          const pn = T.demo || modo === "nada" ? [] : modo === "noticias" ? await panelNoticias() : await paneles(p);
           // con alineación: tres columnas (marcador e incidencias · cancha fija · resultados y tablas que rotan)
           const tres = !!(p.alin && p.alin.length), cz = document.getElementById("canchaz");
           const ch = tres ? canchaHTML(p) : ""; if (cz.dataset.h !== ch) { cz.innerHTML = ch; cz.dataset.h = ch; }
