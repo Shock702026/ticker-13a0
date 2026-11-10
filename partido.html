@@ -90,19 +90,20 @@
   .cancha-cab .ce { display:flex; align-items:center; gap:7px; min-width:0; max-width:49%; } .cancha-cab .ce img { width:30px; height:30px; object-fit:contain; flex:none; }
   .cancha-cab .ce b { font:800 15px/1.05 var(--grotesca); letter-spacing:.02em; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }   /* nombre en hasta dos líneas */
   .cancha-cab .ce:last-child { text-align:right; } .cancha-cab .ce span { flex:none; color:var(--amarillo); }
-  .not-lado { position:absolute; inset:0; display:flex; flex-direction:column; background:var(--blanco); color:var(--azul); }
-  .not-lado .ncab { flex:none; padding:18px 22px 12px; border-left:12px solid var(--rojo); }
-  .not-lado .ncu { flex:1; min-height:0; display:flex; gap:16px; padding:0 0 0 22px; }
-  /* la foto con el mismo encuadre vertical que la Tanda (504 x 920): se ve entera, sin recortes nuevos */
-  .not-lado .nf { flex:none; width:46%; aspect-ratio:504/920; align-self:flex-start; background:var(--azul) center/cover no-repeat; position:relative; }
-  .not-lado .nf::after { content:""; position:absolute; left:0; right:0; bottom:0; height:12px; background:var(--amarillo); }
-  .not-lado .nt { flex:1; min-width:0; min-height:0; overflow:hidden; position:relative; }
-  .not-lado .nt::after { content:""; position:absolute; left:0; right:0; bottom:0; height:22px; background:linear-gradient(transparent, var(--blanco)); }
-  .not-lado .nti { padding:0 22px 26px 0; will-change:transform; }
-  .not-lado h4 { font:900 36px/1.05 var(--grotesca); letter-spacing:-.02em; } .not-lado h4 em { font-style:normal; color:var(--rojo); }
-  .not-lado p { font:600 24px/1.3 var(--grotesca); color:var(--azul); } .not-lado p + p { margin-top:14px; }
+  /* noticia en la parte derecha, con la estética de la Tanda: bloques blancos sobre negro; arriba la foto (mismo encuadre vertical que la Tanda) y el titular; abajo los dos párrafos */
+  .not-lado { position:absolute; inset:-12px -20px; background:var(--negro); display:flex; flex-direction:column; gap:16px; color:var(--azul); }
+  .not-lado .nar { flex:none; display:flex; gap:16px; }
+  .not-lado .nf { flex:none; width:40%; aspect-ratio:504/920; background:var(--azul) center/cover no-repeat; position:relative; }
+  .not-lado .nf::after { content:""; position:absolute; left:0; right:0; bottom:0; height:14px; background:var(--amarillo); }
+  .not-lado .ncab { flex:1; min-width:0; background:var(--blanco); border-top:14px solid var(--rojo); padding:20px 22px; display:flex; align-items:flex-end; }
+  .not-lado .nar.sin .ncab { min-height:200px; }
+  .not-lado h4 { font:900 38px/1.04 var(--grotesca); letter-spacing:-.025em; text-wrap:balance; } .not-lado h4 em { font-style:normal; color:var(--rojo); }
+  .not-lado .nt { flex:1; min-height:0; background:var(--blanco); overflow:hidden; position:relative; }
+  .not-lado .nt::after { content:""; position:absolute; left:0; right:0; bottom:0; height:20px; background:linear-gradient(rgba(255,255,255,0), var(--blanco)); }
+  .not-lado .nti { padding:22px 26px 28px; will-change:transform; min-height:100%; display:flex; flex-direction:column; justify-content:center; }
+  .not-lado p { font:500 24px/1.36 var(--grotesca); color:var(--azul); } .not-lado p:first-child { font-weight:700; } .not-lado p + p { margin-top:14px; }
   .lc .jug .nom { max-width:96px; background:rgba(8,6,40,.72); color:#fff; font:800 15px/1 var(--grotesca); padding:3px 6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .lc .jug.salio .cir { opacity:.6; }
+  .lc .jug.entro .cir { box-shadow:0 0 0 3px var(--celeste), 0 2px 6px rgba(0,0,0,.35); }
   .lc .ic { position:absolute; display:flex; align-items:center; gap:2px; font:800 13px/1 var(--grotesca); color:#fff; }
   .lc .ic.a { left:-18px; top:-6px; } .lc .ic.b { right:-22px; top:-6px; } .lc .ic.c { right:-24px; bottom:-6px; }
   .lc .ic .am { width:12px; height:17px; background:#FFE14D; } .lc .ic .ro { width:12px; height:17px; background:var(--rojo); }
@@ -389,17 +390,22 @@
         const paso = (H - 26 - 52 - 72) / (2 * Math.max(1, filas.length - 1)), cy = lado === "L" ? 26 + fi * paso : H - 52 - fi * paso, yy = top + cy - 20;
         for (let c = 0; c < cant && k < tit.length; c++, k++) {
           // cada línea va de derecha a izquierda del equipo (el primero después del arquero es el lateral derecho): el visitante ataca hacia arriba, así que se espeja
-          const j = tit[k], xx = X + W * ((lado === "V" ? cant - 1 - c : c) + 1) / (cant + 1);
+          const xx = X + W * ((lado === "V" ? cant - 1 - c : c) + 1) / (cant + 1);
+          // sustituciones: el que entra ocupa el lugar del que sale (con su número y nombre); si a ese también lo cambian, sigue la cadena
+          let j = tit[k], entro = null;
+          const saleDe = (q, x) => x.tipo === "cambio" && x !== entro && ((x.saleNum && q.num && x.saleNum === q.num) || (!x.saleNum && x.sale && (mismo(x.sale, q.nombre) || (ult(x.sale).length > 3 && ult(x.sale) === ult(q.nombre)))));
+          for (let g = 0; g < 4; g++) { const sx = evs.find((x) => saleDe(j, x)); if (!sx) break; entro = sx;
+            const q = (a.suplentes || []).concat(a.entraron || []).find((y) => (sx.num && y.num === sx.num) || mismo(y.nombre, sx.nombre)) || {};
+            j = { num: sx.num || q.num || "", nombre: (/^N\.º/.test(sx.nombre) && q.nombre) || sx.nombre || q.nombre || "" }; }
           const mios = evs.filter((x) => x.tipo !== "cambio" && ((x.num && x.num === j.num) || mismo(x.nombre, j.nombre) || (ult(x.nombre) && ult(x.nombre) === ult(j.nombre)) || (/^N\.º\s*(\d+)/.test(x.nombre) && x.nombre.replace(/\D/g, "") === j.num)));
-          const sale = evs.find((x) => x.tipo === "cambio" && ((x.saleNum && x.saleNum === j.num) || (x.sale && (mismo(x.sale, j.nombre) || ult(x.sale) === ult(j.nombre)))));
           const goles = mios.filter((x) => x.tipo === "gol"), tarj = mios.filter((x) => x.tipo === "amarilla" || x.tipo === "roja");
-          const minSale = sale ? sale.min : j.salio ? j.min : "";
+          const minSale = entro ? entro.min : j.salio ? j.min : "";   // ⇄ con el minuto en que entró
           const cc = colLado[lado];
-          jug += `<div class="jug ${lado}${minSale ? " salio" : ""}" style="left:${xx}px;top:${yy}px"><div class="cir"${cc ? ` style="background:${cc.f};color:${cc.t}"` : ""}>${esc(j.num || "")}` +
+          jug += `<div class="jug ${lado}${entro ? " entro" : ""}" style="left:${xx}px;top:${yy}px"><div class="cir"${cc ? ` style="background:${cc.f};color:${cc.t}"` : ""}>${esc(j.num || "")}` +
             (tarj.length ? `<span class="ic a">${tarj.map((x) => `<i class="${x.tipo === "roja" ? "ro" : "am"}"></i>`).join("")}</span>` : "") +
             (goles.length ? `<span class="ic b"><i class="bal"></i>${goles.length > 1 ? `<small>×${goles.length}</small>` : ""}</span>` : "") +
             (minSale ? `<span class="ic c"><i class="cb">⇄</i><small>${esc(String(minSale).replace(/'$/, ""))}'</small></span>` : "") +
-            `</div><div class="nom">${esc(enCancha(j.nombre))}</div></div>`;
+            `</div>${/^N\.º/.test(j.nombre || "") || !String(j.nombre || "").trim() ? "" : `<div class="nom">${esc(enCancha(j.nombre))}</div>`}</div>`;
         }
       });
       // cambios: ESPN (copas, Selección) o lo que se cargue; si no hay, los que entraron según la alineación
@@ -722,7 +728,7 @@
     let f = []; try { f = (await T.leerHoja("noticias")) || []; } catch (e) {}
     const rojoN = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, "<em>$1</em>");
     return f.filter((n) => T.esSi(n.mostrar) && String(n.titular || "").trim()).slice(0, 10)
-      .map((n) => ["Noticias", `<div class="not-lado"><div class="ncab"><h4>${rojoN(n.titular)}</h4></div><div class="ncu">${n.imagen ? `<div class="nf" style="background-image:url('${esc(T.urlImagen(n.imagen))}')"></div>` : ""}<div class="nt"><div class="nti">${[n.parrafo_1, n.parrafo_2].filter((x) => String(x || "").trim()).map((x) => `<p>${esc(x)}</p>`).join("")}</div></div></div></div>`, "ro", SEG_NOTICIA]);
+      .map((n) => ["Noticias", `<div class="not-lado"><div class="nar${n.imagen ? "" : " sin"}">${n.imagen ? `<div class="nf" style="background-image:url('${esc(T.urlImagen(n.imagen))}')"></div>` : ""}<div class="ncab"><h4>${rojoN(n.titular)}</h4></div></div><div class="nt"><div class="nti">${[n.parrafo_1, n.parrafo_2].filter((x) => String(x || "").trim()).map((x) => `<p>${rojoN(x)}</p>`).join("")}</div></div></div>`, "ro", SEG_NOTICIA]);
   }
   /* ---- Panel que rota ---- */
   let lista = [], idx = -1, hojaActual = null, claveLado = "";
