@@ -571,7 +571,7 @@
       return { lado: m[1].toUpperCase(), min: m[2] + "'", tipo: roja ? "roja" : "gol", nombre: m[3].replace(/\b(roja|gol)\b/ig, "").trim() };
     }).filter(Boolean);
     return { manual: true, liga: "manual", estado: est, reloj: min || "", periodo: per, fase: "", estadio: hv("estadio"),
-      torneo: hv("torneo") || "Copa AUF Uruguay", faseTxt: hv("fase"),
+      torneo: hv("torneo") || (/auf/.test(sinT(hv("competencia"))) ? "Copa AUF Uruguay" : ""), faseTxt: hv("fase"),   // manual: la liga que se escriba en el panel
       l: eq(hv("local"), hv("goles_local"), "L"), v: eq(hv("visitante"), hv("goles_visitante"), "V"), inc, fecha: new Date().toISOString() };
   }
 
