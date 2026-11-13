@@ -402,6 +402,7 @@
     // alineación de la planilla (la trae el robot de Ovación / Referí / futbol.uy, o se escribe a mano):
     // una línea por equipo: "Peñarol (4-4-2): 1 Aguerre, 3 Nández, ... | Ovación". Solo se usa si el nombre coincide con un equipo del partido.
     hv("alineacion").split(/\n|;;/).map((t) => t.trim()).filter(Boolean).forEach((t) => {
+      t = t.replace(/^([^:]*?)\s*\(([^)]*[A-Za-zÁÉÍÓÚáéíóúñÑ][^)]*)\)/, "$1 $2");   // «Racing (Montevideo)»: el paréntesis es parte del nombre, no la formación
       const m = t.match(/^([^:(]+?)\s*(?:\(([^)]*)\))?\s*:\s*([^|]+)(?:\|\s*(.+))?$/); if (!m) return;
       const eq = [p.l, p.v].find((e) => mismo(e.nombre, m[1]) || mismo(e.largo, m[1])); if (!eq) return;
       const id = String(eq.id || ""); if (p.alin.some((a) => a.id === id)) return;   // ESPN manda
