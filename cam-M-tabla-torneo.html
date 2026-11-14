@@ -231,8 +231,11 @@
   .m3-hoja.entra { transform:translateX(105%); } .m3-hoja.sale { transform:translateX(-105%); }
   .m3-cols { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:0 22px; height:100%; align-content:center; }
   .m3-t { font-size:20px; } .m3-t td { height:40px; } .m3-t td:nth-child(2) { max-width:220px; } .m3-t td.pos { width:42px; } .m3-t td img { width:24px; height:24px; margin-right:8px; }
-  .m3-grilla { height:100%; display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); grid-auto-rows:min-content; gap:0 24px; align-content:center; overflow:hidden; }
-  .m3-grilla > h3 { display:none; } .m3-grilla .fila { font-size:20px; height:52px; } .m3-grilla .llave { padding:8px 0; } .m3-grilla .ll-eq { font-size:19px; }
+  .m3-grilla { height:100%; display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); grid-auto-rows:min-content; gap:0 34px; align-content:center; overflow:hidden; }
+  .m3-grilla > h3 { display:none; }
+  .m3-grilla .fila { grid-template-columns:30px minmax(0,1fr) auto minmax(0,1fr) 30px; gap:10px; height:auto; min-height:54px; padding:3px 0; font-size:19px; line-height:1.05; }
+  .m3-grilla .fila img { width:30px; height:30px; } .m3-grilla .fila > span { overflow-wrap:anywhere; } .m3-grilla .fila .sc { min-width:0; padding:7px 10px; } .m3-grilla .fila .sc.hora { font-size:17px; }
+  .m3-grilla .llave { padding:6px 0; } .m3-grilla .ll-eq { font-size:18px; } .m3-grilla .ll-sc span { min-width:0; font-size:17px; }
   .not-tira { position:absolute; inset:-14px -20px; display:flex; gap:16px; background:var(--negro); }
   .not-tira .nf { flex:none; height:100%; aspect-ratio:504/920; background:var(--azul) center/cover no-repeat; position:relative; }
   .not-tira .nf::after { content:""; position:absolute; left:0; right:0; bottom:0; height:12px; background:var(--amarillo); }
@@ -942,7 +945,12 @@
   // ---- módulo inferior (a todo el ancho) ----
   function aTira(html) {   // las tablas largas se reparten en columnas para que entren en la franja; si no entran, en varias hojas
     const t = document.createElement("template"); t.innerHTML = html; const tb = t.content.querySelector("table.tabla");
-    if (!tb) return [`<div class="m3-grilla">${html}</div>`];
+    if (!tb) {   // resultados y llaves: de a 6 por hoja (2 columnas × 3), así entran completos
+      const its = [...t.content.querySelectorAll(".fila, .llave")];
+      if (!its.length) return [`<div class="m3-grilla">${html}</div>`];
+      const hojas = []; for (let i = 0; i < its.length; i += 6) hojas.push(`<div class="m3-grilla">${its.slice(i, i + 6).map((e) => e.outerHTML).join("")}</div>`);
+      return hojas;
+    }
     const filas = [...tb.querySelectorAll("tr")].filter((r) => r.querySelector("td"));
     const POR_COL = 4, COLS = 4, porHoja = POR_COL * COLS, hojas = [];
     const fila = (r) => { const td = r.querySelectorAll("td"); return `<tr class="${r.className}"><td class="pos">${td[0].innerHTML}</td><td>${td[1].innerHTML}</td><td class="p">${td[td.length - 1].innerHTML}</td></tr>`; };
