@@ -914,8 +914,35 @@
     return parecidos.length === 1 ? parecidos[0] : null;
   }
 
+  // ventana de los grupos de las copas CONMEBOL, sacada del calendario de ESPN ("First Stage · Feb 3-12", "Group · Apr 7-May 28")
+  const ventanaGrupos = {};
+  const MESES_EN = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
+  function rangoDe(detalle, anio) {   // "Apr 7-May 28" → [7/4, 28/5]; "Feb 3-12" → [3/2, 12/2]
+    const m = String(detalle || "").match(/^([A-Z][a-z]{2})\s+(\d{1,2})(?:\s*-\s*(?:([A-Z][a-z]{2})\s+)?(\d{1,2}))?/);
+    if (!m || MESES_EN[m[1]] == null) return null;
+    const m2 = m[3] && MESES_EN[m[3]] != null ? MESES_EN[m[3]] : MESES_EN[m[1]];
+    return [new Date(anio, MESES_EN[m[1]], +m[2]), new Date(anio, m2, +(m[4] || m[2]), 23, 59)];
+  }
+  async function cargarVentanas() {
+    for (const l of ["conmebol.libertadores", "conmebol.sudamericana"]) {
+      if (ventanaGrupos[l] && Date.now() - ventanaGrupos[l].t < 6 * 3600e3) continue;
+      try {
+        const j = await T.fetchJSON("https://site.api.espn.com/apis/site/v2/sports/soccer/" + l + "/scoreboard");
+        const L = (j.leagues || [])[0] || {}, anio = (L.season || {}).year || new Date().getFullYear(), ents = (((L.calendar || [])[0] || {}).entries) || [];
+        const grupo = ents.find((e) => /group/i.test(e.label || "")), primero = ents[0];
+        if (!grupo) { ventanaGrupos[l] = { t: Date.now(), desde: 0, hasta: 0 }; continue; }
+        const rg = rangoDe(grupo.detail, anio), r1 = primero && rangoDe(primero.detail, anio);
+        const desde = (r1 ? r1[0] : rg ? rg[0] : new Date(grupo.startDate)).getTime() - 7 * 864e5;
+        const hasta = (rg ? rg[1] : new Date(grupo.endDate)).getTime() + 7 * 864e5;
+        ventanaGrupos[l] = { t: Date.now(), desde, hasta };
+      } catch (e) { /* sin calendario: no se muestran los grupos */ }
+    }
+  }
+  const enVentanaGrupos = (l) => { const v = ventanaGrupos[l]; return !!v && Date.now() >= v.desde && Date.now() <= v.hasta; };
+
   async function cargarTablas() {
     if (T.demo || !C.programa) return;
+    try { await cargarVentanas(); } catch (e) {}
     for (const liga of TABLAS_ESPN) {
       if (tablas[liga] && Date.now() - tablas[liga].t < 10 * 60e3) continue;
       try {
@@ -956,11 +983,18 @@
         const clave = /prom|desc/.test(k) ? "promedios" : /anual/.test(k) ? "anual" : /segunda/.test(k) ? "segunda" : k;
         if (!clave) return;
         (nuevo[clave] = nuevo[clave] || []).push({
-          id: "", nombre: f.equipo || "", pos: num(f.pos) || 0, pj: num(f.pj) || 0, pts: num(f.pts) || 0, dg: num(f.dg) || 0,
-          promedio: promedioDe(f), zona: normEq(f.zona), logo: T.urlImagen(f.logo || "") || T.escudo(null, [f.equipo], "")
+          id: "", nombre: f.equipo || "", pos: num(f.pos) || 0, pj: num(f.pj) || 0, pts: (num(f.pts) || 0) + (num(f.ajuste) || 0), dg: num(f.dg) || 0, ajuste: num(f.ajuste) || 0,
+          promedio: promedioDe(Object.assign({}, f, { pts: (num(f.pts) || 0) + (num(f.ajuste) || 0) })), zona: normEq(f.zona), logo: T.urlImagen(f.logo || "") || T.escudo(null, [f.equipo], "")
         });
       });
-      Object.values(nuevo).forEach((l) => l.sort((a, b) => a.pos - b.pos));
+      // con una corrección de puntos (columna «ajuste», se carga en el panel) la tabla se reordena; las zonas quedan en su lugar
+      Object.entries(nuevo).forEach(([k, l]) => {
+        l.sort((a, b) => a.pos - b.pos);
+        if (!l.some((x) => x.ajuste)) return;
+        const zonas = l.map((x) => x.zona);
+        l.sort(k === "promedios" ? (a, b) => (b.promedio || 0) - (a.promedio || 0) || b.pts - a.pts : (a, b) => b.pts - a.pts || b.dg - a.dg || a.pos - b.pos);
+        l.forEach((x, i) => { x.pos = i + 1; x.zona = zonas[i]; });
+      });
       tablasHoja = nuevo;
     } catch (e) { console.warn("No se pudo leer la pestaña de tablas", e.message); }
   }
@@ -1140,6 +1174,7 @@
         const ps = partidosDe(l, "copa");
         out.push(...piezasPartidos(l, NOMBRES[l], logoLiga(l), ps, textoSerie));
         if (!ps.length || ps.some((p) => p.serie)) return;      // eliminación directa: sin tabla
+        if (/^conmebol\./.test(l) && !enVentanaGrupos(l)) return;   // Libertadores y Sudamericana: los grupos solo desde 7 días antes del comienzo hasta 7 días después del último partido de grupos
         const gs = (tablas[l] || {}).grupos || [];
         const vivos = enVivoDe([l]);
         const conUru = (f) => esClubUruguayo(f.id) || !!uruDeEquipo(f.id);
