@@ -191,6 +191,18 @@
 
   /* ---- diseño en tres columnas ---- */
   .c3-col { position:absolute; display:flex; flex-direction:column; }
+  .s3 { position:absolute; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:14px; padding:0 18px; background:var(--blanco); border-top:6px solid var(--amarillo); box-shadow:inset 0 -4px 0 rgba(0,0,0,.08); color:var(--azul); overflow:hidden; }
+  .s3-eq { display:flex; align-items:center; gap:12px; min-width:0; } .s3-eq.V { justify-content:flex-end; text-align:right; }
+  .s3-eq > div { min-width:0; display:flex; flex-direction:column; gap:5px; } .s3-eq.V > div { align-items:flex-end; }
+  .s3-eq img { width:58px; height:58px; object-fit:contain; flex:none; }
+  .s3-eq b { font:900 25px/1 var(--grotesca); text-transform:uppercase; white-space:nowrap; overflow:hidden; max-width:100%; }
+  .s3-g { display:flex; flex-wrap:wrap; gap:2px 10px; max-height:38px; overflow:hidden; font:700 15px/1.2 var(--grotesca); color:var(--gris); } .s3-eq.V .s3-g { justify-content:flex-end; }
+  .s3-g span::before { content:""; display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--amarillo); margin-right:5px; vertical-align:1px; }
+  .s3-res { display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .s3-min { font:900 17px/1 var(--grotesca); letter-spacing:.06em; text-transform:uppercase; padding:5px 10px; background:var(--celeste); color:#fff; white-space:nowrap; display:inline-flex; align-items:center; gap:7px; }
+  .s3-min.vivo { background:var(--rojo); } .s3-min.fin { background:var(--azul); } .s3-min i { width:9px; height:9px; border-radius:50%; background:#fff; animation:titila 1.2s infinite; }
+  .s3-gol { display:flex; align-items:center; gap:14px; font:900 54px/1 var(--grotesca); color:var(--azul); } .s3-gol i { width:20px; height:7px; background:var(--azul); } .s3-gol.previa { font-size:30px; color:var(--gris); }
+  .s3-res small { font:800 13px var(--grotesca); color:var(--gris); }
   .c3-cab { flex:none; height:64px; display:flex; align-items:center; gap:12px; padding:0 16px; background:var(--azul); color:#fff; box-shadow:inset 0 -4px 0 rgba(0,0,0,.22); }
   .c3-cab img { width:40px; height:40px; object-fit:contain; flex:none; }
   .c3-cab b { flex:1; min-width:0; font:900 26px/1 var(--grotesca); text-transform:uppercase; letter-spacing:.01em; white-space:nowrap; overflow:hidden; }
@@ -550,10 +562,18 @@
   /* ---- Qué partido mostrar ----
      equipo (planilla o ?equipo=) > el que se está jugando con un uruguayo > el próximo de hoy > el último de hoy.
      competencia "copa auf" (o "manual") = se usa la carga a mano de la planilla. */
+  // un partido puntual de ESPN ("liga|id"), buscado entre ayer y mañana
+  async function buscarEvento(clave, base) {
+    const [liga, id] = String(clave || "").split("|"); if (!liga || !id) return null;
+    try { return (await partidos(liga, dias(-1, base || new Date()), dias(1, base || new Date()))).find((e) => String(e.id) === id) || null; } catch (e) { return null; }
+  }
+  const FAV = ["2683", "2684", "212"];   // Peñarol, Nacional y la Selección: el automático los prefiere
+  const esFav = (p) => [p.l, p.v].some((e) => FAV.includes(String(e.id)));
   async function elegir() {
     const comp = sinT(hv("competencia"));
     if (/auf|manual/.test(comp)) return manual();
     const base = hv("fecha") ? new Date(hv("fecha").replace(/(\d{4})(\d\d)(\d\d)/, "$1-$2-$3") + "T12:00:00") : new Date();
+    if (hv("partido_id")) { const fijo = await buscarEvento(hv("partido_id"), base); if (fijo) return fijo; }   // el que se eligió en el panel
     const desde = dias(-1, base), hasta = dias(1, base);
     // simulación: un partido de Champions se muestra como si fuera del Clausura (para probar la pestaña con un partido en vivo)
     const sim = /simul/.test(comp);
@@ -564,9 +584,9 @@
     let cand = sim ? todos.map((p) => Object.assign(p, { ligaReal: p.liga, liga: URU })) : todos.filter(sirve);
     if (equipo) cand = cand.filter((p) => mismo(p.l.nombre, equipo) || mismo(p.v.nombre, equipo) || mismo(p.l.largo, equipo) || mismo(p.v.largo, equipo));
     const ahora = Date.now(), dist = (p) => Math.abs(new Date(p.fecha) - ahora);
-    const enJuego = cand.filter((p) => p.estado === "in").sort((a, b) => ligas.indexOf(a.liga) - ligas.indexOf(b.liga));
+    const enJuego = cand.filter((p) => p.estado === "in").sort((a, b) => (esFav(b) - esFav(a)) || ligas.indexOf(a.liga) - ligas.indexOf(b.liga));
     if (enJuego.length) return enJuego[0];
-    const hoy = cand.filter((p) => fechaYMD(p.fecha) === fechaYMD(base)).sort((a, b) => dist(a) - dist(b));
+    const hoy = cand.filter((p) => fechaYMD(p.fecha) === fechaYMD(base)).sort((a, b) => (esFav(b) - esFav(a)) || dist(a) - dist(b));
     if (hoy.length) return hoy[0];
     if (hv("local") && hv("visitante")) return manual();
     return cand.sort((a, b) => dist(a) - dist(b))[0] || null;
@@ -832,7 +852,9 @@
      izquierda: el local · centro: estadio, marcador y sucesos · derecha: el visitante
      cada equipo rota su vista: canchita → listado XI → canchita → listado XI → suplentes (se puede fijar por equipo desde el panel)
      abajo, a todo el ancho: tablas, noticias o las dos alternadas (o nada); debajo, redes que se alternan con los créditos cada minuto */
-  const G3 = { X: 152, W: 1616, Y: 118, CW: 456, GAP: 16, CAB: 64, MOD: 198 };
+  const G3 = { X: 152, W: 1616, Y: 118, CW: 456, GAP: 16, CAB: 64, MOD: 198, SEC: 124 };
+  let sec3 = [];   // partidos secundarios (definiciones con varios partidos a la vez)
+  const secH3 = () => (sec3.length ? G3.SEC + G3.GAP : 0);
   G3.CX = G3.X + G3.CW + G3.GAP; G3.CCW = G3.W - 2 * (G3.CW + G3.GAP); G3.RX = G3.CX + G3.CCW + G3.GAP;
   const SEG_VISTA = (CP.segundosVista || 15) * 1000, PASOS = ["cancha", "lista", "cancha", "lista", "suplentes"];
   let paso3 = 0, ult3 = { L: "", V: "", C: "" }, p3 = null, mod3 = { lista: [], idx: -1, hoja: null, clave: "" };
@@ -943,8 +965,8 @@
   function dibujar3(p, conMod) {
     p3 = p;
     ["partido", "lado", "canchaz"].forEach((id) => { const el = document.getElementById(id); if (el && el.innerHTML) { el.innerHTML = ""; if (el.dataset) el.dataset.h = ""; } }); ultimo = ""; claveLado = "";
-    const abajo = conMod ? G3.Y + 796 - G3.MOD - G3.GAP : G3.Y + 796, h = abajo - G3.Y;
-    document.getElementById("v3").classList.toggle("con-mod", conMod);
+    const abajo = (conMod ? G3.Y + 796 - G3.MOD - G3.GAP : G3.Y + 796) - secH3(), h = abajo - G3.Y;
+    document.getElementById("v3").classList.toggle("con-mod", conMod || sec3.length > 0);
     const torneo = p.manual ? p.torneo : p.liga === URU ? (CP.nombreUruguay || "Liga AUF Uruguaya") : p.liga === LIB ? "CONMEBOL Libertadores" : p.liga === ELI ? "Eliminatorias Sudamericanas" : p.liga === AMI ? "Amistoso internacional" : "CONMEBOL Sudamericana";
     const fase = p.manual ? p.faseTxt : p.liga === URU ? (hv("fase") || torneoActual || "") : SEL.includes(p.liga) ? (hv("fase") || "") : faseTxt(p.fase) + (p.vuelta ? " · vuelta" : p.ida ? " · ida" : "");
     document.getElementById("torneo").innerHTML = esc(torneo) + (fase ? `<span>· ${esc(fase)}</span>` : "");
@@ -955,13 +977,32 @@
     const serie = !p.manual && p.liga !== URU && p.aggL != null && (p.vuelta || p.estado !== "pre") ? `<div class="serie">Global ${p.aggL} – ${p.aggV}</div>` : "";
     const pen = p.l.penales != null ? `<div class="pen">Penales ${p.l.penales} – ${p.v.penales}</div>` : "";
     const goles = p.estado === "pre" || p.l.goles == null ? `<div class="goles previa">vs</div>` : `<div class="goles">${p.l.goles}<i></i>${p.v.goles}</div>`;
-    const yM = G3.Y + 60 + G3.GAP, hM = conSuc ? (conMod ? 262 : Math.min(330, h - 60 - G3.GAP - 150)) : h - 60 - G3.GAP, yS = yM + hM + G3.GAP, hS = abajo - yS;
+    const yM = G3.Y + 60 + G3.GAP, hM = conSuc ? (sec3.length ? Math.min(conMod ? 250 : 300, h - 60 - 2 * G3.GAP - 96) : conMod ? 262 : Math.min(330, h - 60 - G3.GAP - 150)) : h - 60 - G3.GAP, yS = yM + hM + G3.GAP, hS = abajo - yS;
     const html = `<div class="estadio ce c3-est" style="left:${G3.CX}px;top:${G3.Y}px;width:${G3.CCW}px;height:60px"><span class="ajusta">${esc(p.estadio)}</span><span>${esc(tiempoTxt(p))}</span></div>` +
       `<div class="marcador medio c3-marc" style="left:${G3.CX}px;top:${yM}px;width:${G3.CCW}px;height:${hM}px"><div class="eq">${img(p.l.escudo)}<b>${esc(p.l.nombre)}</b></div><div class="res"><div class="min${mc}">${esc(m)}</div>${goles}${serie}${pen}</div><div class="eq">${img(p.v.escudo)}<b>${esc(p.v.nombre)}</b></div></div>` +
       (conSuc ? `<div class="incid tres c3-inc" style="left:${G3.CX}px;top:${yS}px;width:${G3.CCW}px;height:${hS}px"><div class="col"><ul>${incHTML(p, "L")}</ul></div><div class="col"><ul class="der">${incHTML(p, "V")}</ul></div></div>` : "");
     if (html !== ult3.C) { let c = document.getElementById("c3C"); if (!c) { c = T.el("div"); c.id = "c3C"; document.getElementById("v3").appendChild(c); } c.innerHTML = html; ult3.C = html;
       ajustar(c.querySelector(".c3-est .ajusta"), 18); moverIncid(); }
     armarMod3(conMod);
+    dibujarSec3(abajo);
+  }
+  // ---- partidos secundarios: un recuadro por partido, debajo de las columnas (y arriba del módulo de tablas) ----
+  function dibujarSec3(abajo) {
+    const v3 = document.getElementById("v3"); let el = document.getElementById("s3");
+    if (!sec3.length) { if (el) el.remove(); return; }
+    if (!el) { el = T.el("div"); el.id = "s3"; v3.appendChild(el); }
+    const n = sec3.length, w = n === 1 ? 800 : (G3.W - G3.GAP) / 2, x0 = n === 1 ? G3.X + (G3.W - w) / 2 : G3.X, top = abajo + G3.GAP;
+    const ape = (x) => { x = String(x || "").trim(); const w2 = x.split(/\s+/); return w2.length < 2 ? x : w2.slice(1).join(" ").length <= 14 ? w2.slice(1).join(" ") : w2[w2.length - 1]; };
+    const goles = (p, e) => p.inc.filter((x) => x.tipo === "gol" && String(x.equipo) === String(e.id)).map((x) => `<span>${esc(x.min)} ${esc(ape(x.nombre))}${x.ec ? " (e/c)" : x.pen ? " (p)" : ""}</span>`).join("");
+    const html = sec3.map((p, i) => {
+      const [m, mc] = minTxt(p), vivo = p.estado === "in";
+      const res = p.estado === "pre" || p.l.goles == null ? `<div class="s3-gol previa">vs</div>` : `<div class="s3-gol">${p.l.goles}<i></i>${p.v.goles}</div>`;
+      return `<div class="s3" style="left:${x0 + i * (w + G3.GAP)}px;top:${top}px;width:${w}px;height:${G3.SEC}px">` +
+        `<div class="s3-eq L">${img(p.l.escudo)}<div><b class="ajusta">${esc(p.l.nombre)}</b><div class="s3-g">${goles(p, p.l)}</div></div></div>` +
+        `<div class="s3-res"><span class="s3-min${vivo ? " vivo" : mc}">${vivo ? "<i></i>" : ""}${esc(m)}</span>${res}${p.l.penales != null ? `<small>Pen. ${p.l.penales}–${p.v.penales}</small>` : ""}</div>` +
+        `<div class="s3-eq V"><div><b class="ajusta">${esc(p.v.nombre)}</b><div class="s3-g">${goles(p, p.v)}</div></div>${img(p.v.escudo)}</div></div>`;
+    }).join("");
+    if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; el.querySelectorAll(".s3 .ajusta").forEach((b) => ajustar(b, 16)); }
   }
   // ---- módulo inferior (a todo el ancho) ----
   function aTira(html) {   // las tablas largas se reparten en columnas para que entren en la franja; si no entran, en varias hojas
@@ -1004,7 +1045,7 @@
   }
   // rotación de las vistas de cada equipo
   setInterval(() => { if (!p3) return; paso3++; pintarCol("L", columna3(p3, p3.l, "L", G3.X, colH3())); pintarCol("V", columna3(p3, p3.v, "V", G3.RX, colH3())); }, SEG_VISTA);
-  const colH3 = () => (document.getElementById("m3") ? 796 - G3.MOD - G3.GAP : 796);
+  const colH3 = () => (document.getElementById("m3") ? 796 - G3.MOD - G3.GAP : 796) - secH3();
   // ---- redes ⇄ créditos (cada minuto) ----
   const CREDITO_FIJO = 'Dirección: Ricardo “Profesor” Piñeyrúa', MENSAJE = "Escuchá, y mirá, el programa de lunes a viernes a las 19 horas";
   let fase3 = 0;
@@ -1085,6 +1126,9 @@
         else {
           if (p.liga === URU) try { const d = await standings(URU, null, null, 600); torneoActual = ((d.children || [])[0] || {}).name || ""; torneoActual = torneoActual.replace(/\s+\d{4}$/, ""); } catch (e) {}
           if (!T.demo) { try { sumarExtras(p, await extras(p)); } catch (e) { console.warn("extras:", e.message); } }
+          // partidos secundarios elegidos en el panel ("cant_partidos" 2 o 3; "sec1" y "sec2" = "liga|id")
+          const cantP = Math.min(3, Math.max(1, +hv("cant_partidos") || 1)), claves = ["sec1", "sec2"].slice(0, cantP - 1).map(hv).filter((k) => k && k.split("|")[1] !== String(p.id));
+          sec3 = T.demo ? [] : (await Promise.all(claves.map((k) => buscarEvento(k)))).filter(Boolean);
           // módulo inferior: tablas, noticias, las dos alternadas o nada (se elige en el panel)
           const modo = sinT(hv("lado") || "tablas");
           let pn = [];
