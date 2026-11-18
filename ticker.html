@@ -1046,18 +1046,11 @@
         const clave = /prom|desc/.test(k) ? "promedios" : /anual/.test(k) ? "anual" : /segunda/.test(k) ? "segunda" : k;
         if (!clave) return;
         (nuevo[clave] = nuevo[clave] || []).push({
-          id: "", nombre: f.equipo || "", pos: num(f.pos) || 0, pj: num(f.pj) || 0, pts: (num(f.pts) || 0) + (num(f.ajuste) || 0), dg: num(f.dg) || 0, ajuste: num(f.ajuste) || 0,
-          promedio: promedioDe(Object.assign({}, f, { pts: (num(f.pts) || 0) + (num(f.ajuste) || 0) })), zona: normEq(f.zona), logo: T.urlImagen(f.logo || "") || T.escudo(null, [f.equipo], "")
+          id: "", nombre: f.equipo || "", pos: num(f.pos) || 0, pj: num(f.pj) || 0, pts: num(f.pts) || 0, dg: num(f.dg) || 0, ajuste: num(f.ajuste) || 0,   // «ajuste» es la corrección sobre ESPN: la tabla de la AUF (respaldo) va tal cual
+          promedio: promedioDe(f), zona: normEq(f.zona), logo: T.urlImagen(f.logo || "") || T.escudo(null, [f.equipo], "")
         });
       });
-      // con una corrección de puntos (columna «ajuste», se carga en el panel) la tabla se reordena; las zonas quedan en su lugar
-      Object.entries(nuevo).forEach(([k, l]) => {
-        l.sort((a, b) => a.pos - b.pos);
-        if (!l.some((x) => x.ajuste)) return;
-        const zonas = l.map((x) => x.zona);
-        l.sort(k === "promedios" ? (a, b) => (b.promedio || 0) - (a.promedio || 0) || b.pts - a.pts : (a, b) => b.pts - a.pts || b.dg - a.dg || a.pos - b.pos);
-        l.forEach((x, i) => { x.pos = i + 1; x.zona = zonas[i]; });
-      });
+      Object.values(nuevo).forEach((l) => l.sort((a, b) => a.pos - b.pos));
       tablasHoja = nuevo;
       // la AUF actualiza sus tablas a la hora 0: lo jugado desde las 0 del día de la última lectura todavía no está adentro
       const ult = filas.map((f) => String(f.actualizado || "").slice(0, 10)).filter((d) => /^\d{4}-\d\d-\d\d$/.test(d)).sort().pop();
