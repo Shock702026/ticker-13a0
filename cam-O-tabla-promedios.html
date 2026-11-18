@@ -354,6 +354,21 @@
   // minutos de descuento: "45+2'" y "90+1'" (ESPN los manda como 45'+2')
   const minFmt = (m) => String(m || "").replace(/'\s*\+\s*(\d+)'?/, "+$1'");
   const minNum = (m) => { const x = String(m || "").match(/(\d+)(?:'?\s*\+\s*(\d+))?/); return x ? +x[1] + (x[2] ? +x[2] / 100 : 0) : 999; };
+  // ESPN no da el orden: formationPlace es un código de puesto (3 = lateral izquierdo, 5 = zaguero…). Se ordena por la posición:
+  // arco, defensa, volantes, enganche, delanteros; cada línea de derecha a izquierda del equipo (primero el lateral derecho). Entre delanteros, el centrodelantero va último (la punta).
+  const ordenESPN = (tit, formacion) => {
+    const pos = (x) => String(((x.position || {}).abbreviation) || "").toUpperCase();
+    const prof = (a) => !a ? 9 : a === "G" || a === "GK" ? 0 : a === "SW" ? 1.5 : /^(R|L)?(CD|CB|D|B|WB)(-[RL])?$/.test(a) ? 1 : /^(R|L)?(CDM|DM)(-[RL])?$/.test(a) ? 2
+      : /^(R|L)?C?M(-[RL])?$/.test(a) ? 3 : /^(R|L)?(CAM|AM)(-[RL])?$/.test(a) || a === "RCF" || a === "SS" ? 4 : /^(R|L)W$/.test(a) ? 4.5 : 5;
+    const lado = (a) => a === "RCF" ? 2 : /-R$/.test(a) ? 1 : /-L$/.test(a) ? 3 : /^R/.test(a) ? 0 : /^L/.test(a) ? 4 : 2;
+    const L = tit.slice().sort((a, b) => (prof(pos(a)) - prof(pos(b))) || (prof(pos(a)) === 5 ? (lado(pos(a)) === 2) - (lado(pos(b)) === 2) : 0) || (lado(pos(a)) - lado(pos(b))) || ((+a.formationPlace || 99) - (+b.formationPlace || 99)));
+    if (L.some((x) => !pos(x))) return tit.slice().sort((a, b) => (+a.formationPlace || 99) - (+b.formationPlace || 99));   // sin puestos: como venía
+    const cant = String(formacion || "").split("-").map(Number).filter((n) => n > 0), arq = L.filter((x) => prof(pos(x)) === 0), resto = L.filter((x) => prof(pos(x)) !== 0);
+    if (cant.reduce((s, n) => s + n, 0) !== resto.length) return arq.concat(resto);
+    let i = 0; const sal = arq.slice();
+    cant.forEach((n) => { sal.push(...resto.slice(i, i + n).sort((a, b) => lado(pos(a)) - lado(pos(b)))); i += n; });
+    return sal;
+  };
   let tmCache = null;
   async function extras(p) {
     const r = { alin: [], ev: [], plantel: {} };
@@ -364,10 +379,11 @@
     (s && s.rosters || []).forEach((t) => {
       const id = String((t.team || {}).id || ""); const pl = (r.plantel[id] = r.plantel[id] || {});
       const tit = [], ent = [];
+      const tOrden = ordenESPN((t.roster || []).filter((x) => x.starter), t.formation);
       (t.roster || []).forEach((x) => {
         const nom = (x.athlete || {}).displayName || ""; if (x.jersey) pl[x.jersey] = nom;
         const sale = ((x.plays || []).find((y) => y.substitution) || {}).clock;
-        if (x.starter) tit.push({ num: x.jersey || "", nombre: nom, salio: !!x.subbedOut, min: x.subbedOut && sale ? minFmt(sale.displayValue) : "", lugar: +x.formationPlace || 99 });
+        if (x.starter) tit.push({ num: x.jersey || "", nombre: nom, salio: !!x.subbedOut, min: x.subbedOut && sale ? minFmt(sale.displayValue) : "", lugar: tOrden.indexOf(x) });
         else if (x.subbedIn) ent.push({ num: x.jersey || "", nombre: nom, min: sale ? minFmt(sale.displayValue) : "" });
       });
       if (tit.length) r.alin.push({ id, formacion: t.formation || "", titulares: tit.sort((a, b) => a.lugar - b.lugar), entraron: ent });
@@ -408,7 +424,9 @@
       t = t.replace(/^([^:]*?)\s*\(([^)]*[A-Za-zÁÉÍÓÚáéíóúñÑ][^)]*)\)/, "$1 $2");   // «Racing (Montevideo)»: el paréntesis es parte del nombre, no la formación
       const m = t.match(/^([^:(]+?)\s*(?:\(([^)]*)\))?\s*:\s*([^|]+)(?:\|\s*(.+))?$/); if (!m) return;
       const eq = [p.l, p.v].find((e) => mismo(e.nombre, m[1]) || mismo(e.largo, m[1])); if (!eq) return;
-      const id = String(eq.id || ""); if (p.alin.some((a) => a.id === id)) return;   // ESPN manda
+      const id = String(eq.id || "");
+      // lo cargado en el panel manda siempre (orden, números y formación); de ESPN solo se toman los cambios en vivo (quién salió y quién entró)
+      const deESPN = p.alin.find((a) => a.id === id && !a.manual); if (deESPN) p.alin = p.alin.filter((a) => a !== deESPN);
       const pl = x.plantel[id] || {};
       // sin número: se busca en el plantel (ESPN del partido / Transfermarkt) por apellido
       const ult = (n) => sinT(n).split(" ").filter(Boolean).pop() || "";
@@ -417,7 +435,10 @@
       // después de la fuente puede venir "| Suplentes: 12 Nombre, 13 Otro"
       const partes = (m[4] || "").split("|").map((x) => x.trim()), supT = (partes.find((x) => /^suplentes\s*:/i.test(x)) || "").replace(/^suplentes\s*:\s*/i, "");
       const sup = supT.split(",").map((j) => j.trim()).filter(Boolean).map((j) => { const q = j.match(/^(\d{1,2})\.?\s*(.*)$/); return q ? { num: q[1], nombre: q[2] || pl[q[1]] || "" } : { num: numDe(j), nombre: j }; });
-      if (tit.length) p.alin.push({ id, formacion: (m[2] || "").trim(), titulares: tit.slice(0, 11), entraron: [], suplentes: sup, fuente: (partes.find((x) => !/^suplentes\s*:/i.test(x)) || "").trim() });
+      if (deESPN) { const igualJ = (a, b) => (a.num && b.num && a.num === b.num) || mismo(a.nombre, b.nombre);
+        tit.forEach((j) => { const e = deESPN.titulares.find((y) => igualJ(y, j)); if (e && e.salio) { j.salio = true; j.min = e.min; } }); }
+      if (tit.length) p.alin.push({ id, manual: true, formacion: (m[2] || "").trim() || (deESPN ? deESPN.formacion : ""), titulares: tit.slice(0, 11), entraron: deESPN ? deESPN.entraron : [], suplentes: sup, fuente: (partes.find((x) => !/^suplentes\s*:/i.test(x)) || "").trim() });
+      else if (deESPN) p.alin.push(deESPN);
     });
     // jerarquía para pasar un número a nombre: la alineación cargada (placa del club > Flashscore) manda sobre Transfermarkt y ESPN
     const porNum = (eqId, lado, n) => { const a = n && p.alin.find((y) => y.id === String(eqId)); const j = a && a.titulares.concat(a.entraron || [], a.suplentes || []).find((y) => y.num === n); return j ? j.nombre : ""; };
