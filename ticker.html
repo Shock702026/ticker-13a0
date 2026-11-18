@@ -894,6 +894,7 @@
   const TABLAS_ESPN = ["uru.1", "arg.1", "bra.1", ...EUROPA, ...COPAS];
   const tablas = {};                                     // liga -> { t, grupos: [{ nombre, filas }] }
   let tablasHoja = {};                                   // "anual" | "promedios" | "segunda" -> filas
+  let corteHoja = 0;                                     // desde cuándo hay partidos que la tabla de la AUF todavía no tiene
 
   const num = (v) => { const n = parseFloat(String(v == null ? "" : v).replace(",", ".")); return isNaN(n) ? null : n; };
   const normEq = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -996,6 +997,9 @@
         l.forEach((x, i) => { x.pos = i + 1; x.zona = zonas[i]; });
       });
       tablasHoja = nuevo;
+      // la AUF actualiza sus tablas a la hora 0: lo jugado desde las 0 del día de la última lectura todavía no está adentro
+      const ult = filas.map((f) => String(f.actualizado || "").slice(0, 10)).filter((d) => /^\d{4}-\d\d-\d\d$/.test(d)).sort().pop();
+      corteHoja = ult ? new Date(ult + "T00:00:00-03:00").getTime() : 0;
     } catch (e) { console.warn("No se pudo leer la pestaña de tablas", e.message); }
   }
 
@@ -1019,7 +1023,7 @@
       [[p.local, gl, gv], [p.visita, gv, gl]].forEach(([e, a, b]) => {
         const f = busca(e);
         if (!f) return;
-        f.pj = (f.pj || 0) + 1; f.pts = (f.pts || 0) + (a > b ? 3 : a === b ? 1 : 0); f.dg = (f.dg || 0) + a - b; f.vivo = true; cambio = true;
+        f.pj = (f.pj || 0) + 1; f.pts = (f.pts || 0) + (a > b ? 3 : a === b ? 1 : 0); f.dg = (f.dg || 0) + a - b; if (p.estado === "in") f.vivo = true; cambio = true;
         if (porPromedio && f.pj) f.promedio = f.pts / f.pj;
       });
     });
@@ -1117,17 +1121,19 @@
         out.push(cartel(titulo(g.nombre) || "Torneo", t.some((f) => f.vivo) ? "Tabla en vivo" : "Posiciones", logo));
         out.push(...filas(t, { zona: (f) => (f.pos === 1 ? "lider" : "") }));
       }
+      // anual y descenso (de la AUF): se suman los partidos en vivo y también los ya terminados que la AUF todavía no cargó
+      const aSumar = corteHoja ? ((datos["uru.1"] || {}).todos || []).filter((p) => p.estado === "in" || (p.estado === "post" && new Date(p.inicio).getTime() >= corteHoja)) : vivos;
       const an = tablasHoja.anual;
       if (an && an.length) {
         const lib = an.filter((f) => /libertadores/.test(f.zona)).length, sud = an.filter((f) => /sudamericana/.test(f.zona)).length;
-        const t = tablaEnVivo(conLogos(an, g && g.filas), vivos).slice(0, CT.anualMostrar || 8);
+        const t = tablaEnVivo(conLogos(an, g && g.filas), aSumar).slice(0, CT.anualMostrar || 8);
         out.push(cartel("Tabla Anual", (t.some((f) => f.vivo) ? "En vivo · " : "") + "Cupos a copas", logo));
         out.push(...filas(t, { dg: false, zona: (f) => (f.pos <= lib ? "copa" : f.pos <= lib + sud ? "copa2" : "") }));
       }
       const pr = tablasHoja.promedios;
       if (pr && pr.length) {
         const baja = pr.filter((f) => /desc/.test(f.zona)).length || 3;
-        const t = tablaEnVivo(conLogos(pr, g && g.filas), vivos, true), n = t.length;
+        const t = tablaEnVivo(conLogos(pr, g && g.filas), aSumar, true), n = t.length;
         out.push(cartel("Descenso", (t.some((f) => f.vivo) ? "En vivo · " : "") + "Promedios", logo, "azul"));
         out.push(...filas(t.slice(-(CT.promediosMostrar || 6)), { promedio: true, zona: (f) => (f.pos > n - baja ? "desc" : "") }));
       }
