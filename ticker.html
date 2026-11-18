@@ -941,9 +941,71 @@
   }
   const enVentanaGrupos = (l) => { const v = ventanaGrupos[l]; return !!v && Date.now() >= v.desde && Date.now() <= v.hasta; };
 
+  // Tabla anual y promedios del Uruguayo con ESPN (Apertura + Intermedio + Clausura; promedios: + el año anterior).
+  // ESPN suma cada partido apenas termina; al final del día el servidor las compara con las de la AUF (Panel → Ticker → Tablas).
+  let anualESPN = null;                                  // { t, anual: [...], promedios: [...] }
+  const cachePrevio = {};
+  async function sumarTiposESPN(anio, segs) {
+    const u = "https://site.api.espn.com/apis/v2/sports/soccer/uru.1/standings";
+    if (segs > 3600 && cachePrevio[anio]) return cachePrevio[anio];
+    const d = await T.fetchJSON(u + "?season=" + anio);
+    const sz = (d.seasons || []).find((x) => x.year === anio) || (d.season && d.season.year === anio ? d.season : {});
+    const tipos = (sz.types || []).filter((t) => t.hasStandings && !/final/i.test(t.abbreviation || ""));
+    const tot = {};
+    for (const t of tipos) {
+      let r; try { r = await T.fetchJSON(u + "?season=" + anio + "&seasontype=" + t.id); } catch (e) { continue; }
+      (r.children || []).forEach((c) => (((c.standings || {}).entries) || []).forEach((x) => {
+        const st = {}; (x.stats || []).forEach((q) => { st[q.name] = q.value != null ? q.value : num(q.displayValue); });
+        const tm = x.team || {}, id = String(tm.id || ""); if (!id) return;
+        const a = tot[id] || (tot[id] = { id, nombre: (tm.shortDisplayName || tm.displayName || "").trim(), completo: tm.displayName || "",
+          logo: T.escudo(tm.id, [tm.displayName, tm.shortDisplayName], (tm.logos && tm.logos[0] && tm.logos[0].href) || ""), pj: 0, pts: 0, dg: 0 });
+        a.pj += st.gamesPlayed || 0; a.pts += st.points || 0; a.dg += st.pointDifferential || 0;
+      }));
+      await T.esperar(120);
+    }
+    const L = Object.values(tot);
+    if (segs > 3600 && L.length) cachePrevio[anio] = L;
+    return L;
+  }
+  async function cargarAnualESPN() {
+    if (anualESPN && Date.now() - anualESPN.t < 4 * 60e3) return;
+    try {
+      const anio = new Date().getFullYear(), A = await sumarTiposESPN(anio, 240);
+      if (A.length < 10) return;
+      let P = []; try { P = await sumarTiposESPN(anio - 1, 86400); } catch (e) {}
+      const anual = A.map((f) => Object.assign({}, f)).sort((a, b) => b.pts - a.pts || b.dg - a.dg);
+      const prom = A.map((f) => { const q = P.find((x) => x.id === f.id) || { pj: 0, pts: 0 }; return Object.assign({}, f, { pj: f.pj + q.pj, pts: f.pts + q.pts }); });
+      anualESPN = { t: Date.now(), anual, promedios: prom };
+    } catch (e) { console.warn("anual ESPN:", e.message); }
+  }
+  // la tabla de ESPN con lo de la planilla: correcciones de puntos («ajuste») y zonas por posición
+  const ALIAS_TABLA = { "mc torque": "montevideo city torque", "racing m": "racing montevideo" };
+  function tablaConPlanilla(base, hoja, porPromedio) {
+    const L = base.map((f) => Object.assign({}, f, { ajuste: 0, zona: "" }));
+    (hoja || []).forEach((h) => { const n = ALIAS_TABLA[normEq(h.nombre)] || h.nombre, f = buscarEquipo(L, null, n); if (f && h.ajuste) { f.ajuste = h.ajuste; f.pts += h.ajuste; } });
+    L.forEach((f) => { if (porPromedio) f.promedio = f.pj ? f.pts / f.pj : 0; });
+    L.sort(porPromedio ? (a, b) => (b.promedio || 0) - (a.promedio || 0) || b.pts - a.pts : (a, b) => b.pts - a.pts || b.dg - a.dg);
+    const zonas = (hoja || []).slice().sort((a, b) => a.pos - b.pos).map((x) => x.zona);
+    L.forEach((f, i) => { f.pos = i + 1; f.zona = zonas[i] || ""; });
+    return L;
+  }
+  // partidos que terminaron y ESPN todavía no sumó a su tabla: se siguen sumando hasta que su PJ sube
+  const pjAlEmpezar = {};
+  function pendientesESPN(base) {
+    const out = [];
+    ((datos["uru.1"] || {}).todos || []).forEach((p) => {
+      const A = buscarEquipo(base, p.local.id, p.local.nombre, p.local.completo), B = buscarEquipo(base, p.visita.id, p.visita.nombre, p.visita.completo);
+      if (!A || !B) return;
+      if (p.estado === "in") { if (!pjAlEmpezar[p.id]) pjAlEmpezar[p.id] = [A.pj, B.pj]; out.push(p); }
+      else if (p.estado === "post" && pjAlEmpezar[p.id] && A.pj <= pjAlEmpezar[p.id][0]) out.push(p);
+    });
+    return out;
+  }
+
   async function cargarTablas() {
     if (T.demo || !C.programa) return;
     try { await cargarVentanas(); } catch (e) {}
+    try { await cargarAnualESPN(); } catch (e) {}
     for (const liga of TABLAS_ESPN) {
       if (tablas[liga] && Date.now() - tablas[liga].t < 10 * 60e3) continue;
       try {
@@ -1122,15 +1184,18 @@
         out.push(...filas(t, { zona: (f) => (f.pos === 1 ? "lider" : "") }));
       }
       // anual y descenso (de la AUF): se suman los partidos en vivo y también los ya terminados que la AUF todavía no cargó
-      const aSumar = corteHoja ? ((datos["uru.1"] || {}).todos || []).filter((p) => p.estado === "in" || (p.estado === "post" && new Date(p.inicio).getTime() >= corteHoja)) : vivos;
-      const an = tablasHoja.anual;
+      // base: ESPN (al día, partido a partido) con las correcciones de la planilla; si ESPN no responde, la tabla de la AUF de la planilla
+      const deESPN = !!(anualESPN && anualESPN.anual.length);
+      const aSumar = deESPN ? pendientesESPN(anualESPN.anual)
+        : corteHoja ? ((datos["uru.1"] || {}).todos || []).filter((p) => p.estado === "in" || (p.estado === "post" && new Date(p.inicio).getTime() >= corteHoja)) : vivos;
+      const an = deESPN ? tablaConPlanilla(anualESPN.anual, tablasHoja.anual) : tablasHoja.anual;
       if (an && an.length) {
         const lib = an.filter((f) => /libertadores/.test(f.zona)).length, sud = an.filter((f) => /sudamericana/.test(f.zona)).length;
         const t = tablaEnVivo(conLogos(an, g && g.filas), aSumar).slice(0, CT.anualMostrar || 8);
         out.push(cartel("Tabla Anual", (t.some((f) => f.vivo) ? "En vivo · " : "") + "Cupos a copas", logo));
         out.push(...filas(t, { dg: false, zona: (f) => (f.pos <= lib ? "copa" : f.pos <= lib + sud ? "copa2" : "") }));
       }
-      const pr = tablasHoja.promedios;
+      const pr = deESPN ? tablaConPlanilla(anualESPN.promedios, tablasHoja.promedios, true) : tablasHoja.promedios;
       if (pr && pr.length) {
         const baja = pr.filter((f) => /desc/.test(f.zona)).length || 3;
         const t = tablaEnVivo(conLogos(pr, g && g.filas), aSumar, true), n = t.length;
