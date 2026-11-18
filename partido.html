@@ -198,6 +198,8 @@
   .s3-eq b { font:900 25px/1 var(--grotesca); text-transform:uppercase; white-space:nowrap; overflow:hidden; max-width:100%; }
   .s3-g { display:flex; flex-wrap:wrap; gap:2px 10px; max-height:38px; overflow:hidden; font:700 15px/1.2 var(--grotesca); color:var(--gris); } .s3-eq.V .s3-g { justify-content:flex-end; }
   .s3-g span::before { content:""; display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--amarillo); margin-right:5px; vertical-align:1px; }
+  .s3-cart { position:absolute; display:flex; flex-direction:column; justify-content:center; gap:10px; padding:0 24px; background:var(--azul); border-top:6px solid var(--amarillo); color:#fff; overflow:hidden; }
+  .s3-cart b { font:900 23px/1 var(--grotesca); text-transform:uppercase; letter-spacing:.01em; white-space:nowrap; } .s3-cart span { font:800 17px/1.1 var(--grotesca); color:var(--amarillo); text-transform:uppercase; letter-spacing:.06em; white-space:nowrap; overflow:hidden; }
   .s3-res { display:flex; flex-direction:column; align-items:center; gap:6px; }
   .s3-min { font:900 17px/1 var(--grotesca); letter-spacing:.06em; text-transform:uppercase; padding:5px 10px; background:var(--celeste); color:#fff; white-space:nowrap; display:inline-flex; align-items:center; gap:7px; }
   .s3-min.vivo { background:var(--rojo); } .s3-min.fin { background:var(--azul); } .s3-min i { width:9px; height:9px; border-radius:50%; background:#fff; animation:titila 1.2s infinite; }
@@ -991,10 +993,13 @@
     const v3 = document.getElementById("v3"); let el = document.getElementById("s3");
     if (!sec3.length) { if (el) el.remove(); return; }
     if (!el) { el = T.el("div"); el.id = "s3"; v3.appendChild(el); }
-    const n = sec3.length, w = n === 1 ? 800 : (G3.W - G3.GAP) / 2, x0 = n === 1 ? G3.X + (G3.W - w) / 2 : G3.X, top = abajo + G3.GAP;
+    // uno solo: cartel azul a la izquierda («También se juega» + torneo) y el recuadro en el resto, así no quedan costados vacíos
+    const n = sec3.length, CART = 300, w = n === 1 ? G3.W - CART - G3.GAP : (G3.W - G3.GAP) / 2, x0 = n === 1 ? G3.X + CART + G3.GAP : G3.X, top = abajo + G3.GAP;
+    const torneoDe = (p) => p.liga === URU ? (CP.nombreUruguay || "Liga AUF Uruguaya") : p.liga === LIB ? "CONMEBOL Libertadores" : p.liga === SUD ? "CONMEBOL Sudamericana" : p.liga === ELI ? "Eliminatorias" : p.liga === AMI ? "Amistoso internacional" : "";
     const ape = (x) => { x = String(x || "").trim(); const w2 = x.split(/\s+/); return w2.length < 2 ? x : w2.slice(1).join(" ").length <= 14 ? w2.slice(1).join(" ") : w2[w2.length - 1]; };
     const goles = (p, e) => p.inc.filter((x) => x.tipo === "gol" && String(x.equipo) === String(e.id)).map((x) => `<span>${esc(x.min)} ${esc(ape(x.nombre))}${x.ec ? " (e/c)" : x.pen ? " (p)" : ""}</span>`).join("");
-    const html = sec3.map((p, i) => {
+    const cartel = n === 1 ? `<div class="s3-cart" style="left:${G3.X}px;top:${top}px;width:${CART}px;height:${G3.SEC}px"><b>También se juega</b><span class="ajusta">${esc(torneoDe(sec3[0]))}</span></div>` : "";
+    const html = cartel + sec3.map((p, i) => {
       const [m, mc] = minTxt(p), vivo = p.estado === "in";
       const res = p.estado === "pre" || p.l.goles == null ? `<div class="s3-gol previa">vs</div>` : `<div class="s3-gol">${p.l.goles}<i></i>${p.v.goles}</div>`;
       return `<div class="s3" style="left:${x0 + i * (w + G3.GAP)}px;top:${top}px;width:${w}px;height:${G3.SEC}px">` +
@@ -1002,7 +1007,7 @@
         `<div class="s3-res"><span class="s3-min${vivo ? " vivo" : mc}">${vivo ? "<i></i>" : ""}${esc(m)}</span>${res}${p.l.penales != null ? `<small>Pen. ${p.l.penales}–${p.v.penales}</small>` : ""}</div>` +
         `<div class="s3-eq V"><div><b class="ajusta">${esc(p.v.nombre)}</b><div class="s3-g">${goles(p, p.v)}</div></div>${img(p.v.escudo)}</div></div>`;
     }).join("");
-    if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; el.querySelectorAll(".s3 .ajusta").forEach((b) => ajustar(b, 16)); }
+    if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; el.querySelectorAll(".s3 .ajusta, .s3-cart .ajusta").forEach((b) => ajustar(b, 13)); }
   }
   // ---- módulo inferior (a todo el ancho) ----
   function aTira(html) {   // las tablas largas se reparten en columnas para que entren en la franja; si no entran, en varias hojas
