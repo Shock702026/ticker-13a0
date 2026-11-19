@@ -217,6 +217,12 @@
   .c3-lista { position:absolute; inset:0; background:var(--blanco); padding:16px 18px; display:flex; flex-direction:column; }
   .c3-lista h5 { font:800 17px/1 var(--grotesca); letter-spacing:.14em; text-transform:uppercase; color:var(--gris); margin-bottom:10px; display:flex; justify-content:space-between; }
   .c3-lista h5 span { color:var(--azul); letter-spacing:.04em; }
+  .c3-stats .st-filas { flex:1; display:flex; flex-direction:column; justify-content:space-between; min-height:0; gap:4px; }
+  .c3-stats .st-f { display:flex; flex-direction:column; gap:3px; }
+  .c3-stats .st-t { display:flex; justify-content:space-between; align-items:baseline; font:700 19px/1 var(--grotesca); color:var(--azul); }
+  .c3-stats .st-t b { font:900 26px/1 var(--grotesca); }
+  .c3-stats .st-barra { height:9px; background:#e7e5ef; } .c3-stats .st-barra i { display:block; height:100%; }
+  .c3-stats small { font:700 13px/1 var(--grotesca); color:var(--gris); text-align:right; margin-top:-2px; }
   .c3-lista .ol-caja { flex:1; min-height:0; overflow:hidden; display:flex; flex-direction:column; }
   .c3-lista ol { list-style:none; flex:1; display:flex; flex-direction:column; justify-content:space-between; min-height:0; }
   .c3-lista li { display:flex; align-items:center; gap:10px; font:700 23px/1.1 var(--grotesca); color:var(--azul); min-width:0; border-bottom:2px solid #eeecf3; padding-bottom:3px; }
@@ -864,7 +870,7 @@
   let sec3 = [];   // partidos secundarios (definiciones con varios partidos a la vez)
   const secH3 = () => (sec3.length ? G3.SEC + G3.GAP : 0);
   G3.CX = G3.X + G3.CW + G3.GAP; G3.CCW = G3.W - 2 * (G3.CW + G3.GAP); G3.RX = G3.CX + G3.CCW + G3.GAP;
-  const SEG_VISTA = (CP.segundosVista || 15) * 1000, PASOS = ["cancha", "lista", "cancha", "lista", "suplentes"];
+  const SEG_VISTA = (CP.segundosVista || 15) * 1000, PASOS = ["cancha", "lista", "stats", "cancha", "lista", "suplentes"];
   let paso3 = 0, ult3 = { L: "", V: "", C: "" }, p3 = null, mod3 = { lista: [], idx: -1, hoja: null, clave: "" };
   const COLOR_AUTO = {};
   // color de un club que no está en la lista: el más presente en el escudo (sin blancos ni grises); el número, blanco o casi negro según el contraste (WCAG)
@@ -933,6 +939,42 @@
         html += `<div class="jug${o.salidas.length ? " entro" : ""}" style="left:${xx}px;top:${cy - 20}px;width:${an}px;margin-left:-${an / 2}px;--an:${an}px"><div class="cir"${cc ? ` style="background:${cc.f};color:${cc.t}"` : ""}>${esc(j.num || "")}${iconos3(o.ev, o.salidas.length ? o.ent : "")}</div>${nom ? `<div class="nom">${esc(nom)}</div>` : ""}</div>`; } });
     return `<div class="c3-cancha lc" style="width:${w}px;height:${h}px">${html}</div>`;
   }
+  // ---- estadísticas en vivo (365Scores): posesión, remates, córners, faltas, tarjetas… cada columna con los números de su equipo y una barra contra el rival ----
+  let est365 = null;
+  const id365 = {};   // id del partido (ESPN o manual) → id en 365Scores
+  const API365 = "https://webws.365scores.com/web/", Q365 = "appTypeId=5&langId=29&timezoneName=America/Montevideo&userCountryId=113";
+  const STATS_ORDEN = ["Posesión", "Total Remates", "Remates al arco", "Saques de Esquina", "Ataques", "Saques de falta", "Fueras de Juego", "Tarjetas Amarillas", "Tarjetas Rojas"];
+  const STATS_TXT = { "Total Remates": "Remates", "Saques de Esquina": "Córners", "Saques de falta": "Faltas", "Fueras de Juego": "Offsides" };
+  async function estadisticas365(p) {
+    if (!p || p.estado === "pre" || sinT(hv("ver_estadisticas") || "si") === "no") return null;
+    const clave = String(p.id || p.l.nombre + p.v.nombre);
+    let g = hv("id365") ? { id: hv("id365") } : id365[clave];
+    if (!g) {   // se busca por los nombres de los dos equipos entre los partidos de hoy
+      const d = new Date(), dd = String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0") + "/" + d.getFullYear();
+      for (const u of [API365 + "games/current/?" + Q365 + "&sports=1", API365 + "games/allscores/?" + Q365 + "&sports=1&startDate=" + dd + "&endDate=" + dd]) {
+        let r; try { r = await json(u, 300); } catch (e) { continue; }
+        const nom = (c) => [c && c.name, c && c.shortName, c && c.longName].filter(Boolean);
+        const x = (r.games || []).find((q) => nom(q.homeCompetitor).some((n) => mismo(n, p.l.largo) || mismo(n, p.l.nombre)) && nom(q.awayCompetitor).some((n) => mismo(n, p.v.largo) || mismo(n, p.v.nombre)));
+        if (x) { g = { id: x.id, home: x.homeCompetitor.id }; break; }
+      }
+      if (!g) return null;
+      id365[clave] = g;
+    }
+    let r; try { r = await json(API365 + "game/stats/?" + Q365 + "&games=" + g.id, p.estado === "in" ? 40 : 600); } catch (e) { return est365; }
+    const comps = r.competitors || []; if (comps.length < 2) return null;
+    const home = g.home || ((r.games || [])[0] || {}).homeCompetitor && r.games[0].homeCompetitor.id || comps[0].id;
+    const away = (comps.find((c) => c.id !== home) || {}).id;
+    const val = (cid, n) => { const x = (r.statistics || []).find((s) => s.competitorId === cid && s.name === n); return x ? String(x.value) : null; };
+    const filas = STATS_ORDEN.map((n) => ({ n: STATS_TXT[n] || n, l: val(home, n), v: val(away, n) })).filter((x) => x.l != null && x.v != null);
+    if (!filas.length) return null;
+    return { L: filas.map((x) => ({ n: x.n, a: x.l, b: x.v })), V: filas.map((x) => ({ n: x.n, a: x.v, b: x.l })) };
+  }
+  function stats3(lado, cc) {
+    const L = (est365 && est365[lado]) || [], num = (x) => parseFloat(String(x).replace(",", ".")) || 0;
+    const color = cc && !/^#F{6}$/i.test(cc.f) ? cc.f : "var(--azul)";
+    return `<div class="c3-lista c3-stats"><h5>Estadísticas <span>en vivo</span></h5><div class="st-filas">${L.map((x) => { const a = num(x.a), b = num(x.b), pc = a + b ? Math.round((a / (a + b)) * 100) : 50;
+      return `<div class="st-f"><div class="st-t"><span>${esc(x.n)}</span><b>${esc(x.a)}</b></div><div class="st-barra"><i style="width:${pc}%;background:${color}"></i></div><small>Rival: ${esc(x.b)}</small></div>`; }).join("")}</div></div>`;
+  }
   function lista3(q, cc) {
     if (cc && /^#F{6}$/i.test(cc.f)) cc = { f: cc.f, t: cc.t, borde: true };
     const fila = (o) => { const j = o.ahora, s = o.salidas[0];
@@ -949,9 +991,10 @@
   // qué vista le toca a cada equipo: la del panel (fija) o la de la rotación
   function vistaDe(q, lado) {
     const fija = sinT(hv(lado === "L" ? "vista_l" : "vista_v") || "auto");
-    if (!q) return "confirmar";
+    if (fija === "stats" && est365) return "stats";
+    if (!q) return est365 && paso3 % 2 ? "stats" : "confirmar";   // sin alineación: «a confirmar» y las estadísticas
     if (["cancha", "lista", "suplentes"].includes(fija)) return fija;
-    let v = PASOS[paso3 % PASOS.length]; if (v === "suplentes" && !q.sups.length) v = "lista"; return v;
+    let v = PASOS[paso3 % PASOS.length]; if (v === "suplentes" && !q.sups.length) v = "lista"; if (v === "stats" && !est365) v = "cancha"; return v;
   }
   function columna3(p, e, lado, x, h) {
     const q = equipo3(p, e, lado);
@@ -959,8 +1002,8 @@
     if (lado === "V" && cc && otro && cc.f === otro.f) cc = { f: cc.t, t: cc.f };   // mismos colores: el visitante va al revés
     const v = vistaDe(q, lado), cuerpo = h - G3.CAB;
     const cab = `<div class="c3-cab"${cc ? ` style="background:${cc.f};color:${cc.t}"` : ""}>${img(e.escudo)}<b class="ajusta">${esc(e.nombre)}</b>${q && q.forma ? `<span>${esc(q.forma)}</span>` : ""}</div>`;
-    const cuerpoH = v === "confirmar" ? `<div class="c3-conf">${img(e.escudo)}<b>Alineación a confirmar</b></div>` : v === "cancha" ? cancha3(q, G3.CW, cuerpo, cc) : v === "lista" ? lista3(q, cc) : suplentes3(q, cc);
-    return { clave: v + "|" + JSON.stringify(q && q.once.map((o) => [o.ahora.num, o.ahora.nombre, o.ev.length, o.ent])) + JSON.stringify(q && q.sups.map((s) => s.entro)) + (cc ? cc.f : "") + e.nombre + h,
+    const cuerpoH = v === "confirmar" ? `<div class="c3-conf">${img(e.escudo)}<b>Alineación a confirmar</b></div>` : v === "stats" ? stats3(lado, cc) : v === "cancha" ? cancha3(q, G3.CW, cuerpo, cc) : v === "lista" ? lista3(q, cc) : suplentes3(q, cc);
+    return { clave: v + "|" + (v === "stats" ? JSON.stringify(est365 && est365[lado]) : "") + JSON.stringify(q && q.once.map((o) => [o.ahora.num, o.ahora.nombre, o.ev.length, o.ent])) + JSON.stringify(q && q.sups.map((s) => s.entro)) + (cc ? cc.f : "") + e.nombre + h,
       html: `<div class="c3-col" style="left:${x}px;top:${G3.Y}px;width:${G3.CW}px;height:${h}px">${cab}<div class="c3-cuerpo" style="height:${cuerpo}px"><div class="c3-vista entra">${cuerpoH}</div></div></div>` };
   }
   function pintarCol(id, r) {
@@ -1151,6 +1194,7 @@
         else {
           if (p.liga === URU) try { const d = await standings(URU, null, null, 600); torneoActual = ((d.children || [])[0] || {}).name || ""; torneoActual = torneoActual.replace(/\s+\d{4}$/, ""); } catch (e) {}
           if (!T.demo) { try { sumarExtras(p, await extras(p)); } catch (e) { console.warn("extras:", e.message); } }
+          try { est365 = T.demo ? null : await estadisticas365(p); } catch (e) { est365 = null; }
           // partidos secundarios elegidos en el panel ("cant_partidos" 2 o 3; "sec1" y "sec2" = "liga|id")
           const cantP = Math.min(3, Math.max(1, +hv("cant_partidos") || 1)), claves = ["sec1", "sec2"].slice(0, cantP - 1).map(hv).filter((k) => k && k.split("|")[1] !== String(p.id));
           sec3 = T.demo ? [] : (await Promise.all(claves.map((k) => buscarEvento(k)))).filter(Boolean);
