@@ -200,7 +200,7 @@
   .s3-g span::before { content:""; display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--amarillo); margin-right:5px; vertical-align:1px; }
   .s3-cart { position:absolute; display:flex; flex-direction:column; justify-content:center; gap:10px; padding:0 24px; background:var(--azul); border-top:6px solid var(--amarillo); color:#fff; overflow:hidden; }
   .s3-cart b { font:900 23px/1 var(--grotesca); text-transform:uppercase; letter-spacing:.01em; white-space:nowrap; } .s3-cart span { font:800 17px/1.1 var(--grotesca); color:var(--amarillo); text-transform:uppercase; letter-spacing:.06em; white-space:nowrap; overflow:hidden; }
-  .s3-res { display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .s3-res { display:flex; flex-direction:row; align-items:center; gap:14px; flex-wrap:nowrap; }
   .s3-min { font:900 17px/1 var(--grotesca); letter-spacing:.06em; text-transform:uppercase; padding:5px 10px; background:var(--celeste); color:#fff; white-space:nowrap; display:inline-flex; align-items:center; gap:7px; }
   .s3-min.vivo { background:var(--rojo); } .s3-min.fin { background:var(--azul); } .s3-min i { width:9px; height:9px; border-radius:50%; background:#fff; animation:titila 1.2s infinite; }
   .s3-gol { display:flex; align-items:center; gap:14px; font:900 54px/1 var(--grotesca); color:var(--azul); } .s3-gol i { width:20px; height:7px; background:var(--azul); } .s3-gol.previa { font-size:30px; color:var(--gris); }
@@ -217,6 +217,7 @@
   .c3-lista { position:absolute; inset:0; background:var(--blanco); padding:16px 18px; display:flex; flex-direction:column; }
   .c3-lista h5 { font:800 17px/1 var(--grotesca); letter-spacing:.14em; text-transform:uppercase; color:var(--gris); margin-bottom:10px; display:flex; justify-content:space-between; }
   .c3-lista h5 span { color:var(--azul); letter-spacing:.04em; }
+  .c3-lista .ol-caja { flex:1; min-height:0; overflow:hidden; display:flex; flex-direction:column; }
   .c3-lista ol { list-style:none; flex:1; display:flex; flex-direction:column; justify-content:space-between; min-height:0; }
   .c3-lista li { display:flex; align-items:center; gap:10px; font:700 23px/1.1 var(--grotesca); color:var(--azul); min-width:0; border-bottom:2px solid #eeecf3; padding-bottom:3px; }
   .c3-lista li:last-child { border-bottom:0; }
@@ -701,7 +702,12 @@
     const desde = dias(-4, p.fecha), hasta = dias(4, p.fecha);
     if (p.liga === URU) {
       const year = new Date(p.fecha).getFullYear();
-      const fecha = (await partidos(URU, dias(-3, p.fecha), dias(3, p.fecha))).sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+      // la fecha: cada equipo juega una sola vez. Se arma desde este partido sumando los más cercanos en el tiempo;
+      // un partido atrasado de la fecha anterior (ej.: Wanderers–Juventud) queda afuera porque sus equipos ya juegan en esta
+      const cerca = (await partidos(URU, dias(-6, p.fecha), dias(6, p.fecha))).sort((a, b) => Math.abs(new Date(a.fecha) - new Date(p.fecha)) - Math.abs(new Date(b.fecha) - new Date(p.fecha)));
+      const usados = new Set(), fecha = [];
+      cerca.forEach((x) => { const ids = [String(x.l.id), String(x.v.id)]; if (ids.some((i) => usados.has(i))) return; ids.forEach((i) => usados.add(i)); fecha.push(x); });
+      fecha.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
       const vivos = fecha.filter((x) => x.estado !== "pre");
       const out = [];
       const jug = fecha.filter((x) => x.estado !== "pre" && x.id !== p.id), prox = fecha.filter((x) => x.estado === "pre" && x.id !== p.id);
@@ -931,12 +937,12 @@
     if (cc && /^#F{6}$/i.test(cc.f)) cc = { f: cc.f, t: cc.t, borde: true };
     const fila = (o) => { const j = o.ahora, s = o.salidas[0];
       return `<li class="${s ? "camb" : ""}"><b${cc ? ` style="background:${cc.f};color:${cc.t}${cc.borde ? `;box-shadow:inset 0 0 0 2px ${cc.t}` : ""}"` : ""}>${esc(j.num || "")}</b><span class="nm">${esc(j.nombre)}</span>${evTxt(o.ev)}${s ? `<span class="por">⇄ ${esc(s.min)} · ${esc(s.num ? s.num + " " : "")}${esc(apellido(s.nombre))}</span>` : ""}</li>`; };
-    return `<div class="c3-lista"><h5>Titulares${q.forma ? ` <span>${esc(q.forma)}</span>` : ""}</h5><ol>${q.once.map(fila).join("")}</ol></div>`;
+    return `<div class="c3-lista"><h5>Titulares${q.forma ? ` <span>${esc(q.forma)}</span>` : ""}</h5><div class="ol-caja"><ol>${q.once.map(fila).join("")}</ol></div></div>`;
   }
   function suplentes3(q, cc) {
     if (cc && /^#F{6}$/i.test(cc.f)) cc = { f: cc.t, t: cc.f };
     if (!q.sups.length) return `<div class="c3-lista"><h5>Suplentes</h5><div class="c3-vacio">Suplentes a confirmar</div></div>`;
-    return `<div class="c3-lista"><h5>Suplentes</h5><ol>${q.sups.map((s) => `<li class="${s.entro ? "entro" : ""}"><b${cc ? ` style="background:${cc.f};color:${cc.t}"` : ""}>${esc(s.t.num || "")}</b><span class="nm">${esc(s.t.nombre)}</span>${s.entro ? `<span class="ent">▲ ${esc(s.entro)}</span>` : ""}</li>`).join("")}</ol></div>`;
+    return `<div class="c3-lista"><h5>Suplentes</h5><div class="ol-caja"><ol>${q.sups.map((s) => `<li class="${s.entro ? "entro" : ""}"><b${cc ? ` style="background:${cc.f};color:${cc.t}"` : ""}>${esc(s.t.num || "")}</b><span class="nm">${esc(s.t.nombre)}</span>${s.entro ? `<span class="ent">▲ ${esc(s.entro)}</span>` : ""}</li>`).join("")}</ol></div></div>`;
   }
   const apellido = (n) => { const w = String(n || "").trim().split(/\s+/); return w.length < 2 ? w[0] || "" : w.slice(1).join(" "); };
   const evTxt = (ev) => { const g = ev.filter((x) => x.tipo === "gol").length; return ev.length ? `<span class="evs">${g ? `<i class="bal"></i>${g > 1 ? `<small>×${g}</small>` : ""}` : ""}${ev.filter((x) => x.tipo === "amarilla" || x.tipo === "roja").map((x) => `<i class="${x.tipo === "roja" ? "ro" : "am"}"></i>`).join("")}</span>` : ""; };
@@ -963,6 +969,20 @@
     const v = d.querySelector(".c3-vista"); void v.offsetWidth; v.classList.remove("entra");
     if (viejo) { const vv = viejo.querySelector(".c3-vista"); if (vv) vv.classList.add("sale"); setTimeout(() => viejo.remove(), 700); }
     d.querySelectorAll(".c3-cab .ajusta").forEach((el) => ajustar(el, 16)); d.querySelectorAll(".c3-lista .nm").forEach((el) => ajustar(el, 15)); d.querySelectorAll(".c3-cancha .nom").forEach((el) => { el.style.textOverflow = "clip"; ajustar(el, 11); });
+    correrListas(d);
+  }
+  // si la lista de jugadores no entra (columna baja: tablas o partidos secundarios abajo), corre despacio hasta el último y vuelve
+  function correrListas(d) {
+    setTimeout(() => d.querySelectorAll(".ol-caja").forEach((caja) => {
+      const ol = caja.querySelector("ol"); if (!ol) return;
+      ol.style.flex = "none"; ol.style.justifyContent = "flex-start"; ol.style.gap = "6px";
+      const sobra = ol.scrollHeight - caja.clientHeight;
+      if (sobra <= 4 || !ol.animate) { ol.style.flex = ""; ol.style.justifyContent = ""; ol.style.gap = ""; return; }
+      const viaje = Math.max(2500, sobra * 45), quieto = 2500, tot = 2 * (viaje + quieto);
+      ol.animate([{ transform: "translateY(0)", offset: 0 }, { transform: "translateY(0)", offset: quieto / tot },
+        { transform: `translateY(-${sobra}px)`, offset: (quieto + viaje) / tot }, { transform: `translateY(-${sobra}px)`, offset: (2 * quieto + viaje) / tot },
+        { transform: "translateY(0)", offset: 1 }], { duration: tot, iterations: Infinity, easing: "ease-in-out" });
+    }), 400);   // espera a que entren las letras (y funciona aunque la ventana no esté al frente)
   }
   function dibujar3(p, conMod) {
     p3 = p;
@@ -1004,7 +1024,7 @@
       const res = p.estado === "pre" || p.l.goles == null ? `<div class="s3-gol previa">vs</div>` : `<div class="s3-gol">${p.l.goles}<i></i>${p.v.goles}</div>`;
       return `<div class="s3" style="left:${x0 + i * (w + G3.GAP)}px;top:${top}px;width:${w}px;height:${G3.SEC}px">` +
         `<div class="s3-eq L">${img(p.l.escudo)}<div><b class="ajusta">${esc(p.l.nombre)}</b><div class="s3-g">${goles(p, p.l)}</div></div></div>` +
-        `<div class="s3-res"><span class="s3-min${vivo ? " vivo" : mc}">${vivo ? "<i></i>" : ""}${esc(m)}</span>${res}${p.l.penales != null ? `<small>Pen. ${p.l.penales}–${p.v.penales}</small>` : ""}</div>` +
+        `<div class="s3-res">${res}<span class="s3-min${vivo ? " vivo" : mc}">${vivo ? "<i></i>" : ""}${esc(m)}</span>${p.l.penales != null ? `<small>Pen. ${p.l.penales}–${p.v.penales}</small>` : ""}</div>` +
         `<div class="s3-eq V"><div><b class="ajusta">${esc(p.v.nombre)}</b><div class="s3-g">${goles(p, p.v)}</div></div>${img(p.v.escudo)}</div></div>`;
     }).join("");
     if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; el.querySelectorAll(".s3 .ajusta, .s3-cart .ajusta").forEach((b) => ajustar(b, 13)); }
