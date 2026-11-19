@@ -202,7 +202,7 @@
   .s3-cart b { font:900 23px/1 var(--grotesca); text-transform:uppercase; letter-spacing:.01em; white-space:nowrap; } .s3-cart span { font:800 17px/1.1 var(--grotesca); color:var(--amarillo); text-transform:uppercase; letter-spacing:.06em; white-space:nowrap; overflow:hidden; }
   .s3-res { display:flex; flex-direction:row; align-items:center; gap:14px; flex-wrap:nowrap; }
   .s3-min { font:900 17px/1 var(--grotesca); letter-spacing:.06em; text-transform:uppercase; padding:5px 10px; background:var(--celeste); color:#fff; white-space:nowrap; display:inline-flex; align-items:center; gap:7px; }
-  .s3-min.vivo { background:var(--rojo); } .s3-min.fin { background:var(--azul); } .s3-min i { width:9px; height:9px; border-radius:50%; background:#fff; animation:titila 1.2s infinite; }
+  .s3-min.s3-envivo { background:var(--rojo); } .s3-min.fin { background:var(--azul); } .s3-min i { width:9px; height:9px; border-radius:50%; background:#fff; animation:titila 1.2s infinite; }
   .s3-gol { display:flex; align-items:center; gap:14px; font:900 54px/1 var(--grotesca); color:var(--azul); } .s3-gol i { width:20px; height:7px; background:var(--azul); } .s3-gol.previa { font-size:30px; color:var(--gris); }
   .s3-res small { font:800 13px var(--grotesca); color:var(--gris); }
   .c3-cab { flex:none; height:64px; display:flex; align-items:center; gap:12px; padding:0 16px; background:var(--azul); color:#fff; box-shadow:inset 0 -4px 0 rgba(0,0,0,.22); }
@@ -1024,7 +1024,7 @@
       const res = p.estado === "pre" || p.l.goles == null ? `<div class="s3-gol previa">vs</div>` : `<div class="s3-gol">${p.l.goles}<i></i>${p.v.goles}</div>`;
       return `<div class="s3" style="left:${x0 + i * (w + G3.GAP)}px;top:${top}px;width:${w}px;height:${G3.SEC}px">` +
         `<div class="s3-eq L">${img(p.l.escudo)}<div><b class="ajusta">${esc(p.l.nombre)}</b><div class="s3-g">${goles(p, p.l)}</div></div></div>` +
-        `<div class="s3-res">${res}<span class="s3-min${vivo ? " vivo" : mc}">${vivo ? "<i></i>" : ""}${esc(m)}</span>${p.l.penales != null ? `<small>Pen. ${p.l.penales}–${p.v.penales}</small>` : ""}</div>` +
+        `<div class="s3-res">${res}<span class="s3-min${vivo ? " s3-envivo" : mc}">${vivo ? "<i></i>" : ""}${esc(m)}</span>${p.l.penales != null ? `<small>Pen. ${p.l.penales}–${p.v.penales}</small>` : ""}</div>` +
         `<div class="s3-eq V"><div><b class="ajusta">${esc(p.v.nombre)}</b><div class="s3-g">${goles(p, p.v)}</div></div>${img(p.v.escudo)}</div></div>`;
     }).join("");
     if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; el.querySelectorAll(".s3 .ajusta, .s3-cart .ajusta").forEach((b) => ajustar(b, 13)); }
