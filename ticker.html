@@ -18,7 +18,7 @@
 <script src="config.js?v=20261030e"></script>
 <script src="escudos.js?v=20261030e"></script>
 <script src="nombres.js?v=20261030e"></script>
-<script src="comun.js?v=20261030e"></script>
+<script src="comun.js?v=20261119"></script>
 <script src="demo-datos.js"></script>
 <script>
 (function () {
@@ -1224,7 +1224,7 @@
       if (!s || !s.length) return [];
       const t = tablaEnVivo(s, vivosManuales(segundaNombre()));
       const asc = s.filter((f) => /asc/.test(f.zona)).length;
-      return [cartel(segundaNombre(), t.some((f) => f.vivo) ? "Tabla en vivo" : "Posiciones", (manuales[segundaNombre()] || {}).logo || "")]
+      return [cartel(segundaNombre(), t.some((f) => f.vivo) ? "Tabla en vivo" : "Posiciones", (manuales[segundaNombre()] || {}).logo || T.escudoLiga("", "", segundaNombre()))]
         .concat(filas(t, { zona: (f) => (f.pos === 1 ? "lider" : f.pos <= asc ? "copa" : "") }));
     },
     "planilla": () => {

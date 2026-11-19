@@ -154,13 +154,13 @@
 </svg>
 <div class="pant" id="pant"></div>
 <script src="config.js?v=20261030"></script>
-<script src="comun.js?v=20261030"></script>
+<script src="comun.js?v=20261119"></script>
 <script src="demo-datos.js"></script>
 <script>
 (function () {
   const T = window.Ticker, C = T.config, CC = C.camaras || {};
   // la pantalla sale de ?p=… o del nombre del archivo (cam-A-….html, cam-B-….html…), así en OBS alcanza con "Archivo local"
-  const porNombre = (decodeURIComponent(location.pathname).match(/cam-([a-lp-t])[-.]/i) || [])[1];
+  const porNombre = (decodeURIComponent(window.__ARCHIVO ? window.__ARCHIVO + "." : location.pathname).match(/cam-([a-lp-t])[-.]/i) || [])[1];
   const P = (T.params.get("p") || porNombre || "a").toLowerCase();
   const PNG = T.params.has("png");   // imagen fija: sin animaciones ni titulares que rotan
   if (PNG) document.documentElement.classList.add("png");

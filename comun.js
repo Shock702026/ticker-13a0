@@ -161,24 +161,29 @@
   const slugEsc = (s) => sinTildes(s).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   T.respaldo = {};        // escudo propio -> imagen original (por si el archivo no está)
   T.escudosHoja = {};     // nombre -> imagen cargada en la planilla
+  // Los links de Drive no cargan en OBS ni en navegadores sin sesión de Google: si hay archivo propio, manda el propio
+  const esDrive = (u) => /drive\.google\.com|googleusercontent\.com/.test(String(u || ""));
+  const elegir = (h, p, original) => {
+    if (h && !(esDrive(h) && p)) { if (p || original) T.respaldo[h] = p || original; if (p && original) T.respaldo[p] = original; return h; }
+    if (p) { if (original) T.respaldo[p] = original; return p; }
+    return original || "";
+  };
   T.escudo = function (id, nombres, original) {
     const ns = [].concat(nombres || []).filter(Boolean);
-    for (const n of ns) { const h = T.escudosHoja[slugEsc(n)]; if (h) return h; }
+    let h = null;
+    for (const n of ns) { h = T.escudosHoja[slugEsc(n)]; if (h) break; }
     // NBA: "nba:<id>" (los números de equipo de la NBA se repiten con los de fútbol)
     const nba = /^nba:(\d+)$/.exec(String(id || ""));
     let p = nba ? (ESC.nba || {})[nba[1]] || null : (id && ESC.equipos[String(id)]) || null;
     // básquetbol: "basquet:Nombre" busca primero en los escudos de la LUB
     if (!p) for (const n of ns) if (/^basquet:/.test(n)) { p = (ESC.basquet || {})[slugEsc(n.slice(8))]; if (p) break; }
     if (!p && !id) for (const n of ns) { p = ESC.nombres[slugEsc(n.replace(/^basquet:/, ""))]; if (p) break; }
-    if (p) { if (original) T.respaldo[p] = original; return p; }
-    return original || "";
+    return elegir(h, p, original);
   };
   T.escudoLiga = function (liga, original, nombre) {
     const h = (nombre && T.escudosHoja[slugEsc(nombre)]) || T.escudosHoja[slugEsc(liga)];
-    if (h) return h;
     const p = ESC.ligas[liga] || (nombre && (ESC.competencias || {})[slugEsc(nombre)]);
-    if (p) { if (original) T.respaldo[p] = original; return p; }
-    return original || "";
+    return elegir(h, p, original);
   };
   // Pestaña "escudos": equipo | liga | escudo | otros_nombres
   // escudo = link de Drive, link a una imagen, o el nombre de un archivo de la carpeta escudos
@@ -347,9 +352,12 @@
     i.decoding = "async";
     if (src) i.src = src; else i.style.visibility = "hidden";
     // si el escudo propio no está, se usa la imagen original de la fuente
+    // si una imagen falla, prueba la siguiente de la cadena de respaldos (planilla → propio → fuente)
+    const probadas = new Set([src]);
+    let actual = src;
     i.onerror = () => {
-      const r = src && T.respaldo && T.respaldo[src];
-      if (r && i.src !== r) { i.src = r; return; }
+      const r = actual && T.respaldo && T.respaldo[actual];
+      if (r && !probadas.has(r)) { probadas.add(r); actual = r; i.src = r; return; }
       i.style.visibility = "hidden";
     };
     return i;
