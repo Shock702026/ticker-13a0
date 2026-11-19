@@ -943,8 +943,8 @@
   let est365 = null;
   const id365 = {};   // id del partido (ESPN o manual) → id en 365Scores
   const API365 = "https://webws.365scores.com/web/", Q365 = "appTypeId=5&langId=29&timezoneName=America/Montevideo&userCountryId=113";
-  const STATS_ORDEN = ["Posesión", "Total Remates", "Remates al arco", "Saques de Esquina", "Ataques", "Saques de falta", "Fueras de Juego", "Tarjetas Amarillas", "Tarjetas Rojas"];
-  const STATS_TXT = { "Total Remates": "Remates", "Saques de Esquina": "Córners", "Saques de falta": "Faltas", "Fueras de Juego": "Offsides" };
+  const STATS_ORDEN = ["Posesión", "Total Remates", "Remates al arco", "Saques de Esquina", "Saques de falta", "Fueras de Juego", "Tarjetas Amarillas", "Tarjetas Rojas"];
+  const STATS_TXT = { "Total Remates": "Remates", "Saques de Esquina": "Córners", "Saques de falta": "Tiros libres", "Fueras de Juego": "Offsides" };
   async function estadisticas365(p) {
     if (!p || p.estado === "pre" || sinT(hv("ver_estadisticas") || "si") === "no") return null;
     const clave = String(p.id || p.l.nombre + p.v.nombre);
@@ -972,7 +972,7 @@
   function stats3(lado, cc) {
     const L = (est365 && est365[lado]) || [], num = (x) => parseFloat(String(x).replace(",", ".")) || 0;
     const color = cc && !/^#F{6}$/i.test(cc.f) ? cc.f : "var(--azul)";
-    return `<div class="c3-lista c3-stats"><h5>Estadísticas <span>en vivo</span></h5><div class="st-filas">${L.map((x) => { const a = num(x.a), b = num(x.b), pc = a + b ? Math.round((a / (a + b)) * 100) : 50;
+    return `<div class="c3-lista c3-stats"><h5>Estadísticas <span>en vivo</span></h5><div class="st-filas">${L.map((x) => { const a = num(x.a), b = num(x.b), pc = a > 0 ? Math.round((a / (a + b)) * 100) : 0;   // en cero, la barra vacía
       return `<div class="st-f"><div class="st-t"><span>${esc(x.n)}</span><b>${esc(x.a)}</b></div><div class="st-barra"><i style="width:${pc}%;background:${color}"></i></div><small>Rival: ${esc(x.b)}</small></div>`; }).join("")}</div></div>`;
   }
   function lista3(q, cc) {
