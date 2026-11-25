@@ -79,7 +79,7 @@
     const m = link.match(/\/d\/([a-zA-Z0-9-_]+)/);
     const id = m ? m[1] : link;
     return "https://docs.google.com/spreadsheets/d/" + id +
-      "/gviz/tq?tqx=out:csv&sheet=" + encodeURIComponent(hoja) + "&_=" + Date.now();
+      "/gviz/tq?tqx=out:csv&headers=1&sheet=" + encodeURIComponent(hoja) + "&_=" + Date.now();
   };
 
   T.parseCSV = function (txt) {
